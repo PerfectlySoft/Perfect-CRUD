@@ -76,7 +76,7 @@ public protocol SwORMCommand: SwORMSQLGenerating {
 
 public protocol SwORMQuerySelectable: SwORMSQLGenerating {
 	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A>
-//	func delete() throws
+	func delete() throws
 //	func update<A: Encodable>(_ using: A) throws
 //	func insert<A: Encodable>(_ using: [A]) throws
 }

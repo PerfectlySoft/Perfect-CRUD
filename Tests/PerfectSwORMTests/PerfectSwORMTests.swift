@@ -62,86 +62,66 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	var allKeys: [Key] {
 		return []
 	}
-	
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columns: SQLiteSwORMColumnMap
-	
 	// the SQLiteStmt has been successfully step()ed to the next row
 	init(_ db: SQLite, stat: SQLiteStmt, columns cols: SQLiteSwORMColumnMap) {
 		database = db
 		statement = stat
 		columns = cols
 	}
-	
 	func columnPosition(_ key: Key) -> Int {
 		return columns[key.stringValue] ?? -1
 	}
-	
 	func contains(_ key: Key) -> Bool {
 		return nil != columns[key.stringValue]
 	}
-	
 	func decodeNil(forKey key: Key) throws -> Bool {
 		return statement.isNull(position: columnPosition(key))
 	}
-	
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
 		return statement.columnInt(position: columnPosition(key)) == 1
 	}
-	
 	func decode(_ type: Int.Type, forKey key: Key) throws -> Int {
 		return statement.columnInt(position: columnPosition(key))
 	}
-	
 	func decode(_ type: Int8.Type, forKey key: Key) throws -> Int8 {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: Int16.Type, forKey key: Key) throws -> Int16 {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: Int32.Type, forKey key: Key) throws -> Int32 {
 		return statement.columnInt32(position: columnPosition(key))
 	}
-	
 	func decode(_ type: Int64.Type, forKey key: Key) throws -> Int64 {
 		return statement.columnInt64(position: columnPosition(key))
 	}
-	
 	func decode(_ type: UInt.Type, forKey key: Key) throws -> UInt {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: UInt8.Type, forKey key: Key) throws -> UInt8 {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: UInt16.Type, forKey key: Key) throws -> UInt16 {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: UInt32.Type, forKey key: Key) throws -> UInt32 {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: UInt64.Type, forKey key: Key) throws -> UInt64 {
 		return type.init(statement.columnInt(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: Float.Type, forKey key: Key) throws -> Float {
 		return type.init(statement.columnDouble(position: columnPosition(key)))
 	}
-	
 	func decode(_ type: Double.Type, forKey key: Key) throws -> Double {
 		return statement.columnDouble(position: columnPosition(key))
 	}
-	
 	func decode(_ type: String.Type, forKey key: Key) throws -> String {
 		return statement.columnText(position: columnPosition(key))
 	}
-	
 	func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
 		switch type {
 		case is [Int8].Type:
@@ -157,19 +137,15 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
 		}
 	}
-	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
 		fatalError("Unimplimented")
 	}
-	
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
 		fatalError("Unimplimented")
 	}
-	
 	func superDecoder() throws -> Decoder {
 		fatalError("Unimplimented")
 	}
-	
 	func superDecoder(forKey key: Key) throws -> Decoder {
 		fatalError("Unimplimented")
 	}
@@ -181,9 +157,9 @@ struct SQLiteDatabase: SwORMDatabase {
 	}
 	func exeDelegate(forSQL sql: String, withBindings binds: SwORMBindings) throws -> SwORMExeDelegate {
 		let prep = try sqlite.prepare(statement: sql)
-		for i in 1...binds.count {
-			let (_, expr) = binds[i-1]
-			try bindOne(prep, position: i, expr: expr)
+		for i in 0..<binds.count {
+			let (_, expr) = binds[i]
+			try bindOne(prep, position: i+1, expr: expr)
 		}
 		return SQLiteSwORMExeDelegate(sqlite, stat: prep)
 	}
@@ -268,8 +244,23 @@ class PerfectSwORMTests: XCTestCase {
 			var count = 1
 			for row in query {
 				XCTAssertEqual(count, row.id)
+				XCTAssertLessThan(row.id, 4)
 				count += 1
 			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testQuery2() {
+		getTestDB()
+		do {
+			let db = try SQLiteDatabase(testDBName)
+			let query = try db.table("test").select(as: TestTable.self)
+			let count1 = query.map { $0 }.count
+			try db.table("test").where(.column("id") == 1).delete()
+			let count2 = query.map { $0 }.count
+			XCTAssertEqual(count2, count1 - 1)
 		} catch {
 			XCTAssert(false, "\(error)")
 		}

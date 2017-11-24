@@ -32,7 +32,7 @@ private struct SwORMSQLStructure {
 
 public struct SwORMSQLGenerator {
 	
-	func generate<A>(command: SwORMSelect<A>) throws -> (SwORMDatabase, String, SwORMBindings) {
+	func generate<A: SwORMCommand & SwORMItem>(command: A) throws -> (SwORMDatabase, String, SwORMBindings) {
 		let (dbm, items) = command.flatten()
 		guard let db = dbm else {
 			throw SwORMSQLGenError(msg: "Unable to get database from query.")

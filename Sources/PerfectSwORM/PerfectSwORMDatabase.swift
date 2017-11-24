@@ -85,6 +85,13 @@ public struct SwORMSelect<A: Codable>: SwORMCommand, SwORMItem {
 	let source: SwORMItem?
 }
 
+public struct SwORMDelete: SwORMCommand, SwORMItem {
+	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
+		return "DELETE"
+	}
+	let source: SwORMItem?
+}
+
 public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 	public typealias Element = A
 	let nothing: Bool
@@ -127,21 +134,45 @@ extension SwORMSelect: Sequence {
 	}
 }
 
-struct SwORMTable: SwORMQueryWhereable, SwORMItem {
-	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
-		return try delegate.quote(identifier: name)
-	}
+extension SwORMQuerySelectable where Self: SwORMItem {
 	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A> {
 		return SwORMSelect<A>(source: self)
 	}
-	func `where`(_ expression: SwORMExpression) -> SwORMQueryWhereable {
-		return SwORMWhere(source: self, expression: expression)
+	func delete() throws {
+		let delete = SwORMDelete(source: self)
+		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: delete)
+		let delegate = try db.exeDelegate(forSQL: sql, withBindings: binds)
+		_ = try delegate.hasNext()
 	}
+}
+
+extension SwORMQueryOrderable where Self: SwORMItem {
 	func order(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
 		return SwORMOrdering(source: self, expression: expression, descending: false)
 	}
 	func order(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
 		return SwORMOrdering(source: self, expression: expression, descending: true)
+	}
+}
+
+extension SwORMQueryWhereable where Self: SwORMItem {
+	func `where`(_ expression: SwORMExpression) -> SwORMQueryWhereable {
+		return SwORMWhere(source: self, expression: expression)
+	}
+}
+
+extension SwORMQueryOrdering where Self: SwORMItem {
+	func then(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
+		return SwORMOrdering(source: self, expression: expression, descending: false)
+	}
+	func then(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
+		return SwORMOrdering(source: self, expression: expression, descending: true)
+	}
+}
+
+struct SwORMTable: SwORMQueryWhereable, SwORMItem {
+	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
+		return try delegate.quote(identifier: name)
 	}
 	let database: SwORMDatabase
 	let name: String
@@ -155,15 +186,6 @@ struct SwORMWhere: SwORMItem, SwORMQueryWhereable {
 	func `where`(_ expression: SwORMExpression) -> SwORMQueryWhereable {
 		return SwORMWhere(source: self.source, expression: .and(lhs: self.expression, rhs: expression))
 	}
-	func order(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: false)
-	}
-	func order(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: true)
-	}
-	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A> {
-		return SwORMSelect<A>(source: self)
-	}
 	let source: SwORMItem?
 	let expression: SwORMExpression
 }
@@ -175,15 +197,6 @@ struct SwORMOrdering: SwORMItem, SwORMQueryOrdering {
 			return snip + " DESC"
 		}
 		return snip
-	}
-	func then(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: false)
-	}
-	func then(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: true)
-	}
-	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A> {
-		return SwORMSelect<A>(source: self)
 	}
 	var source: SwORMItem?
 	let expression: SwORMExpression
