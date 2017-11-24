@@ -21,6 +21,10 @@ import Foundation
 
 struct SwORMSQLGenError: Error {
 	let msg: String
+	init(_ msg: String) {
+		self.msg = msg
+		SwORMLogging.log(.error, msg)
+	}
 }
 
 private struct SwORMSQLStructure {
@@ -35,20 +39,18 @@ public struct SwORMSQLGenerator {
 	func generate<A: SwORMCommand & SwORMItem>(command: A) throws -> (SwORMDatabase, String, SwORMBindings) {
 		let (dbm, items) = command.flatten()
 		guard let db = dbm else {
-			throw SwORMSQLGenError(msg: "Unable to get database from query.")
+			throw SwORMSQLGenError("Unable to get database from query.")
 		}
 		let d = db.genDelegate
 		let structure = try orderStructure(items: items)
 		let sql = try generate(delegate: d, structure: structure)
-		
-		print("DBG: \(sql)")
-		
+		SwORMLogging.log(.query, sql)
 		return (db, sql, d.bindings)
 	}
 	
 	private func generate(delegate: SwORMGenDelegate, structure: SwORMSQLStructure) throws -> String {
 		guard let command = structure.command else {
-			throw SwORMSQLGenError(msg: "No command was found in this query.")
+			throw SwORMSQLGenError("No command was found in this query.")
 		}
 		let commandStr = try generate(delegate: delegate, command: command)
 		let fromStr = try generate(delegate: delegate, from: structure.tables)
@@ -68,7 +70,7 @@ public struct SwORMSQLGenerator {
 	
 	private func generate(delegate: SwORMGenDelegate, from: [SwORMTable]) throws -> String {
 		guard !from.isEmpty else {
-			throw SwORMSQLGenError(msg: "No tables were specified.")
+			throw SwORMSQLGenError("No tables were specified.")
 		}
 		return "FROM \(try from.map { try $0.sqlSnippet(delegate: delegate) }.joined(separator: ", "))"
 	}
@@ -103,7 +105,7 @@ public struct SwORMSQLGenerator {
 			case let sel as SwORMCommand:
 				structure.command = sel
 			default:
-				throw SwORMSQLGenError(msg: "Strange element in query: \(item)")
+				throw SwORMSQLGenError("Strange element in query: \(item)")
 			}
 		}
 		return structure

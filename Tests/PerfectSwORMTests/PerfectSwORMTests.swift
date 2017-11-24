@@ -7,6 +7,7 @@ struct SQLiteSwORMError: Error {
 	let msg: String
 	init(_ m: String) {
 		msg = m
+		SwORMLogging.log(.error, m)
 	}
 }
 
@@ -56,12 +57,8 @@ class SQLiteSwORMExeDelegate: SwORMExeDelegate {
 
 class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
-	var codingPath: [CodingKey] {
-		return []
-	}
-	var allKeys: [Key] {
-		return []
-	}
+	var codingPath: [CodingKey] = []
+	var allKeys: [Key] = []
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columns: SQLiteSwORMColumnMap
@@ -123,16 +120,17 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return statement.columnText(position: columnPosition(key))
 	}
 	func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
+		let position = columnPosition(key)
 		switch type {
 		case is [Int8].Type:
-			let ret: [Int8] = statement.columnIntBlob(position: columnPosition(key))
+			let ret: [Int8] = statement.columnIntBlob(position: position)
 			return ret as! T
 		case is [UInt8].Type:
-			let ret: [UInt8] = statement.columnIntBlob(position: columnPosition(key))
+			let ret: [UInt8] = statement.columnIntBlob(position: position)
 			return ret as! T
 		case is Data.Type:
-			let ret: [UInt8] = statement.columnIntBlob(position: columnPosition(key))
-			return Data(bytes: ret) as! T
+			let bytes: [UInt8] = statement.columnIntBlob(position: position)
+			return Data(bytes: bytes) as! T
 		default:
 			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
 		}
@@ -163,7 +161,6 @@ struct SQLiteDatabase: SwORMDatabase {
 		}
 		return SQLiteSwORMExeDelegate(sqlite, stat: prep)
 	}
-	
 	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
 		switch expr {
 		case .lazy(let e):
@@ -180,7 +177,6 @@ struct SQLiteDatabase: SwORMDatabase {
 			()
 		}
 	}
-	
 	let name: String
 	let sqlite: SQLite
 	init(_ n: String) throws {
@@ -211,7 +207,6 @@ class PerfectSwORMTests: XCTestCase {
 			try db.sqlite.doWithTransaction {
 				try db.sqlite.execute(statement: "INSERT INTO test (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: 5) {
 					(stmt: SQLiteStmt, num: Int) throws -> () in
-					
 					try stmt.bind(position: 1, num)
 					try stmt.bind(position: 2, "This is name bind \(num)")
 					try stmt.bind(position: 3, num)

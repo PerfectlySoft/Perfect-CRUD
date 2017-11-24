@@ -23,6 +23,7 @@ struct SwORMDecoderError: Error {
 	let msg: String
 	init(_ m: String) {
 		msg = m
+		SwORMLogging.log(.error, m)
 	}
 }
 

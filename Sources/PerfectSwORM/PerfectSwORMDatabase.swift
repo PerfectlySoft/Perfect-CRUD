@@ -105,7 +105,6 @@ public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: query)
 		delegate = try db.exeDelegate(forSQL: sql, withBindings: binds)
 	}
-	
 	public mutating func next() -> Element? {
 		guard nothing != true, let d = delegate else {
 			return nil
@@ -116,7 +115,7 @@ public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 				return try Element(from: rowDecoder)
 			}
 		} catch {
-			// !FIX! log error to a place
+			SwORMLogging.log(.error, "Error thrown in SwORMSelectIterator.next(). Caught: \(error)")
 		}
 		return nil
 	}
@@ -128,7 +127,7 @@ extension SwORMSelect: Sequence {
 		do {
 			return try SwORMSelectIterator<A>(query: self)
 		} catch {
-			// !FIX! log error to a place
+			SwORMLogging.log(.error, "Error thrown in SwORMSelect.makeIterator() Caught: \(error)")
 			return SwORMSelectIterator<A>()
 		}
 	}
