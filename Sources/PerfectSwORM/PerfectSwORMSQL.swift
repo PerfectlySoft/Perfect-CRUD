@@ -86,10 +86,6 @@ public struct SwORMSQLGenerator {
 		}
 		return "ORDER BY \(try order.map { try $0.sqlSnippet(delegate: delegate) }.joined(separator: ", "))"
 	}
-	
-//	func process(expression: SwORMExpression) throws -> String {
-//
-//	}
 
 	private func orderStructure(items: [SwORMItem]) throws -> SwORMSQLStructure {
 		var structure = SwORMSQLStructure()

@@ -252,9 +252,9 @@ class PerfectSwORMTests: XCTestCase {
     func testSQLGen1() {
 		do {
 			let db = try SQLiteDatabase(testDBName)
-			let query = try db.table("test").select(as: TestTable.self)
+			let query = try db.table("test").order(by: .column(name: "id")).select(as: TestTable.self)
 			let (_, sql, _) = try SwORMSQLGenerator().generate(command: query)
-			XCTAssertEqual(sql, "SELECT \"id\", \"name\", \"int\", \"doub\", \"blob\" FROM \"test\"")
+			XCTAssertEqual(sql, "SELECT \"id\", \"name\", \"int\", \"doub\", \"blob\" FROM \"test\" ORDER BY \"id\"")
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
@@ -265,7 +265,7 @@ class PerfectSwORMTests: XCTestCase {
 		do {
 			let db = try SQLiteDatabase(testDBName)
 			let query = try db.table("test").order(by: .column(name: "id")).select(as: TestTable.self)
-			var count = 0
+			var count = 1
 			for row in query {
 				XCTAssertEqual(count, row.id)
 				count += 1

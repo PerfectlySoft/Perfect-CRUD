@@ -150,7 +150,7 @@ struct SwORMTable: SwORMQueryWhereable, SwORMItem {
 
 struct SwORMWhere: SwORMItem, SwORMQueryWhereable {
 	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
-		throw SwORMSQLGenError(msg: "Unimplimented")
+		return try sqlSnippet(delegate: delegate, expression: expression)
 	}
 	func `where`(_ expression: SwORMExpression) -> SwORMQueryWhereable {
 		return SwORMWhere(source: self.source, expression: .and(lhs: self.expression, rhs: expression))
@@ -170,7 +170,11 @@ struct SwORMWhere: SwORMItem, SwORMQueryWhereable {
 
 struct SwORMOrdering: SwORMItem, SwORMQueryOrdering {
 	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
-		throw SwORMSQLGenError(msg: "Unimplimented")
+		let snip = try sqlSnippet(delegate: delegate, expression: expression)
+		if descending {
+			return snip + " DESC"
+		}
+		return snip
 	}
 	func then(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
 		return SwORMOrdering(source: self, expression: expression, descending: false)
