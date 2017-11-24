@@ -40,6 +40,9 @@ public struct SwORMSQLGenerator {
 		let d = db.genDelegate
 		let structure = try orderStructure(items: items)
 		let sql = try generate(delegate: d, structure: structure)
+		
+		print("DBG: \(sql)")
+		
 		return (db, sql, d.bindings)
 	}
 	

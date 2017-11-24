@@ -181,8 +181,8 @@ struct SQLiteDatabase: SwORMDatabase {
 	}
 	func exeDelegate(forSQL sql: String, withBindings binds: SwORMBindings) throws -> SwORMExeDelegate {
 		let prep = try sqlite.prepare(statement: sql)
-		for i in 0..<binds.count {
-			let (_, expr) = binds[i]
+		for i in 1...binds.count {
+			let (_, expr) = binds[i-1]
 			try bindOne(prep, position: i, expr: expr)
 		}
 		return SQLiteSwORMExeDelegate(sqlite, stat: prep)
@@ -252,7 +252,7 @@ class PerfectSwORMTests: XCTestCase {
     func testSQLGen1() {
 		do {
 			let db = try SQLiteDatabase(testDBName)
-			let query = try db.table("test").order(by: .column(name: "id")).select(as: TestTable.self)
+			let query = try db.table("test").order(by: .column("id")).select(as: TestTable.self)
 			let (_, sql, _) = try SwORMSQLGenerator().generate(command: query)
 			XCTAssertEqual(sql, "SELECT \"id\", \"name\", \"int\", \"doub\", \"blob\" FROM \"test\" ORDER BY \"id\"")
 		} catch {
@@ -264,7 +264,7 @@ class PerfectSwORMTests: XCTestCase {
 		getTestDB()
 		do {
 			let db = try SQLiteDatabase(testDBName)
-			let query = try db.table("test").order(by: .column(name: "id")).select(as: TestTable.self)
+			let query = try db.table("test").where(.column("id") < 4).order(by: .column("id")).select(as: TestTable.self)
 			var count = 1
 			for row in query {
 				XCTAssertEqual(count, row.id)

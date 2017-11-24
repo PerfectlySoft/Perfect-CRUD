@@ -21,7 +21,7 @@ import Foundation
 public indirect enum SwORMExpression {
 	public typealias ExpressionProducer = () -> SwORMExpression
 	
-	case column(name: String)
+	case column(String)
 	case and(lhs: SwORMExpression, rhs: SwORMExpression)
 	case or(lhs: SwORMExpression, rhs: SwORMExpression)
 	case equality(lhs: SwORMExpression, rhs: SwORMExpression)

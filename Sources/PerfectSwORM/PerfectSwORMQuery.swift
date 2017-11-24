@@ -30,38 +30,38 @@ extension SwORMSQLGenerating {
 		case .and(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) AND (\(rhsStr)"
+			return "\(lhsStr) AND \(rhsStr)"
 		case .or(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) OR (\(rhsStr)"
+			return "\(lhsStr) OR \(rhsStr)"
 		case .equality(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) = (\(rhsStr)"
+			return "\(lhsStr) = \(rhsStr)"
 		case .inequality(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) != (\(rhsStr)"
+			return "\(lhsStr) != \(rhsStr)"
 		case .not(let rhs):
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "NOT (\(rhsStr))"
+			return "NOT \(rhsStr)"
 		case .lessThan(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) < (\(rhsStr)"
+			return "\(lhsStr) < \(rhsStr)"
 		case .lessThanEqual(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) <= (\(rhsStr)"
+			return "\(lhsStr) <= \(rhsStr)"
 		case .greaterThan(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) > (\(rhsStr)"
+			return "\(lhsStr) > \(rhsStr)"
 		case .greaterThanEqual(let lhs, let rhs):
 			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
 			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "(\(lhsStr)) >= (\(rhsStr)"
+			return "\(lhsStr) >= \(rhsStr)"
 		case .lazy(let e):
 			return try sqlSnippet(delegate: delegate, expression: e())
 		case .integer(_), .decimal(_), .string(_), .blob(_):
