@@ -60,6 +60,7 @@ public protocol SwORMDatabase {
 	func table(_ name: String) -> SwORMQueryWhereable
 	var genDelegate: SwORMGenDelegate { get }
 	func exeDelegate(forSQL: String, withBindings: SwORMBindings) throws -> SwORMExeDelegate
+	func transaction<Ret>(_ body: (Self) throws -> Ret) throws -> Ret
 }
 
 public extension SwORMDatabase {
@@ -69,27 +70,72 @@ public extension SwORMDatabase {
 }
 
 public struct SwORMSelect<A: Codable>: SwORMCommand, SwORMItem {
+	public let subStructureOrder: [SwORMQuerySubStructure] = [.tables, .wheres, .orderings]
 	public typealias Form = A
 	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
-		let delegate = delegate
 		let decoder = SwORMColumnNameDecoder()
 		do {
 			_ = try Form(from: decoder)
 			let keys = decoder.collectedKeys
 			if !keys.isEmpty {
-				return "SELECT \(try keys.map { try delegate.quote(identifier: $0) }.joined(separator: ", "))"
+				return "SELECT \(try keys.map { try delegate.quote(identifier: $0) }.joined(separator: ", ")) FROM"
 			}
 		} catch {}
-		return "SELECT *"
+		return "SELECT * FROM"
 	}
 	let source: SwORMItem?
 }
 
 public struct SwORMDelete: SwORMCommand, SwORMItem {
+	public let subStructureOrder: [SwORMQuerySubStructure] = [.tables, .wheres, .orderingsError]
 	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
-		return "DELETE"
+		return "DELETE FROM"
 	}
 	let source: SwORMItem?
+}
+
+// UPDATE foo SET x=?, y=?, z=? WHERE blah
+public struct SwORMUpdate<A: Encodable>: SwORMCommand, SwORMItem {
+	public let subStructureOrder: [SwORMQuerySubStructure] = [.tables, .command, .wheres, .orderingsError]
+	public typealias Form = A
+	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
+		return "UPDATE"
+	}
+	public func sqlSnippet(delegate: SwORMGenDelegate, callCount: Int) throws -> String {
+		guard callCount == 1 else {
+			throw SwORMSQLGenError("Update command generator called more than twice.")
+		}
+		let encoder = SwORMBindingsEncoder(delegate: delegate, ignoreKeys: [])
+		try item.encode(to: encoder)
+		let d = zip(encoder.columnNames, encoder.bindIdentifiers)
+		return "SET \(d.map { "\($0.0)=\($0.1)" }.joined(separator: ", "))"
+	}
+	let source: SwORMItem?
+	let item: Form
+}
+
+// INSERT INTO foo (x, y, z) VALUES (?,?,?) [multiple]
+public struct SwORMInsert<A: Codable>: SwORMCommand, SwORMItem {
+	public let subStructureOrder: [SwORMQuerySubStructure] = [.tables, .command, .orderingsError]
+	public typealias Form = A
+	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
+		return "INSERT INTO"
+	}
+	public func sqlSnippet(delegate: SwORMGenDelegate, callCount: Int) throws -> String {
+		guard callCount == 1 else {
+			throw SwORMSQLGenError("Update command generator called more than twice.")
+		}
+		guard !items.isEmpty else {
+			throw SwORMSQLGenError("No items to insert.")
+		}
+		let encoder = SwORMBindingsEncoder(delegate: delegate, ignoreKeys: [])
+		try items.first!.encode(to: encoder)
+		let columns = encoder.columnNames
+		let binds = encoder.bindIdentifiers
+		return "(\(columns.joined(separator: ", ")) VALUES (\(binds.joined(separator: ", "))"
+	}
+	let source: SwORMItem?
+	let items: [Form]
 }
 
 public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
@@ -138,8 +184,14 @@ extension SwORMQuerySelectable where Self: SwORMItem {
 		return SwORMSelect<A>(source: self)
 	}
 	func delete() throws {
-		let delete = SwORMDelete(source: self)
-		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: delete)
+		try simpleExe(SwORMDelete(source: self))
+	}
+	func update<A: Encodable>(_ using: A) throws {
+		try simpleExe(SwORMUpdate(source: self, item: using))
+		
+	}
+	private func simpleExe<Cmd: SwORMCommand & SwORMItem>(_ cmd: Cmd) throws {
+		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: cmd)
 		let delegate = try db.exeDelegate(forSQL: sql, withBindings: binds)
 		_ = try delegate.hasNext()
 	}
@@ -200,13 +252,4 @@ struct SwORMOrdering: SwORMItem, SwORMQueryOrdering {
 	var source: SwORMItem?
 	let expression: SwORMExpression
 	let descending: Bool
-}
-
-extension SwORMDatabase {
-	func sql<A: Decodable>(_ sql: String, into: A.Type) throws -> [A] {
-		return []
-	}
-	func sql(_ sql: String) throws {
-		
-	}
 }

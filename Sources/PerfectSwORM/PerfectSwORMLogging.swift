@@ -36,7 +36,7 @@ public enum SwORMLogDestination {
 			let fm = FileManager()
 			guard fm.isWritableFile(atPath: name) || fm.createFile(atPath: name, contents: nil, attributes: nil),
 				let fileHandle = FileHandle(forWritingAtPath: name),
-				let data = "\(event)\n".data(using: .utf8)else {
+				let data = "\(event)\n".data(using: .utf8) else {
 				print("[ERR] Unable to open file at \"\(name)\" to log event \(event)")
 				return
 			}

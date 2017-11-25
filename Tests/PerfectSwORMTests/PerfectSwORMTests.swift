@@ -1,7 +1,7 @@
 import XCTest
 @testable import PerfectSwORM
 import PerfectSQLite
-import SQLite3
+import PerfectCSQLite3
 
 struct SQLiteSwORMError: Error {
 	let msg: String
@@ -161,6 +161,17 @@ struct SQLiteDatabase: SwORMDatabase {
 		}
 		return SQLiteSwORMExeDelegate(sqlite, stat: prep)
 	}
+	func transaction<Ret>(_ body: (SQLiteDatabase) throws -> Ret) throws -> Ret {
+		try sqlite.execute(statement: "BEGIN")
+		do {
+			let ret = try body(self)
+			try sqlite.execute(statement: "COMMIT")
+			return ret
+		} catch {
+			try sqlite.execute(statement: "ROLLBACK")
+			throw error
+		}
+	}
 	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
 		switch expr {
 		case .lazy(let e):
@@ -173,8 +184,12 @@ struct SQLiteDatabase: SwORMDatabase {
 			try stat.bind(position: position, s)
 		case .blob(let b):
 			try stat.bind(position: position, b)
+		case .bool(let b):
+			try stat.bind(position: position, b ? 1 : 0)
+		case .null:
+			try stat.bindNull(position: position)
 		default:
-			()
+			throw SQLiteSwORMError("Asked to bind unsupported expression type: \(expr)")
 		}
 	}
 	let name: String
@@ -262,6 +277,8 @@ class PerfectSwORMTests: XCTestCase {
 	}
 
     static var allTests = [
-        ("testSQLGen1", testSQLGen1),
+		("testSQLGen1", testSQLGen1),
+		("testQuery1", testQuery1),
+		("testQuery2", testQuery2),
     ]
 }

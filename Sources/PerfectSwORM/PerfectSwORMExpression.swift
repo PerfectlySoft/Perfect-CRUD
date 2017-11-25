@@ -37,10 +37,13 @@ public indirect enum SwORMExpression {
 	case decimal(Double)
 	case string(String)
 	case blob([UInt8])
+	case bool(Bool)
+	case null
 	
 	// todo:
 	// .blob with Data
 	// .null and special handling in query gen IS NULL / IS NOT NULL
+	// .integer of varying width
 }
 
 public extension SwORMExpression {

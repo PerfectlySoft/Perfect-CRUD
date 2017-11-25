@@ -27,11 +27,55 @@ struct SwORMSQLGenError: Error {
 	}
 }
 
+public protocol SwORMSQLGenerating {
+	func sqlSnippet(delegate: SwORMGenDelegate) throws -> String
+}
+
+extension SwORMSQLGenerating {
+	func sqlSnippet(delegate: SwORMGenDelegate, expression: SwORMExpression) throws -> String {
+		switch expression {
+		case .column(let name):
+			return try delegate.quote(identifier: name)
+		case .and(let lhs, let rhs):
+			return try bin(delegate, "AND", lhs, rhs)
+		case .or(let lhs, let rhs):
+			return try bin(delegate, "OR", lhs, rhs)
+		case .equality(let lhs, let rhs):
+			return try bin(delegate, "=", lhs, rhs)
+		case .inequality(let lhs, let rhs):
+			return try bin(delegate, "!=", lhs, rhs)
+		case .not(let rhs):
+			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
+			return "NOT \(rhsStr)"
+		case .lessThan(let lhs, let rhs):
+			return try bin(delegate, "<", lhs, rhs)
+		case .lessThanEqual(let lhs, let rhs):
+			return try bin(delegate, "<=", lhs, rhs)
+		case .greaterThan(let lhs, let rhs):
+			return try bin(delegate, ">", lhs, rhs)
+		case .greaterThanEqual(let lhs, let rhs):
+			return try bin(delegate, ">=", lhs, rhs)
+		case .null:
+			return "NULL"
+		case .lazy(let e):
+			return try sqlSnippet(delegate: delegate, expression: e())
+		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_):
+			return try delegate.getBinding(for: expression)
+		}
+	}
+	private func bin(_ delegate: SwORMGenDelegate, _ op: String, _ lhs: SwORMExpression, _ rhs: SwORMExpression) throws -> String {
+		return "\(try sqlSnippet(delegate: delegate, expression: lhs)) \(op) \(try sqlSnippet(delegate: delegate, expression: rhs))"
+	}
+	private func un(_ delegate: SwORMGenDelegate, _ op: String, _ rhs: SwORMExpression) throws -> String {
+		return "\(op) \(try sqlSnippet(delegate: delegate, expression: rhs))"
+	}
+}
+
 private struct SwORMSQLStructure {
+	var command: SwORMCommand?
 	var tables: [SwORMTable] = []
 	var wheres: [SwORMWhere] = []
 	var orderings: [SwORMOrdering] = []
-	var command: SwORMCommand?
 }
 
 public struct SwORMSQLGenerator {
@@ -52,27 +96,58 @@ public struct SwORMSQLGenerator {
 		guard let command = structure.command else {
 			throw SwORMSQLGenError("No command was found in this query.")
 		}
-		let commandStr = try generate(delegate: delegate, command: command)
-		let fromStr = try generate(delegate: delegate, from: structure.tables)
-		var sql = "\(commandStr) \(fromStr)"
-		if let whereStr = try generate(delegate: delegate, where: structure.wheres) {
-			sql += " \(whereStr)"
+		let orderings = command.subStructureOrder
+		var commandStr = try generate(delegate: delegate, command: command) ?? ""
+		var callCount = 1
+		for subItem in orderings {
+			switch subItem {
+			case .tables:
+				if let s = try generate(delegate: delegate, from: structure.tables) {
+					commandStr += " " + s
+				}
+			case .wheres:
+				if let s = try generate(delegate: delegate, where: structure.wheres) {
+					commandStr += " " + s
+				}
+			case .orderings:
+				if let s = try generate(delegate: delegate, order: structure.orderings) {
+					commandStr += " " + s
+				}
+			case .command:
+				if let s = try generate(delegate: delegate, command: command, count: callCount) {
+					commandStr += " " + s
+				}
+				callCount += 1
+			case .tablesError:
+				guard structure.tables.isEmpty else {
+					throw SwORMSQLGenError("This SQL command does not accept a table specifier.")
+				}
+			case .wheresError:
+				guard structure.wheres.isEmpty else {
+					throw SwORMSQLGenError("This SQL command does not accept a WHERE clause.")
+				}
+			case .orderingsError:
+				guard structure.orderings.isEmpty else {
+					throw SwORMSQLGenError("This SQL command does not accept an ORDER clause.")
+				}
+			}
 		}
-		if let orderStr = try generate(delegate: delegate, order: structure.orderings) {
-			sql += " \(orderStr)"
-		}
-		return sql
+		return commandStr
 	}
 	
-	private func generate(delegate: SwORMGenDelegate, command: SwORMCommand) throws -> String {
+	private func generate(delegate: SwORMGenDelegate, command: SwORMCommand) throws -> String? {
 		return try command.sqlSnippet(delegate: delegate)
 	}
 	
-	private func generate(delegate: SwORMGenDelegate, from: [SwORMTable]) throws -> String {
+	private func generate(delegate: SwORMGenDelegate, command: SwORMCommand, count: Int) throws -> String? {
+		return try command.sqlSnippet(delegate: delegate, callCount: count)
+	}
+	
+	private func generate(delegate: SwORMGenDelegate, from: [SwORMTable]) throws -> String? {
 		guard !from.isEmpty else {
 			throw SwORMSQLGenError("No tables were specified.")
 		}
-		return "FROM \(try from.map { try $0.sqlSnippet(delegate: delegate) }.joined(separator: ", "))"
+		return "\(try from.map { try $0.sqlSnippet(delegate: delegate) }.joined(separator: ", "))"
 	}
 	
 	private func generate(delegate: SwORMGenDelegate, where wha: [SwORMWhere]) throws -> String? {

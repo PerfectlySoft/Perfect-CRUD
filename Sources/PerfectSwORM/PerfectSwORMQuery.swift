@@ -18,67 +18,32 @@
 //
 import Foundation
 
-public protocol SwORMSQLGenerating {
-	func sqlSnippet(delegate: SwORMGenDelegate) throws -> String
-}
-
-extension SwORMSQLGenerating {
-	func sqlSnippet(delegate: SwORMGenDelegate, expression: SwORMExpression) throws -> String {
-		switch expression {
-		case .column(let name):
-			return try delegate.quote(identifier: name)
-		case .and(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) AND \(rhsStr)"
-		case .or(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) OR \(rhsStr)"
-		case .equality(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) = \(rhsStr)"
-		case .inequality(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) != \(rhsStr)"
-		case .not(let rhs):
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "NOT \(rhsStr)"
-		case .lessThan(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) < \(rhsStr)"
-		case .lessThanEqual(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) <= \(rhsStr)"
-		case .greaterThan(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) > \(rhsStr)"
-		case .greaterThanEqual(let lhs, let rhs):
-			let lhsStr = try sqlSnippet(delegate: delegate, expression: lhs)
-			let rhsStr = try sqlSnippet(delegate: delegate, expression: rhs)
-			return "\(lhsStr) >= \(rhsStr)"
-		case .lazy(let e):
-			return try sqlSnippet(delegate: delegate, expression: e())
-		case .integer(_), .decimal(_), .string(_), .blob(_):
-			return try delegate.getBinding(for: expression)
-		}
-	}
+public enum SwORMQuerySubStructure {
+	case tables, wheres, orderings
+	case command // only include if command needs to be called AGAIN. can be used multiple times
+	case tablesError, wheresError, orderingsError // if these are included an error is thrown
 }
 
 public protocol SwORMCommand: SwORMSQLGenerating {
-	
+	var subStructureOrder: [SwORMQuerySubStructure] { get }
+	// call count will be >=1
+	func sqlSnippet(delegate: SwORMGenDelegate, callCount: Int) throws -> String
+}
+
+public extension SwORMCommand {
+	func sqlSnippet(delegate: SwORMGenDelegate, callCount: Int) throws -> String {
+		throw SwORMSQLGenError("Command incorrectly called for generation.")
+	}
 }
 
 public protocol SwORMQuerySelectable: SwORMSQLGenerating {
 	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A>
 	func delete() throws
-//	func update<A: Encodable>(_ using: A) throws
-//	func insert<A: Encodable>(_ using: [A]) throws
+	func update<A: Encodable>(_ using: A) throws
+}
+
+public protocol SwORMQueryInsertable: SwORMSQLGenerating {
+	func insert<A: Encodable>(_ using: [A]) throws
 }
 
 public protocol SwORMQueryOrdering: SwORMQuerySelectable {
