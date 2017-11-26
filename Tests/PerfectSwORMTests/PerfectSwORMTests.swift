@@ -40,10 +40,17 @@ class SQLiteSwORMExeDelegate: SwORMExeDelegate {
 		}
 		columnMap = m
 	}
+	func bind(_ binds: SwORMBindings, skip: Int) throws {
+		_ = try statement.reset()
+		for i in skip..<binds.count {
+			let (_, expr) = binds[i]
+			try bindOne(statement, position: i+1, expr: expr)
+		}
+	}
 	func hasNext() throws -> Bool {
 		let step = statement.step()
 		guard step == SQLITE_ROW || step == SQLITE_DONE else {
-			throw SQLiteError.Error(code: Int(step), msg: "!FIX! to provide a real msg.")
+			throw SQLiteSwORMError(database!.errMsg())
 		}
 		return step == SQLITE_ROW
 	}
@@ -52,6 +59,26 @@ class SQLiteSwORMExeDelegate: SwORMExeDelegate {
 			return nil
 		}
 		return KeyedDecodingContainer(SQLiteSwORMRowReader<A>(db, stat: statement, columns: columnMap))
+	}
+	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
+		switch expr {
+		case .lazy(let e):
+			try bindOne(stat, position: position, expr: e())
+		case .integer(let i):
+			try stat.bind(position: position, i)
+		case .decimal(let d):
+			try stat.bind(position: position, d)
+		case .string(let s):
+			try stat.bind(position: position, s)
+		case .blob(let b):
+			try stat.bind(position: position, b)
+		case .bool(let b):
+			try stat.bind(position: position, b ? 1 : 0)
+		case .null:
+			try stat.bindNull(position: position)
+		default:
+			throw SQLiteSwORMError("Asked to bind unsupported expression type: \(expr)")
+		}
 	}
 }
 
@@ -153,43 +180,22 @@ struct SQLiteDatabase: SwORMDatabase {
 	var genDelegate: SwORMGenDelegate {
 		return SQLiteSwORMGenDelegate()
 	}
-	func exeDelegate(forSQL sql: String, withBindings binds: SwORMBindings) throws -> SwORMExeDelegate {
+	func exeDelegate(forSQL sql: String) throws -> SwORMExeDelegate {
 		let prep = try sqlite.prepare(statement: sql)
-		for i in 0..<binds.count {
-			let (_, expr) = binds[i]
-			try bindOne(prep, position: i+1, expr: expr)
-		}
 		return SQLiteSwORMExeDelegate(sqlite, stat: prep)
 	}
 	func transaction<Ret>(_ body: (SQLiteDatabase) throws -> Ret) throws -> Ret {
 		try sqlite.execute(statement: "BEGIN")
+		SwORMLogging.log(.query, "BEGIN")
 		do {
 			let ret = try body(self)
 			try sqlite.execute(statement: "COMMIT")
+			SwORMLogging.log(.query, "COMMIT")
 			return ret
 		} catch {
 			try sqlite.execute(statement: "ROLLBACK")
+			SwORMLogging.log(.query, "ROLLBACK")
 			throw error
-		}
-	}
-	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
-		switch expr {
-		case .lazy(let e):
-			try bindOne(stat, position: position, expr: e())
-		case .integer(let i):
-			try stat.bind(position: position, i)
-		case .decimal(let d):
-			try stat.bind(position: position, d)
-		case .string(let s):
-			try stat.bind(position: position, s)
-		case .blob(let b):
-			try stat.bind(position: position, b)
-		case .bool(let b):
-			try stat.bind(position: position, b ? 1 : 0)
-		case .null:
-			try stat.bindNull(position: position)
-		default:
-			throw SQLiteSwORMError("Asked to bind unsupported expression type: \(expr)")
 		}
 	}
 	let name: String
@@ -213,29 +219,32 @@ class PerfectSwORMTests: XCTestCase {
 	override func setUp() {
 		unlink(testDBName)
 	}
+	override func tearDown() {
+		SwORMLogging.flush()
+	}
 	
 	func getTestDB() {
 		do {
 			let db = try SQLiteDatabase(testDBName)
 			try db.sqlite.execute(statement: "DROP TABLE IF EXISTS test")
 			try db.sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
-			try db.sqlite.doWithTransaction {
-				try db.sqlite.execute(statement: "INSERT INTO test (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: 5) {
-					(stmt: SQLiteStmt, num: Int) throws -> () in
-					try stmt.bind(position: 1, num)
-					try stmt.bind(position: 2, "This is name bind \(num)")
-					try stmt.bind(position: 3, num)
-					try stmt.bind(position: 4, Double(num))
-					let num = Int8(num)
-					try stmt.bind(position: 5, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
+			try db.transaction {
+				db in
+				let table = db.table("test")
+				var ts: [TestTable] = []
+				for num in 1...5 {
+					ts.append(TestTable(id: num, name: "This is name bind \(num)",
+										int: num, doub: Double(num),
+										blob: [num+1, num+2, num+3, num+4, num+5].map {UInt8($0)}))
 				}
+				try table.insert(ts)
 			}
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
 	}
 	
-    func testSQLGen1() {
+	func testSQLGen1() {
 		do {
 			let db = try SQLiteDatabase(testDBName)
 			let query = try db.table("test").order(by: .column("id")).select(as: TestTable.self)
@@ -244,7 +253,7 @@ class PerfectSwORMTests: XCTestCase {
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
-    }
+	}
 	
 	func testQuery1() {
 		getTestDB()
@@ -271,6 +280,46 @@ class PerfectSwORMTests: XCTestCase {
 			try db.table("test").where(.column("id") == 1).delete()
 			let count2 = query.map { $0 }.count
 			XCTAssertEqual(count2, count1 - 1)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testQuery3() {
+		getTestDB()
+		do {
+			let table = try SQLiteDatabase(testDBName).table("test")
+			let tt = TestTable(id: 10, name: "the name", int: 42, doub: 3.2, blob: [1, 2, 3, 4, 5])
+			try table.insert([tt])
+			let query = try table.where(.column("id") == 10).select(as: TestTable.self)
+			guard let tt2 = query.map({ $0 }).first else {
+				return XCTAssert(false, "Row not found.")
+			}
+			XCTAssertEqual(tt2.id, 10)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testQuery4() {
+		getTestDB()
+		do {
+			let db = try SQLiteDatabase(testDBName)
+			let table = db.table("test")
+			try db.transaction { _ in
+				let tt = TestTable(id: 10, name: "the name", int: 42, doub: 3.2, blob: [1, 2, 3, 4, 5])
+				try table.insert([tt])
+			}
+			let recordTen = table.where(.column("id") == 10)
+			try db.transaction { _ in
+				let ttChanged = TestTable(id: 10, name: "the name was changed", int: 42, doub: 3.2, blob: [1, 2, 3, 4, 5])
+				try recordTen.update(ttChanged)
+			}
+			let query = try recordTen.select(as: TestTable.self)
+			guard let ttNew = query.map({ $0 }).first else {
+				return XCTAssert(false, "Row not found.")
+			}
+			XCTAssertEqual(ttNew.name, "the name was changed")
 		} catch {
 			XCTAssert(false, "\(error)")
 		}

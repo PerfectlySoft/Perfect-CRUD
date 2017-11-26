@@ -86,7 +86,7 @@ public struct SwORMSQLGenerator {
 			throw SwORMSQLGenError("Unable to get database from query.")
 		}
 		let d = db.genDelegate
-		let structure = try orderStructure(items: items)
+		let structure = try removeEntropy(items: items)
 		let sql = try generate(delegate: d, structure: structure)
 		SwORMLogging.log(.query, sql)
 		return (db, sql, d.bindings)
@@ -154,9 +154,6 @@ public struct SwORMSQLGenerator {
 		guard !wha.isEmpty else {
 			return nil
 		}
-		if wha.count == 1 {
-			return "WHERE \(try wha[0].sqlSnippet(delegate: delegate))"
-		}
 		return "WHERE \(try wha.map { "(\(try $0.sqlSnippet(delegate: delegate)))" }.joined(separator: " AND "))"
 	}
 	
@@ -167,7 +164,7 @@ public struct SwORMSQLGenerator {
 		return "ORDER BY \(try order.map { try $0.sqlSnippet(delegate: delegate) }.joined(separator: ", "))"
 	}
 
-	private func orderStructure(items: [SwORMItem]) throws -> SwORMSQLStructure {
+	private func removeEntropy(items: [SwORMItem]) throws -> SwORMSQLStructure {
 		var structure = SwORMSQLStructure()
 		for item in items {
 			switch item {

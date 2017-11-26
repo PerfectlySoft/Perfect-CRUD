@@ -32,7 +32,7 @@ public protocol SwORMCommand: SwORMSQLGenerating {
 
 public extension SwORMCommand {
 	func sqlSnippet(delegate: SwORMGenDelegate, callCount: Int) throws -> String {
-		throw SwORMSQLGenError("Command incorrectly called for generation.")
+		throw SwORMSQLGenError("Command incorrectly called during SQL generation.")
 	}
 }
 

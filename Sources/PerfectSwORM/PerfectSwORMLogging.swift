@@ -87,11 +87,11 @@ public struct SwORMLogging {
 		scheduleLogCheck(q)
 		return q
 	}()
+	private static func logCheckReschedulingInSerialQueue() {
+		logCheckInSerialQueue()
+		scheduleLogCheck(loggingQueue)
+	}
 	private static func logCheckInSerialQueue() {
-		print("logCheckInSerialQueue")
-		defer {
-			scheduleLogCheck(loggingQueue)
-		}
 		guard !pendingEvents.isEmpty else {
 			return
 		}
@@ -109,11 +109,16 @@ public struct SwORMLogging {
 		}
 	}
 	private static func scheduleLogCheck(_ queue: DispatchQueue) {
-		queue.asyncAfter(deadline: .now() + 0.5, execute: logCheckInSerialQueue)
+		queue.asyncAfter(deadline: .now() + 0.5, execute: logCheckReschedulingInSerialQueue)
 	}
 }
 
 public extension SwORMLogging {
+	public static func flush() {
+		loggingQueue.sync {
+			logCheckInSerialQueue()
+		}
+	}
 	public static var queryLogDestinations: [SwORMLogDestination] {
 		set {
 			loggingQueue.async { _queryLogDestinations = newValue }

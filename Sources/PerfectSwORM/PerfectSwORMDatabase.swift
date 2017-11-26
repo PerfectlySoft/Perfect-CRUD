@@ -28,8 +28,13 @@ public protocol SwORMGenDelegate {
 }
 
 public protocol SwORMExeDelegate {
+	func bind(_ bindings: SwORMBindings, skip: Int) throws
 	func hasNext() throws -> Bool
 	func next<A: CodingKey>() throws -> KeyedDecodingContainer<A>?
+}
+
+public extension SwORMExeDelegate {
+	func bind(_ bindings: SwORMBindings) throws { return try bind(bindings, skip: 0) }
 }
 
 protocol SwORMItem {
@@ -56,16 +61,20 @@ extension SwORMItem {
 	}
 }
 
+public protocol SwORMTable: SwORMQueryWhereable, SwORMQueryInsertable {
+	var database: SwORMDatabase { get }
+}
+
 public protocol SwORMDatabase {
-	func table(_ name: String) -> SwORMQueryWhereable
+	func table(_ name: String) -> SwORMTable
 	var genDelegate: SwORMGenDelegate { get }
-	func exeDelegate(forSQL: String, withBindings: SwORMBindings) throws -> SwORMExeDelegate
+	func exeDelegate(forSQL: String) throws -> SwORMExeDelegate
 	func transaction<Ret>(_ body: (Self) throws -> Ret) throws -> Ret
 }
 
 public extension SwORMDatabase {
-	func table(_ name: String) -> SwORMQueryWhereable {
-		return SwORMTable(database: self, name: name)
+	func table(_ name: String) -> SwORMTable {
+		return SwORMTableImpl(database: self, name: name)
 	}
 }
 
@@ -108,14 +117,14 @@ public struct SwORMUpdate<A: Encodable>: SwORMCommand, SwORMItem {
 		let encoder = SwORMBindingsEncoder(delegate: delegate, ignoreKeys: [])
 		try item.encode(to: encoder)
 		let d = zip(encoder.columnNames, encoder.bindIdentifiers)
-		return "SET \(d.map { "\($0.0)=\($0.1)" }.joined(separator: ", "))"
+		return "SET \(try d.map { "\(try delegate.quote(identifier: $0.0))=\($0.1)" }.joined(separator: ", "))"
 	}
 	let source: SwORMItem?
 	let item: Form
 }
 
 // INSERT INTO foo (x, y, z) VALUES (?,?,?) [multiple]
-public struct SwORMInsert<A: Codable>: SwORMCommand, SwORMItem {
+public struct SwORMInsert<A: Encodable>: SwORMCommand, SwORMItem {
 	public let subStructureOrder: [SwORMQuerySubStructure] = [.tables, .command, .orderingsError]
 	public typealias Form = A
 	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
@@ -130,9 +139,9 @@ public struct SwORMInsert<A: Codable>: SwORMCommand, SwORMItem {
 		}
 		let encoder = SwORMBindingsEncoder(delegate: delegate, ignoreKeys: [])
 		try items.first!.encode(to: encoder)
-		let columns = encoder.columnNames
+		let columns = try encoder.columnNames.map { try delegate.quote(identifier: $0) }
 		let binds = encoder.bindIdentifiers
-		return "(\(columns.joined(separator: ", ")) VALUES (\(binds.joined(separator: ", "))"
+		return "(\(columns.joined(separator: ", "))) VALUES (\(binds.joined(separator: ", ")))"
 	}
 	let source: SwORMItem?
 	let items: [Form]
@@ -149,7 +158,8 @@ public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 	init(query: SwORMSelect<Element>) throws {
 		nothing = false
 		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: query)
-		delegate = try db.exeDelegate(forSQL: sql, withBindings: binds)
+		delegate = try db.exeDelegate(forSQL: sql)
+		try delegate?.bind(binds)
 	}
 	public mutating func next() -> Element? {
 		guard nothing != true, let d = delegate else {
@@ -157,7 +167,7 @@ public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 		}
 		do {
 			if try d.hasNext() {
-				let rowDecoder: SwORMDecoder<ColumnKey> = SwORMDecoder(delegate: d)
+				let rowDecoder: SwORMRowDecoder<ColumnKey> = SwORMRowDecoder(delegate: d)
 				return try Element(from: rowDecoder)
 			}
 		} catch {
@@ -167,61 +177,7 @@ public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 	}
 }
 
-extension SwORMSelect: Sequence {
-	public typealias Iterator = SwORMSelectIterator<Form>
-	public func makeIterator() -> SwORMSelectIterator<A> {
-		do {
-			return try SwORMSelectIterator<A>(query: self)
-		} catch {
-			SwORMLogging.log(.error, "Error thrown in SwORMSelect.makeIterator() Caught: \(error)")
-			return SwORMSelectIterator<A>()
-		}
-	}
-}
-
-extension SwORMQuerySelectable where Self: SwORMItem {
-	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A> {
-		return SwORMSelect<A>(source: self)
-	}
-	func delete() throws {
-		try simpleExe(SwORMDelete(source: self))
-	}
-	func update<A: Encodable>(_ using: A) throws {
-		try simpleExe(SwORMUpdate(source: self, item: using))
-		
-	}
-	private func simpleExe<Cmd: SwORMCommand & SwORMItem>(_ cmd: Cmd) throws {
-		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: cmd)
-		let delegate = try db.exeDelegate(forSQL: sql, withBindings: binds)
-		_ = try delegate.hasNext()
-	}
-}
-
-extension SwORMQueryOrderable where Self: SwORMItem {
-	func order(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: false)
-	}
-	func order(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: true)
-	}
-}
-
-extension SwORMQueryWhereable where Self: SwORMItem {
-	func `where`(_ expression: SwORMExpression) -> SwORMQueryWhereable {
-		return SwORMWhere(source: self, expression: expression)
-	}
-}
-
-extension SwORMQueryOrdering where Self: SwORMItem {
-	func then(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: false)
-	}
-	func then(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
-		return SwORMOrdering(source: self, expression: expression, descending: true)
-	}
-}
-
-struct SwORMTable: SwORMQueryWhereable, SwORMItem {
+struct SwORMTableImpl: SwORMTable, SwORMItem {
 	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
 		return try delegate.quote(identifier: name)
 	}
@@ -252,4 +208,83 @@ struct SwORMOrdering: SwORMItem, SwORMQueryOrdering {
 	var source: SwORMItem?
 	let expression: SwORMExpression
 	let descending: Bool
+}
+
+extension SwORMSelect: Sequence {
+	public typealias Iterator = SwORMSelectIterator<Form>
+	public func makeIterator() -> SwORMSelectIterator<A> {
+		do {
+			return try SwORMSelectIterator<A>(query: self)
+		} catch {
+			SwORMLogging.log(.error, "Error thrown in SwORMSelect.makeIterator() Caught: \(error)")
+			return SwORMSelectIterator<A>()
+		}
+	}
+}
+
+extension SwORMQuerySelectable where Self: SwORMItem {
+	func select<A: Decodable>(as: A.Type) throws -> SwORMSelect<A> {
+		return SwORMSelect<A>(source: self)
+	}
+	func delete() throws {
+		try simpleExe(SwORMDelete(source: self))
+	}
+	func update<A: Encodable>(_ using: A) throws {
+		let update = SwORMUpdate(source: self, item: using)
+		let (db, sql, binds1) = try SwORMSQLGenerator().generate(command: update)
+		let delegate = try db.exeDelegate(forSQL: sql)
+		do {
+			let genDel = db.genDelegate
+			let encoder = SwORMBindingsEncoder(delegate: genDel)
+			try using.encode(to: encoder)
+			try delegate.bind(genDel.bindings)
+			try delegate.bind(binds1, skip: genDel.bindings.count)
+			_ = try delegate.hasNext()
+		}
+	}
+	fileprivate func simpleExe<Cmd: SwORMCommand & SwORMItem>(_ cmd: Cmd) throws {
+		let (db, sql, binds) = try SwORMSQLGenerator().generate(command: cmd)
+		let delegate = try db.exeDelegate(forSQL: sql)
+		try delegate.bind(binds)
+		_ = try delegate.hasNext()
+	}
+}
+
+extension SwORMQueryOrderable where Self: SwORMItem {
+	func order(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
+		return SwORMOrdering(source: self, expression: expression, descending: false)
+	}
+	func order(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
+		return SwORMOrdering(source: self, expression: expression, descending: true)
+	}
+}
+
+extension SwORMQueryWhereable where Self: SwORMItem {
+	func `where`(_ expression: SwORMExpression) -> SwORMQueryWhereable {
+		return SwORMWhere(source: self, expression: expression)
+	}
+}
+
+extension SwORMQueryOrdering where Self: SwORMItem {
+	func then(by expression: SwORMExpression) throws -> SwORMQueryOrdering {
+		return SwORMOrdering(source: self, expression: expression, descending: false)
+	}
+	func then(byDescending expression: SwORMExpression) throws -> SwORMQueryOrdering {
+		return SwORMOrdering(source: self, expression: expression, descending: true)
+	}
+}
+
+extension SwORMTable where Self: SwORMItem {
+	func insert<A>(_ using: [A]) throws where A : Encodable {
+		let insert = SwORMInsert(source: self, items: using)
+		let (db, sql, _) = try SwORMSQLGenerator().generate(command: insert)
+		let delegate = try db.exeDelegate(forSQL: sql)
+		for item in using {
+			let genDel = db.genDelegate
+			let encoder = SwORMBindingsEncoder(delegate: genDel)
+			try item.encode(to: encoder)
+			try delegate.bind(genDel.bindings)
+			_ = try delegate.hasNext()
+		}
+	}
 }
