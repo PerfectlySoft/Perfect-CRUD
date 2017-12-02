@@ -19,21 +19,6 @@
 
 import Foundation
 
-struct SwORMSQLGenError: Error {
-	let msg: String
-	init(_ msg: String) {
-		self.msg = msg
-		SwORMLogging.log(.error, msg)
-	}
-}
-struct SwORMSQLExeError: Error {
-	let msg: String
-	init(_ msg: String) {
-		self.msg = msg
-		SwORMLogging.log(.error, msg)
-	}
-}
-
 public protocol SwORMSQLGenerating {
 	func sqlSnippet(delegate: SwORMGenDelegate) throws -> String
 }

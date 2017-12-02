@@ -104,11 +104,11 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 class SwORMBindingsEncoder: Encoder {
 	let codingPath: [CodingKey] = []
 	let userInfo: [CodingUserInfoKey : Any] = [:]
-	let delegate: SwORMGenDelegate
+	let delegate: SQLGenDelegate
 	let ignoreKeys: [String]
 	var bindIdentifiers: [String] = []
 	var columnNames: [String] = []
-	init(delegate d: SwORMGenDelegate, ignoreKeys i: [String] = []) {
+	init(delegate d: SQLGenDelegate, ignoreKeys i: [String] = []) {
 		delegate = d
 		ignoreKeys = i
 	}

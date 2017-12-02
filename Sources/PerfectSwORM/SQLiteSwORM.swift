@@ -17,76 +17,8 @@ struct SQLiteSwORMError: Error {
 	}
 }
 
-class SQLiteSwORMGenDelegate: SwORMGenDelegate {
-	var bindings: SwORMBindings = []
-	func getBinding(for expr: SwORMExpression) throws -> String {
-		bindings.append(("?", expr))
-		return "?"
-	}
-	func quote(identifier: String) throws -> String {
-		return "\"\(identifier)\""
-	}
-}
-
 // maps column name to position which must be computer once before row reading action
 typealias SQLiteSwORMColumnMap = [String:Int]
-
-class SQLiteSwORMExeDelegate: SwORMExeDelegate {
-	let database: SQLite?
-	let statement: SQLiteStmt
-	let columnMap: SQLiteSwORMColumnMap
-	init(_ db: SQLite, stat: SQLiteStmt) {
-		database = db
-		statement = stat
-		var m = SQLiteSwORMColumnMap()
-		let count = statement.columnCount()
-		for i in 0..<count {
-			let name = statement.columnName(position: i)
-			m[name] = i
-		}
-		columnMap = m
-	}
-	func bind(_ binds: SwORMBindings, skip: Int) throws {
-		_ = try statement.reset()
-		for i in skip..<binds.count {
-			let (_, expr) = binds[i]
-			try bindOne(statement, position: i+1, expr: expr)
-		}
-	}
-	func hasNext() throws -> Bool {
-		let step = statement.step()
-		guard step == SQLITE_ROW || step == SQLITE_DONE else {
-			throw SQLiteSwORMError(database!.errMsg())
-		}
-		return step == SQLITE_ROW
-	}
-	func next<A>() -> KeyedDecodingContainer<A>? where A : CodingKey {
-		guard let db = database else {
-			return nil
-		}
-		return KeyedDecodingContainer(SQLiteSwORMRowReader<A>(db, stat: statement, columns: columnMap))
-	}
-	private func bindOne(_ stat: SQLiteStmt, position: Int, expr: SwORMExpression) throws {
-		switch expr {
-		case .lazy(let e):
-			try bindOne(stat, position: position, expr: e())
-		case .integer(let i):
-			try stat.bind(position: position, i)
-		case .decimal(let d):
-			try stat.bind(position: position, d)
-		case .string(let s):
-			try stat.bind(position: position, s)
-		case .blob(let b):
-			try stat.bind(position: position, b)
-		case .bool(let b):
-			try stat.bind(position: position, b ? 1 : 0)
-		case .null:
-			try stat.bindNull(position: position)
-		default:
-			throw SQLiteSwORMError("Asked to bind unsupported expression type: \(expr)")
-		}
-	}
-}
 
 class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
@@ -179,36 +111,6 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
 		fatalError("Unimplimented")
-	}
-}
-
-struct SQLiteDatabase: SwORMDatabase {
-	var genDelegate: SwORMGenDelegate {
-		return SQLiteSwORMGenDelegate()
-	}
-	func exeDelegate(forSQL sql: String) throws -> SwORMExeDelegate {
-		let prep = try sqlite.prepare(statement: sql)
-		return SQLiteSwORMExeDelegate(sqlite, stat: prep)
-	}
-	func transaction<Ret>(_ body: (SQLiteDatabase) throws -> Ret) throws -> Ret {
-		try sqlite.execute(statement: "BEGIN")
-		SwORMLogging.log(.query, "BEGIN")
-		do {
-			let ret = try body(self)
-			try sqlite.execute(statement: "COMMIT")
-			SwORMLogging.log(.query, "COMMIT")
-			return ret
-		} catch {
-			try sqlite.execute(statement: "ROLLBACK")
-			SwORMLogging.log(.query, "ROLLBACK")
-			throw error
-		}
-	}
-	let name: String
-	let sqlite: SQLite
-	init(_ n: String) throws {
-		name = n
-		sqlite = try SQLite(n)
 	}
 }
 

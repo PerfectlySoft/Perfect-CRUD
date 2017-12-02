@@ -57,28 +57,13 @@ class PerfectSwORMTests: XCTestCase {
 	
 	func getTestDB() {
 		do {
-			let db = try SQLiteDatabase(testDBName)
-			try db.sqlite.execute(statement: "DROP TABLE IF EXISTS test")
-			try db.sqlite.execute(statement: "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
-			try db.transaction {
-				db in
-				let table = db.table("test")
-				var ts: [TestTable] = []
-				for num in 1...testDBRowCount {
-					ts.append(TestTable(id: num, name: "This is name bind \(num)",
-										integer: num, double: Double(num),
-										blob: [num+1, num+2, num+3, num+4, num+5].map {UInt8($0)}))
-				}
-				try table.insert(ts)
-			}
-			
-			// new tables
-			try db.sqlite.execute(statement: "DROP TABLE IF EXISTS \(TestTable1.self)")
-			try db.sqlite.execute(statement: "DROP TABLE IF EXISTS \(TestTable2.self)")
-			try db.sqlite.execute(statement: "CREATE TABLE \(TestTable1.self) (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
-			try db.sqlite.execute(statement: "CREATE TABLE \(TestTable2.self) (id INTEGER PRIMARY KEY, parentId INTEGER, name TEXT, int, doub, blob)")
-			try db.sqlite.doWithTransaction {
-				try db.sqlite.execute(statement: "INSERT INTO \(TestTable1.self) (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: testDBRowCount) {
+			let db = try SQLite(testDBName)
+			try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable1.self)")
+			try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable2.self)")
+			try db.execute(statement: "CREATE TABLE \(TestTable1.self) (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
+			try db.execute(statement: "CREATE TABLE \(TestTable2.self) (id INTEGER PRIMARY KEY, parentId INTEGER, name TEXT, int, doub, blob)")
+			try db.doWithTransaction {
+				try db.execute(statement: "INSERT INTO \(TestTable1.self) (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: testDBRowCount) {
 					(stmt: SQLiteStmt, num: Int) throws -> () in
 					
 					try stmt.bind(position: 1, num)
@@ -89,10 +74,10 @@ class PerfectSwORMTests: XCTestCase {
 					try stmt.bind(position: 5, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
 				}
 			}
-			try db.sqlite.doWithTransaction {
+			try db.doWithTransaction {
 				var idCount = 1
 				for relCount in 1...testDBRowCount {
-					try db.sqlite.execute(statement: "INSERT INTO \(TestTable2.self) (id,parentId,name,int,doub,blob) VALUES (?,?,?,?,?,?)", count: testDBRowCount) {
+					try db.execute(statement: "INSERT INTO \(TestTable2.self) (id,parentId,name,int,doub,blob) VALUES (?,?,?,?,?,?)", count: testDBRowCount) {
 						(stmt: SQLiteStmt, num: Int) throws -> () in
 						try stmt.bind(position: 1, idCount)
 						try stmt.bind(position: 2, relCount)
@@ -110,87 +95,6 @@ class PerfectSwORMTests: XCTestCase {
 				}
 			}
 			
-		} catch {
-			XCTAssert(false, "\(error)")
-		}
-	}
-	
-	func testSQLGen1() {
-		do {
-			let db = try SQLiteDatabase(testDBName)
-			let query = try db.table("test").order(by: .column("id")).select(as: TestTable.self)
-			let (_, sql, _) = try SwORMSQLGenerator().generate(command: query)
-			XCTAssertEqual(sql, "SELECT \"id\", \"name\", \"int\", \"doub\", \"blob\" FROM \"test\" ORDER BY \"id\"")
-		} catch {
-			XCTAssert(false, "\(error)")
-		}
-	}
-	
-	func testQuery1() {
-		getTestDB()
-		do {
-			let db = try SQLiteDatabase(testDBName)
-			let query = try db.table("test").where(.column("id") < 4).order(by: .column("id")).select(as: TestTable.self)
-			var count = 1
-			for row in query {
-				XCTAssertEqual(count, row.id)
-				XCTAssertLessThan(row.id, 4)
-				count += 1
-			}
-		} catch {
-			XCTAssert(false, "\(error)")
-		}
-	}
-	
-	func testQuery2() {
-		getTestDB()
-		do {
-			let db = try SQLiteDatabase(testDBName)
-			let query = try db.table("test").select(as: TestTable.self)
-			let count1 = query.map { $0 }.count
-			try db.table("test").where(.column("id") == 1).delete()
-			let count2 = query.map { $0 }.count
-			XCTAssertEqual(count2, count1 - 1)
-		} catch {
-			XCTAssert(false, "\(error)")
-		}
-	}
-	
-	func testQuery3() {
-		getTestDB()
-		do {
-			let table = try SQLiteDatabase(testDBName).table("test")
-			let tt = TestTable(id: 10, name: "the name", integer: 42, double: 3.2, blob: [1, 2, 3, 4, 5])
-			try table.insert([tt])
-			let query = try table.where(.column("id") == 10).select(as: TestTable.self)
-			guard let tt2 = query.map({ $0 }).first else {
-				return XCTAssert(false, "Row not found.")
-			}
-			XCTAssertEqual(tt2.id, 10)
-		} catch {
-			XCTAssert(false, "\(error)")
-		}
-	}
-	
-	func testQuery4() {
-		getTestDB()
-		do {
-			let db = try SQLiteDatabase(testDBName)
-			let table = db.table("test")
-			try db.transaction { _ in
-				let tt = TestTable(id: 10, name: "the name", integer: 42, double: 3.2, blob: [1, 2, 3, 4, 5])
-				try table.insert([tt])
-			}
-			let recordTen = table.where(.column("id") == 10)
-			try db.transaction { _ in
-				let ttChanged = TestTable(id: 10, name: "the name was changed", integer: 42, double: 3.2, blob: [1, 2, 3, 4, 5])
-				try recordTen.update(ttChanged)
-			}
-			let query = try recordTen.select(as: TestTable.self)
-			guard let ttNew = query.map({ $0 }).first else {
-				return XCTAssert(false, "Row not found.")
-			}
-			XCTAssertEqual(ttNew.name, "the name was changed")
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
@@ -239,8 +143,8 @@ class PerfectSwORMTests: XCTestCase {
 				.join(\.subTables, on: \.id, equals: \.parentId)
 					.order(by: \TestTable2.id)
 				.where(\TestTable2.name == .string("Me"))
-				.select()
-			
+				.select().map { $0 }
+			XCTAssert(j2.count != 0)
 			j2.forEach { row in
 				row.subTables?.forEach {
 					sub in
@@ -253,8 +157,8 @@ class PerfectSwORMTests: XCTestCase {
 	}
 
     static var allTests = [
-		("testSQLGen1", testSQLGen1),
-		("testQuery1", testQuery1),
-		("testQuery2", testQuery2),
+		("testKeyPaths", testKeyPaths),
+		("testSelectAll", testSelectAll),
+		("testSelectJoin", testSelectJoin),
     ]
 }

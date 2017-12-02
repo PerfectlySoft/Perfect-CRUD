@@ -118,7 +118,7 @@ struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		do {
 			return try SelectIterator(select: self)
 		} catch {
-			SwORMLogging.log(.error, "Error thrown in SwORMSelect.makeIterator() Caught: \(error)")
+			SwORMLogging.log(.error, "Error thrown in Select.makeIterator() Caught: \(error)")
 		}
 		return SelectIterator()
 	}
@@ -209,6 +209,9 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals))
 	}
 	func setSQL(var state: inout SQLGenState) throws {
+		let orderings = state.consumeOrderings()
+		try fromTable.setSQL(state: &state)
+		
 		let tableData = state.tableData
 		let delegate = state.delegate
 		guard let firstTable = tableData.first,
@@ -252,12 +255,10 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
-			let orderings = state.consumeOrderings()
 			if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))"
 			}
-			try fromTable.setSQL(state: &state)
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
 			SwORMLogging.log(.query, sqlStr)
@@ -297,6 +298,7 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol {
 		try state.addTable(type: Form.self)
 	}
 	func setSQL(var state: inout SQLGenState) throws {
+		let orderings = state.consumeOrderings()
 		let tableData = state.tableData
 		let delegate = state.delegate
 		guard let myTable = tableData.first else {
@@ -330,7 +332,6 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol {
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
-			let orderings = state.consumeOrderings()
 			if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))"
