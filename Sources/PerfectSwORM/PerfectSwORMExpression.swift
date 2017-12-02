@@ -277,7 +277,7 @@ extension SwORMExpression {
 		case .null:
 			return []
 		case .lazy(let e):
-			return try e().referencedTypes()
+			return e().referencedTypes()
 		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_):
 			return []
 		}

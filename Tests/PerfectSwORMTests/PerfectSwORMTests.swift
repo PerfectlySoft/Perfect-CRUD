@@ -219,7 +219,7 @@ class PerfectSwORMTests: XCTestCase {
 		getTestDB()
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
-			let j2 = try db.table(TestTable1.self, ordering: \TestTable1.name)
+			let j2 = try db.table(TestTable1.self)
 				.select()
 			for row in j2 {
 				print("\(row)")
@@ -233,15 +233,22 @@ class PerfectSwORMTests: XCTestCase {
 		getTestDB()
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
-			let j2 = try db.table(TestTable1.self, ordering: \TestTable1.name)
-				.join(\.subTables, on: \.id, equals: \.parentId, ordering: \.id)
+			
+			let j2 = try db.table(TestTable1.self)
+					.order(by: \TestTable1.name)
+				.join(\.subTables, on: \.id, equals: \.parentId)
+					.order(by: \TestTable2.id)
 				.where(\TestTable2.name == .string("Me"))
 				.select()
-			for row in j2 {
-				print("\(row.id) \(row.subTables)")
+			
+			j2.forEach { row in
+				row.subTables?.forEach {
+					sub in
+					XCTAssert(sub.id % 2 == 1)
+				}
 			}
 		} catch {
-			print("\(error)")
+			XCTAssert(false, "\(error)")
 		}
 	}
 
