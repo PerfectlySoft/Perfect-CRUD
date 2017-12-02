@@ -119,143 +119,8 @@ extension CommandProtocol {
 	func setSQL(state: inout SQLGenState) throws {}
 }
 
-struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
-	typealias OverAllForm = A
-	typealias Form = A
-	typealias DatabaseType = C
-	var databaseConfiguration: DatabaseConfigurationProtocol { return database.configuration }
-	let database: DatabaseType
-	func setState(var state: inout SQLGenState) throws {
-		try state.addTable(type: Form.self)
-	}
-	func setSQL(var state: inout SQLGenState) throws {
-		let orderings = state.consumeOrderings()
-		let tableData = state.tableData
-		let delegate = state.delegate
-		guard let myTable = tableData.first else {
-			throw SwORMSQLGenError("No tables specified.")
-		}
-		let nameQ = try delegate.quote(identifier: "\(Form.self)")
-		let aliasQ = try delegate.quote(identifier: myTable.alias)
-		switch state.command {
-		case .select:
-			var sqlStr =
-			"""
-			SELECT DISTINCT \(aliasQ).*
-			FROM \(nameQ) AS \(aliasQ)
-			
-			"""
-			if let whereExpr = state.whereExpr {
-				let joinTables = tableData[1...].map { $0 }
-				let referencedTypes = whereExpr.referencedTypes()
-				for type in referencedTypes {
-					guard let joinTable = joinTables.first(where: { type == $0.type }) else {
-						throw SwORMSQLGenError("Unknown type included in where clause \(type).")
-					}
-					guard let joinData = joinTable.joinData else {
-						throw SwORMSQLGenError("Join without a clause \(type).")
-					}
-					let nameQ = try delegate.quote(identifier: "\(joinTable.type)")
-					let aliasQ = try delegate.quote(identifier: joinTable.alias)
-					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
-					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "JOIN \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
-				}
-				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
-			}
-			if !orderings.isEmpty {
-				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
-				sqlStr += "ORDER BY \(m.joined(separator: ", "))"
-			}
-			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
-			state.delegate.bindings = []
-			SwORMLogging.log(.query, sqlStr)
-			// ordering
-		case .insert, .update, .delete:()
-//			state.fromStr.append("\(myTable)")
-		case .unknown:
-			throw SwORMSQLGenError("SQL command was not set.")
-		}
-	}
-}
-
-struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
-	typealias Configuration = C
-	let configuration: Configuration
-	func table<T: Codable>(_ form: T.Type) -> Table<T, Database<C>> {
-		return .init(database: self)
-	}
-}
-
 extension SQLExeDelegate {
 	func bind(_ bindings: Bindings) throws { return try bind(bindings, skip: 0) }
-}
-
-struct SQLGenState {
-	enum Command {
-		case select, insert, update, delete, unknown
-	}
-	struct TableData {
-		let type: Any.Type
-		let alias: String
-		let modelInstance: Any?
-		let keyPathDecoder: SwORMKeyPathsDecoder
-		let joinData: PropertyJoinData?
-	}
-	struct PropertyJoinData {
-		let to: AnyKeyPath
-		let on: AnyKeyPath
-		let equals: AnyKeyPath
-	}
-	struct Statement {
-		let sql: String
-		let bindings: Bindings
-	}
-	typealias Ordering = (key: AnyKeyPath, desc: Bool)
-	var delegate: SQLGenDelegate
-	var aliasCounter = 0
-	var tableData: [TableData] = []
-	var command: Command = .unknown
-	var whereExpr: Expression?
-	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
-	var accumulatedOrderings: [Ordering] = []
-	init(delegate d: SQLGenDelegate) {
-		delegate = d
-	}
-	mutating func consumeOrderings() -> [Ordering] {
-		defer { accumulatedOrderings = [] }
-		return accumulatedOrderings
-	}
-	mutating func addTable<A: Codable>(type: A.Type, joinData: PropertyJoinData? = nil) throws {
-		let decoder = SwORMKeyPathsDecoder()
-		let model = try A(from: decoder)
-		tableData.append(.init(type: type,
-								   alias: nextAlias(),
-								   modelInstance: model,
-								   keyPathDecoder: decoder,
-								   joinData: joinData))
-	}
-	mutating func getAlias<A: Codable>(type: A.Type) -> String? {
-		return tableData.first { $0.type == type }?.alias
-	}
-	func getTableData(type: Any.Type) -> TableData? {
-		return tableData.first { $0.type == type }
-	}
-	mutating func nextAlias() -> String {
-		defer { aliasCounter += 1 }
-		return "t\(aliasCounter)"
-	}
-	func getTableName<A: Codable>(type: A.Type) -> String {
-		return "\(type)" // this is where table name mapping might go
-	}
-	mutating func getKeyName<A: Codable>(type: A.Type, key: PartialKeyPath<A>) throws -> String? {
-		guard let td = getTableData(type: type),
-			let instance = td.modelInstance as? A,
-			let name = try td.keyPathDecoder.getKeyPathName(instance, keyPath: key) else {
-			return nil
-		}
-		return name
-	}
 }
 
 struct SQLTopExeDelegate: SQLExeDelegate {
@@ -307,4 +172,73 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 		return KeyedDecodingContainer<A>(SQLTopRowReader(exeDelegate: self, subRowReader: k))
 	}
 }
+
+struct SQLGenState {
+	enum Command {
+		case select, insert, update, delete, unknown
+	}
+	struct TableData {
+		let type: Any.Type
+		let alias: String
+		let modelInstance: Any?
+		let keyPathDecoder: SwORMKeyPathsDecoder
+		let joinData: PropertyJoinData?
+	}
+	struct PropertyJoinData {
+		let to: AnyKeyPath
+		let on: AnyKeyPath
+		let equals: AnyKeyPath
+	}
+	struct Statement {
+		let sql: String
+		let bindings: Bindings
+	}
+	typealias Ordering = (key: AnyKeyPath, desc: Bool)
+	var delegate: SQLGenDelegate
+	var aliasCounter = 0
+	var tableData: [TableData] = []
+	var command: Command = .unknown
+	var whereExpr: Expression?
+	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
+	var accumulatedOrderings: [Ordering] = []
+	init(delegate d: SQLGenDelegate) {
+		delegate = d
+	}
+	mutating func consumeOrderings() -> [Ordering] {
+		defer { accumulatedOrderings = [] }
+		return accumulatedOrderings
+	}
+	mutating func addTable<A: Codable>(type: A.Type, joinData: PropertyJoinData? = nil) throws {
+		let decoder = SwORMKeyPathsDecoder()
+		let model = try A(from: decoder)
+		tableData.append(.init(type: type,
+							   alias: nextAlias(),
+							   modelInstance: model,
+							   keyPathDecoder: decoder,
+							   joinData: joinData))
+	}
+	mutating func getAlias<A: Codable>(type: A.Type) -> String? {
+		return tableData.first { $0.type == type }?.alias
+	}
+	func getTableData(type: Any.Type) -> TableData? {
+		return tableData.first { $0.type == type }
+	}
+	mutating func nextAlias() -> String {
+		defer { aliasCounter += 1 }
+		return "t\(aliasCounter)"
+	}
+	func getTableName<A: Codable>(type: A.Type) -> String {
+		return "\(type)" // this is where table name mapping might go
+	}
+	mutating func getKeyName<A: Codable>(type: A.Type, key: PartialKeyPath<A>) throws -> String? {
+		guard let td = getTableData(type: type),
+			let instance = td.modelInstance as? A,
+			let name = try td.keyPathDecoder.getKeyPathName(instance, keyPath: key) else {
+				return nil
+		}
+		return name
+	}
+}
+
+
 
