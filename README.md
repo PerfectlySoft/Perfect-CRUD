@@ -51,7 +51,4 @@ It's type-safe (you can't specify bogus key paths, except in the where which can
 
 I plan to add update/insert/delete and use it on the qBiq project and see where it goes.
 
-The main driving code:
-https://github.com/PerfectlySoft/Perfect-SwORM/blob/master/Sources/PerfectSwORM/PerfectSwORM.swift
-
 (StrongORM seems like a better name now.)
