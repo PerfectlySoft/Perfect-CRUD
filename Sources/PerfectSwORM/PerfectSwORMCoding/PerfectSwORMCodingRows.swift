@@ -40,3 +40,25 @@ public class SwORMRowDecoder<K: CodingKey>: Decoder {
 		throw SwORMDecoderError("Unimplimented")
 	}
 }
+
+public class SwORMRowDecoder2<K: CodingKey>: Decoder {
+	public typealias Key = K
+	public var codingPath: [CodingKey] = []
+	public var userInfo: [CodingUserInfoKey:Any] = [:]
+	let delegate: SQLExeDelegate
+	init(delegate d: SQLExeDelegate) {
+		delegate = d
+	}
+	public func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
+		guard let next: KeyedDecodingContainer<Key> = try delegate.next() else {
+			throw SwORMDecoderError("No row.")
+		}
+		return next
+	}
+	public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+		throw SwORMDecoderError("Unimplimented")
+	}
+	public func singleValueContainer() throws -> SingleValueDecodingContainer {
+		throw SwORMDecoderError("Unimplimented")
+	}
+}

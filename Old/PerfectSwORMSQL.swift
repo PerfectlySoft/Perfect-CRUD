@@ -26,6 +26,13 @@ struct SwORMSQLGenError: Error {
 		SwORMLogging.log(.error, msg)
 	}
 }
+struct SwORMSQLExeError: Error {
+	let msg: String
+	init(_ msg: String) {
+		self.msg = msg
+		SwORMLogging.log(.error, msg)
+	}
+}
 
 public protocol SwORMSQLGenerating {
 	func sqlSnippet(delegate: SwORMGenDelegate) throws -> String
@@ -55,6 +62,8 @@ extension SwORMSQLGenerating {
 			return try bin(delegate, ">", lhs, rhs)
 		case .greaterThanEqual(let lhs, let rhs):
 			return try bin(delegate, ">=", lhs, rhs)
+		case .keyPath(_):
+			return "!FIX!"
 		case .null:
 			return "NULL"
 		case .lazy(let e):

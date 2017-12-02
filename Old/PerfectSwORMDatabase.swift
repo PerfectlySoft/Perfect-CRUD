@@ -65,6 +65,15 @@ public protocol SwORMTable: SwORMQueryWhereable, SwORMQueryInsertable {
 	var database: SwORMDatabase { get }
 }
 
+struct SwORMTableImpl: SwORMTable, SwORMItem {
+	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
+		return try delegate.quote(identifier: name)
+	}
+	let database: SwORMDatabase
+	let name: String
+	let source: SwORMItem? = nil
+}
+
 public protocol SwORMDatabase {
 	func table(_ name: String) -> SwORMTable
 	var genDelegate: SwORMGenDelegate { get }
@@ -175,15 +184,6 @@ public struct SwORMSelectIterator<A: Codable>: IteratorProtocol {
 		}
 		return nil
 	}
-}
-
-struct SwORMTableImpl: SwORMTable, SwORMItem {
-	public func sqlSnippet(delegate: SwORMGenDelegate) throws -> String {
-		return try delegate.quote(identifier: name)
-	}
-	let database: SwORMDatabase
-	let name: String
-	let source: SwORMItem? = nil
 }
 
 struct SwORMWhere: SwORMItem, SwORMQueryWhereable {

@@ -12,7 +12,7 @@ let package = Package(
 		.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", "3.0.0"..<"4.0.0")
 	],
 	targets: [
-		.target(name: "PerfectSwORM", dependencies: []),
+		.target(name: "PerfectSwORM", dependencies: ["PerfectSQLite"]),
 		.testTarget(name: "PerfectSwORMTests", dependencies: ["PerfectSwORM", "PerfectSQLite"])
 	]
 )
