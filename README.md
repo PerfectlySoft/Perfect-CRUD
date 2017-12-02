@@ -10,7 +10,7 @@ The goals were:
 
 So far I've been able to coax this syntax out, working, supporting joins, ordering, selects:
 
-```
+```swift
 struct TestTable1: Codable {
 	enum CodingKeys: String, CodingKey {
 		case id, name, integer = "int", double = "doub", blob, subTables
