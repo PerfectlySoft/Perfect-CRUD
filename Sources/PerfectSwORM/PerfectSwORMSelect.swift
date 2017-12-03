@@ -77,6 +77,18 @@ struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, 
 	}
 }
 
+// this is not an excellent check for Table<OAF, _>
+extension Where where OverAllForm == FromTableType.Form {
+	@discardableResult
+	func update(_ instance: OAF, setKeys: PartialKeyPath<OAF>...) throws -> Update<OAF, Where<OAF,A>> {
+		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])
+	}
+	@discardableResult
+	func update(_ instance: OAF, ignoreKeys: PartialKeyPath<OAF>...) throws -> Update<OAF, Where<OAF,A>> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: ignoreKeys)
+	}
+}
+
 struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
 	typealias Form = A.Form
 	typealias FromTableType = A

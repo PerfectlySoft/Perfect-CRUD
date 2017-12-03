@@ -105,14 +105,22 @@ class SwORMBindingsEncoder: Encoder {
 	let codingPath: [CodingKey] = []
 	let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
-	let ignoreKeys: [String]
+	let ignoreKeys: Set<String>
+	let includeKeys: Set<String>
 	var bindIdentifiers: [String] = []
 	var columnNames: [String] = []
-	init(delegate d: SQLGenDelegate, ignoreKeys i: [String] = []) {
+	init(delegate d: SQLGenDelegate, ignoreKeys ignore: Set<String> = Set(), includeKeys include: Set<String> = Set()) {
 		delegate = d
-		ignoreKeys = i
+		ignoreKeys = ignore
+		includeKeys = include
 	}
 	func addBinding<Key: CodingKey>(key: Key, value: SwORMExpression) throws {
+		guard includeKeys.isEmpty || includeKeys.contains(key.stringValue) else {
+			return
+		}
+		guard ignoreKeys.isEmpty || !ignoreKeys.contains(key.stringValue) else {
+			return
+		}
 		bindIdentifiers.append(try delegate.getBinding(for: value))
 		columnNames.append(key.stringValue)
 	}

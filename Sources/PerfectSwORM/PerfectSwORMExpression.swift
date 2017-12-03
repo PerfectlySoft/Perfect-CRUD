@@ -233,9 +233,12 @@ extension SwORMExpression {
 			guard let keyName = try tableData.keyPathDecoder.getKeyPathName(modelInstance, keyPath: k) else {
 				throw SwORMSQLGenError("Unable to get KeyPath name for table \(rootType).")
 			}
-			let aliasQ = try delegate.quote(identifier: tableData.alias)
 			let nameQ = try delegate.quote(identifier: keyName)
-			return "\(aliasQ).\(nameQ)"
+			if case .select = state.command {
+				let aliasQ = try delegate.quote(identifier: tableData.alias)
+				return "\(aliasQ).\(nameQ)"
+			}
+			return nameQ
 		case .null:
 			return "NULL"
 		case .lazy(let e):

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
+struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble {
 	typealias OverAllForm = A
 	typealias Form = A
 	typealias DatabaseType = C
@@ -61,8 +61,20 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
 			SwORMLogging.log(.query, sqlStr)
-		// ordering
-		case .insert, .update, .delete:()
+		case .update:
+			guard let encoder = state.bindingsEncoder else {
+				throw SwORMSQLGenError("No bindings encoder for update.")
+			}
+			let columns = try encoder.columnNames.map { try delegate.quote(identifier: $0) }
+			let binds = encoder.bindIdentifiers
+			var sqlStr = "UPDATE \(nameQ)\nSET \(zip(columns, binds).map { "\($0.0)=\($0.1)" }.joined(separator: ", "))\n"
+			if let whereExpr = state.whereExpr {
+				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))"
+			}
+			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
+			state.delegate.bindings = []
+			SwORMLogging.log(.query, sqlStr)
+		case .insert, .delete:()
 		//			state.fromStr.append("\(myTable)")
 		case .unknown:
 			throw SwORMSQLGenError("SQL command was not set.")

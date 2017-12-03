@@ -161,12 +161,35 @@ class PerfectSwORMTests: XCTestCase {
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-			try db.insert(newOne)
+			try db.table(TestTable1.self).insert(newOne)
 			let j2 = try db.table(TestTable1.self)
 				.where(\TestTable1.id == .integer(newOne.id))
 				.select().map { $0 }
 			XCTAssert(j2.count == 1)
 			XCTAssert(j2[0].id == 2000)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testUpdate() {
+		getTestDB()
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try db.table(TestTable1.self).insert(newOne)
+			let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 40, double: nil, blob: nil, subTables: nil)
+			
+			try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.update(newOne2, setKeys: \TestTable1.name)
+			
+			let j2 = try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j2.count == 1)
+			XCTAssert(j2[0].id == 2000)
+			XCTAssert(j2[0].name == "New One Updated")
 		} catch {
 			XCTAssert(false, "\(error)")
 		}

@@ -201,6 +201,7 @@ struct SQLGenState {
 	var whereExpr: Expression?
 	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
+	var bindingsEncoder: SwORMBindingsEncoder?
 	init(delegate d: SQLGenDelegate) {
 		delegate = d
 	}
