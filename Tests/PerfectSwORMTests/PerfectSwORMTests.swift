@@ -194,6 +194,28 @@ class PerfectSwORMTests: XCTestCase {
 			XCTAssert(false, "\(error)")
 		}
 	}
+	
+	func testDelete() {
+		getTestDB()
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try db.table(TestTable1.self).insert(newOne)
+			let j1 = try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j1.count == 1)
+			try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.delete()
+			let j2 = try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j2.count == 0)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
 
     static var allTests = [
 		("testKeyPaths", testKeyPaths),

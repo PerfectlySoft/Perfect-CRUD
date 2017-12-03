@@ -43,9 +43,11 @@ struct Insert<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtoco
 }
 
 extension Table {
+	@discardableResult
 	func insert(_ instances: [Form]) throws -> Insert<Form, Table<A,C>> {
 		return try .init(fromTable: self, instances: instances)
 	}
+	@discardableResult
 	func insert(_ instance: Form) throws -> Insert<Form, Table<A,C>> {
 		return try insert([instance])
 	}

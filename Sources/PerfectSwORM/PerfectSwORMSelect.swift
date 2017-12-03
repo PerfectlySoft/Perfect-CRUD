@@ -87,6 +87,10 @@ extension Where where OverAllForm == FromTableType.Form {
 	func update(_ instance: OAF, ignoreKeys: PartialKeyPath<OAF>...) throws -> Update<OAF, Where<OAF,A>> {
 		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: ignoreKeys)
 	}
+	@discardableResult
+	func delete() throws -> Delete<OAF, Where<OAF,A>> {
+		return try .init(fromTable: self)
+	}
 }
 
 struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
