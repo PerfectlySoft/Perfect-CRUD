@@ -26,16 +26,22 @@ struct TableStructure {
 	let tableName: String
 	let primaryKeyName: String
 	let columns: [Column]
+	let subTables: [TableStructure]
 }
 
 extension Decodable {
 	static func swormTableStructure(primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let columnDecoder = SwORMColumnNameDecoder()
+		columnDecoder.tableNamePath.append("\(Self.self)")
 		_ = try Self.init(from: columnDecoder)
-		let pathDecoder = SwORMKeyPathsDecoder()
-		let pathInstance = try Self.init(from: pathDecoder)
+		return try swormTableStructure(columnDecoder: columnDecoder, primaryKey: primaryKey)
+	}
+	
+	static func swormTableStructure(columnDecoder: SwORMColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let primaryKeyName: String
 		if let pkpk = primaryKey {
+			let pathDecoder = SwORMKeyPathsDecoder()
+			let pathInstance = try Self.init(from: pathDecoder)
 			guard let pkn = try pathDecoder.getKeyPathName(pathInstance, keyPath: pkpk) else {
 				throw SwORMSQLGenError("Could not get column name for primary key \(Self.self).")
 			}
@@ -46,15 +52,11 @@ extension Decodable {
 		guard columnDecoder.collectedKeys.map({$0.0}).contains(primaryKeyName) else {
 			throw SwORMSQLGenError("Primary key was not found in type \(Self.self) \(primaryKeyName).")
 		}
-		for (name, type) in columnDecoder.collectedKeys {
-			print("\(type)")
-			switch type {
-			default:
-				()
-			}
+		let subTables = try columnDecoder.subTables.map {
+			try swormTableStructure(columnDecoder: $0.2)
 		}
 		let tableStruct = TableStructure(
-			tableName: "\(Self.self)",
+			tableName: columnDecoder.tableNamePath.last!,
 			primaryKeyName: primaryKeyName,
 			columns: columnDecoder.collectedKeys.map {
 				let props: TableStructure.Column.Property
@@ -64,7 +66,8 @@ extension Decodable {
 					props = []
 				}
 				return .init(name: $0.0, type: $0.1, properties: props)
-		})
+			},
+			subTables: subTables)
 		return tableStruct
 	}
 }
@@ -72,7 +75,11 @@ extension Decodable {
 extension DatabaseProtocol {
 	func create<A: Codable>(_ type: A.Type, primaryKey: PartialKeyPath<A>) throws {
 		let tableStruct = try A.swormTableStructure(primaryKey: primaryKey)
-		
-		return
+		let delegate = configuration.sqlGenDelegate
+		let sql = try delegate.getCreateSQL(forTable: tableStruct)
+		for stat in sql {
+			let exeDelegate = try configuration.sqlExeDelegate(forSQL: stat)
+			_ = try exeDelegate.hasNext()
+		}
 	}
 }

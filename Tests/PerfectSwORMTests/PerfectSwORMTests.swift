@@ -214,6 +214,14 @@ class PerfectSwORMTests: XCTestCase {
 			
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 			try db.create(TestTable1.self, primaryKey: \TestTable1.id)
+			
+			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+			try db.table(TestTable1.self).insert(newOne)
+			let j2 = try db.table(TestTable1.self)
+				.where(\TestTable1.id == .integer(newOne.id))
+				.select().map { $0 }
+			XCTAssert(j2.count == 1)
+			XCTAssert(j2[0].id == 2000)
 		} catch {
 			XCTAssert(false, "\(error)")
 		}

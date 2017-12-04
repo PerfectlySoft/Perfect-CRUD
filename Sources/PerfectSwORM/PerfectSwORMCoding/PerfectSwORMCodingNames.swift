@@ -37,11 +37,10 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		}
 	}
 	func contains(_ key: Key) -> Bool {
-//		appendKey(key)
 		return true
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
-//		appendKey(key)
+		// if true is returned then you will never get called with the type
 		return false
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
@@ -100,11 +99,28 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		appendKey(key, type)
 		return ""
 	}
-	func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
-		appendKey(key, type)
-		let sub = SwORMColumnNameDecoder()
-		parent.subTables.append((key.stringValue, sub))
-		return try T(from: sub)
+	func decode<T>(_ t: T.Type, forKey key: Key) throws -> T where T : Decodable {
+		if T.self == [Int8].self {
+			appendKey(key, t)
+			return [Int8]() as! T
+		} else if T.self == [UInt8].self {
+			appendKey(key, t)
+			return [UInt8]() as! T
+		} else if T.self == Data.self {
+			appendKey(key, t)
+			return Data() as! T
+		} else {
+			let sub = SwORMColumnNameDecoder()
+			sub.codingPath.append(key)
+			let ret = try T(from: sub)
+			guard let ar = ret as? [Codable] else {
+				throw SwORMSQLGenError("Unsupported sub-table type \(T.self)")
+			}
+			let subType = type(of: ar[0])
+			sub.tableNamePath.append("\(subType)")
+			parent.addSubTable(key.stringValue, type: subType, decoder: sub)
+			return ret
+		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
 		fatalError("Unimplimented")
@@ -120,77 +136,99 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 }
 
-class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer {
+class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingContainer {
 	let codingPath: [CodingKey] = []
-	var count: Int? = 0
-	var isAtEnd: Bool = true
+	var count: Int? = 1
+	var isAtEnd: Bool { return currentIndex != 0 }
 	var currentIndex: Int = 0
 	let parent: SwORMColumnNameDecoder
+	var decodedType: Any.Type?
+	var typeDecoder: SwORMColumnNameDecoder?
 	init(parent p: SwORMColumnNameDecoder) {
 		parent = p
 	}
-	func decodeNil() throws -> Bool {
-		return true
+	func advance(_ t: Any.Type) {
+		currentIndex += 1
+		decodedType = t
+	}
+	func decodeNil() -> Bool {
+		return false
 	}
 	
 	func decode(_ type: Bool.Type) throws -> Bool {
+		advance(type)
 		return false
 	}
 	
 	func decode(_ type: Int.Type) throws -> Int {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: Int8.Type) throws -> Int8 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: Int16.Type) throws -> Int16 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: Int32.Type) throws -> Int32 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: Int64.Type) throws -> Int64 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: UInt.Type) throws -> UInt {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: UInt8.Type) throws -> UInt8 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: UInt16.Type) throws -> UInt16 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: UInt32.Type) throws -> UInt32 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: UInt64.Type) throws -> UInt64 {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: Float.Type) throws -> Float {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: Double.Type) throws -> Double {
+		advance(type)
 		return 0
 	}
 	
 	func decode(_ type: String.Type) throws -> String {
+		advance(type)
 		return ""
 	}
 	
 	func decode<T: Decodable>(_ type: T.Type) throws -> T {
+		advance(type)
 		let sub = SwORMColumnNameDecoder()
+		typeDecoder = sub
 		return try T(from: sub)
 	}
 	
@@ -203,24 +241,35 @@ class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer {
 	}
 	
 	func superDecoder() throws -> Decoder {
-		return SwORMColumnNameDecoder()
+		currentIndex += 1
+		return parent
 	}
 }
 
 class SwORMColumnNameDecoder: Decoder {
 	var codingPath: [CodingKey] = []
+	var tableNamePath: [String] = []
 	var userInfo: [CodingUserInfoKey : Any] = [:]
 	var collectedKeys: [(String, Any.Type)] = []
-	var subTables: [(String, SwORMColumnNameDecoder)] = []
+	var subTables: [(String, Any.Type, SwORMColumnNameDecoder)] = []
+	var pendingReader: SwORMColumnNameUnkeyedReader?
+	
+	func addSubTable(_ name: String, type: Any.Type, decoder: SwORMColumnNameDecoder) {
+		subTables.append((name, type, decoder))
+	}
+	
 	func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
 		return KeyedDecodingContainer<Key>(SwORMColumnNamesReader<Key>(self))
 	}
 	
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
-		return SwORMColumnNameUnkeyedReader(parent: self)
+		let r = SwORMColumnNameUnkeyedReader(parent: self)
+		pendingReader = r
+		return r
 	}
 	
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
-		fatalError("Unimplimented")
+		let r = SwORMColumnNameUnkeyedReader(parent: self)
+		return r
 	}
 }

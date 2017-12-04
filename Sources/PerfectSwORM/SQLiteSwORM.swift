@@ -117,6 +117,74 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 // -- new
 
 class SQLiteGenDelegate: SQLGenDelegate {
+	var parentTableStack: [TableStructure] = []
+	func getCreateSQL(forTable: TableStructure) throws -> [String] {
+		parentTableStack.append(forTable)
+		defer {
+			parentTableStack.removeLast()
+		}
+		let sub = try forTable.subTables.flatMap { try getCreateSQL(forTable: $0) }
+		let stat =
+		"""
+		CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
+			\(try forTable.columns.map { try mapColumn($0) }.joined(separator: ",\n\t"))
+		)
+		"""
+		
+		return [stat] + sub
+	}
+	
+	func mapColumn(_ column: TableStructure.Column) throws -> String {
+		let name = column.name
+		let type = column.type
+		let typeName: String
+		switch type {
+		case is Int.Type:
+			typeName = "INT"
+		case is Int8.Type:
+			typeName = "INT"
+		case is Int16.Type:
+			typeName = "INT"
+		case is Int32.Type:
+			typeName = "INT"
+		case is Int64.Type:
+			typeName = "INT"
+		case is UInt.Type:
+			typeName = "INT"
+		case is UInt8.Type:
+			typeName = "INT"
+		case is UInt16.Type:
+			typeName = "INT"
+		case is UInt32.Type:
+			typeName = "INT"
+		case is UInt64.Type:
+			typeName = "INT"
+		case is Double.Type:
+			typeName = "REAL"
+		case is Float.Type:
+			typeName = "REAL"
+		case is Bool.Type:
+			typeName = "INT"
+		case is String.Type:
+			typeName = "TEXT"
+		case is [UInt8].Type:
+			typeName = "BLOB"
+		case is [Int8].Type:
+			typeName = "BLOB"
+		case is Data.Type:
+			typeName = "BLOB"
+		default:
+			throw SQLiteSwORMError("Unsupported SQLite column type \(type)")
+		}
+		let addendum: String
+		if column.properties.contains(.primaryKey) {
+			addendum = " PRIMARY KEY"
+		} else {
+			addendum = ""
+		}
+		return "\(name) \(typeName)\(addendum)"
+	}
+	
 	var bindings: Bindings = []
 	func getBinding(for expr: Expression) throws -> String {
 		bindings.append(("?", expr))
