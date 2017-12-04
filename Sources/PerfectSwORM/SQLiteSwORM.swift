@@ -114,23 +114,36 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 }
 
-// -- new
-
 class SQLiteGenDelegate: SQLGenDelegate {
 	var parentTableStack: [TableStructure] = []
-	func getCreateSQL(forTable: TableStructure) throws -> [String] {
+	var bindings: Bindings = []
+	
+	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String] {
+		let stat =
+		"""
+		CREATE INDEX IF NOT EXISTS \(try quote(identifier: "index_\(name)_\(column)"))
+		ON \(try quote(identifier: name)) (\(try quote(identifier: column)))
+		"""
+		return [stat]
+	}
+	
+	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String] {
 		parentTableStack.append(forTable)
 		defer {
 			parentTableStack.removeLast()
 		}
-		let sub = try forTable.subTables.flatMap { try getCreateSQL(forTable: $0) }
+		let sub: [String]
+		if !policy.contains(.shallow) {
+			sub = try forTable.subTables.flatMap { try getCreateTableSQL(forTable: $0, policy: policy) }
+		} else {
+			sub = []
+		}
 		let stat =
 		"""
 		CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
 			\(try forTable.columns.map { try mapColumn($0) }.joined(separator: ",\n\t"))
 		)
 		"""
-		
 		return [stat] + sub
 	}
 	
@@ -185,7 +198,6 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		return "\(name) \(typeName)\(addendum)"
 	}
 	
-	var bindings: Bindings = []
 	func getBinding(for expr: Expression) throws -> String {
 		bindings.append(("?", expr))
 		return "?"

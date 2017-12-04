@@ -44,7 +44,8 @@ protocol SQLGenDelegate {
 	var bindings: Bindings { get set }
 	func getBinding(for: Expression) throws -> String
 	func quote(identifier: String) throws -> String
-	func getCreateSQL(forTable: TableStructure) throws -> [String]
+	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String]
+	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String]
 }
 
 protocol SQLExeDelegate {
