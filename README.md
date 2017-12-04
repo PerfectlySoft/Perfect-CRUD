@@ -49,6 +49,6 @@ j2.forEach { row in
 ```
 It's type-safe (you can't specify bogus key paths, except in the `where` clause, which can only be validated at run time), and the package has zero dependencies. The expression system lets you use real Swift operators (>=, !=, etc.) so you aren't specifying conditions as a String. Almost everything is validated at compile time.
 
-I plan to add update/insert/delete and use it on the qBiq project and see where it goes.
+I plan to use it on the qBiq project and see where it goes.
 
 (StrongORM seems like a better name now.)
