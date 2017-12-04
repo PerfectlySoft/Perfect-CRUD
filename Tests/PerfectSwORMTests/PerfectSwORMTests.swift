@@ -186,16 +186,17 @@ class PerfectSwORMTests: XCTestCase {
 		getTestDB()
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let t1 = db.table(TestTable1.self)
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-			try db.table(TestTable1.self).insert(newOne)
-			let j1 = try db.table(TestTable1.self)
+			try t1.insert(newOne)
+			let j1 = try t1
 				.where(\TestTable1.id == .integer(newOne.id))
 				.select().map { $0 }
 			XCTAssert(j1.count == 1)
-			try db.table(TestTable1.self)
+			try t1
 				.where(\TestTable1.id == .integer(newOne.id))
 				.delete()
-			let j2 = try db.table(TestTable1.self)
+			let j2 = try t1
 				.where(\TestTable1.id == .integer(newOne.id))
 				.select().map { $0 }
 			XCTAssert(j2.count == 0)
@@ -206,28 +207,34 @@ class PerfectSwORMTests: XCTestCase {
 	
 	func testCreate() {
 		do {
-			do {
-				let db = try SQLite(testDBName)
-				try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable1.self)")
-				try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable2.self)")
-			}
-			
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
-			try db.create(TestTable1.self)
-			
+			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let t2 = db.table(TestTable2.self)
 				try t2.index(\TestTable2.parentId)
 			}
-			
 			let t1 = db.table(TestTable1.self)
-			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-			try t1.insert(newOne)
-			let j2 = try t1
-				.where(\TestTable1.id == .integer(newOne.id))
-				.select().map { $0 }
-			XCTAssert(j2.count == 1)
-			XCTAssert(j2[0].id == 2000)
+			do {
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				try t1.insert(newOne)
+			}
+			let j2 = try t1.where(\TestTable1.id == .integer(2000)).select()
+			do {
+				let j2a = j2.map { $0 }
+				XCTAssert(j2a.count == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self)
+			do {
+				let j2a = j2.map { $0 }
+				XCTAssert(j2a.count == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let j2b = j2.map { $0 }
+				XCTAssert(j2b.count == 0)
+			}
 		} catch {
 			XCTAssert(false, "\(error)")
 		}
