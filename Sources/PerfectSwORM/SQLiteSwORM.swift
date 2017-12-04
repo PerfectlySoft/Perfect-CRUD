@@ -132,19 +132,22 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		defer {
 			parentTableStack.removeLast()
 		}
-		let sub: [String]
+		var sub: [String]
 		if !policy.contains(.shallow) {
 			sub = try forTable.subTables.flatMap { try getCreateTableSQL(forTable: $0, policy: policy) }
 		} else {
 			sub = []
 		}
-		let stat =
+		if policy.contains(.dropTable) {
+			sub += ["DROP TABLE IF EXISTS \(try quote(identifier: forTable.tableName))"]
+		}
+		sub += [
 		"""
 		CREATE TABLE IF NOT EXISTS \(try quote(identifier: forTable.tableName)) (
 			\(try forTable.columns.map { try mapColumn($0) }.joined(separator: ",\n\t"))
 		)
-		"""
-		return [stat] + sub
+		"""]
+		return sub
 	}
 	
 	func mapColumn(_ column: TableStructure.Column) throws -> String {

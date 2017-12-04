@@ -239,7 +239,7 @@ class PerfectSwORMTests: XCTestCase {
 		("testSelectJoin", testSelectJoin),
 		("testInsert", testInsert),
 		("testUpdate", testUpdate),
-		("testDelete", testDelete),
+		("testCreate", testCreate),
     ]
 }
 
