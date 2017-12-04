@@ -44,6 +44,7 @@ protocol SQLGenDelegate {
 	var bindings: Bindings { get set }
 	func getBinding(for: Expression) throws -> String
 	func quote(identifier: String) throws -> String
+	
 }
 
 protocol SQLExeDelegate {

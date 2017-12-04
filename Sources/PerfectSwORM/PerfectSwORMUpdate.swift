@@ -40,7 +40,6 @@ struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtoco
 		state.command = .update
 		try ft.setState(state: &state)
 		let td = state.tableData[0]
-		
 		let kpDecoder = td.keyPathDecoder
 		guard let kpInstance = td.modelInstance else {
 			throw SwORMSQLGenError("Could not get model instance for key path decoder \(OAF.self)")
@@ -57,15 +56,10 @@ struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtoco
 			}
 			return n
 		}
-		
 		let encoder = SwORMBindingsEncoder(delegate: delegate, ignoreKeys: Set(excludeNames), includeKeys: Set(includeNames))
 		try instance.encode(to: encoder)
 		state.bindingsEncoder = encoder
-		
 		try ft.setSQL(state: &state)
-		guard state.accumulatedOrderings.isEmpty else {
-			throw SwORMSQLGenError("Orderings were not consumed: \(state.accumulatedOrderings)")
-		}
 		sqlGenState = state
 		for stat in state.statements {
 			let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: stat.sql)

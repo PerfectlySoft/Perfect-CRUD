@@ -3,18 +3,6 @@ import XCTest
 import PerfectSQLite
 import PerfectCSQLite3
 
-
-struct TestTable: Codable {
-	enum CodingKeys: String, CodingKey {
-		case id, name, integer = "int", double = "doub", blob
-	}
-	let id: Int
-	let name: String?
-	let integer: Int?
-	let double: Double?
-	let blob: [UInt8]?
-}
-
 struct TestTable1: Codable {
 	enum CodingKeys: String, CodingKey {
 		case id, name, integer = "int", double = "doub", blob, subTables
@@ -137,7 +125,6 @@ class PerfectSwORMTests: XCTestCase {
 		getTestDB()
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
-			
 			let j2 = try db.table(TestTable1.self)
 					.order(by: \TestTable1.name)
 				.join(\.subTables, on: \.id, equals: \.parentId)
@@ -216,10 +203,32 @@ class PerfectSwORMTests: XCTestCase {
 			XCTAssert(false, "\(error)")
 		}
 	}
+	
+	func testCreate() {
+		do {
+			do {
+				let db = try SQLite(testDBName)
+				try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable1.self)")
+				try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable2.self)")
+			}
+			
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			try db.create(TestTable1.self, primaryKey: \TestTable1.id)
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
 
     static var allTests = [
 		("testKeyPaths", testKeyPaths),
 		("testSelectAll", testSelectAll),
 		("testSelectJoin", testSelectJoin),
+		("testInsert", testInsert),
+		("testUpdate", testUpdate),
+		("testDelete", testDelete),
     ]
 }
+
+
+
+
