@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble, DeleteAble {
+struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble, DeleteAble, LimitAble {
 	typealias OverAllForm = A
 	typealias Form = A
 	typealias DatabaseType = C
@@ -17,7 +17,7 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 		try state.addTable(type: Form.self)
 	}
 	func setSQL(var state: inout SQLGenState) throws {
-		let orderings = state.consumeOrderings()
+		let (orderings, limit) = state.consumeState()
 		let tableData = state.tableData
 		let delegate = state.delegate
 		guard let myTable = tableData.first else {
@@ -54,11 +54,19 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
+			if let (max, skip) = limit {
+				if max > 0 {
+					sqlStr += "LIMIT \(max)\n"
+				}
+				if skip > 0 {
+					sqlStr += "OFFSET \(skip)\n"
+				}
+			}
 			if state.command == .count {
 				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr)) AS s1"
 			} else if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
-				sqlStr += "ORDER BY \(m.joined(separator: ", "))"
+				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []

@@ -89,6 +89,10 @@ protocol OrderAble: TableProtocol {
 	func order(descending by: PartialKeyPath<Form>...) throws -> Ordering<OverAllForm, Self>
 }
 
+protocol LimitAble: TableProtocol {
+	func limit(_ max: Int, skip: Int) throws -> Limit<OverAllForm, Self>
+}
+
 extension JoinAble {
 	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
 													on: KeyPath<OverAllForm, KeyType>,
@@ -131,6 +135,12 @@ extension OrderAble {
 	}
 	func order(descending by: PartialKeyPath<Form>...) throws -> Ordering<OverAllForm, Self> {
 		return .init(fromTable: self, keys: by, descending: true)
+	}
+}
+
+extension LimitAble {
+	func limit(_ max: Int = 0, skip: Int = 0) throws -> Limit<OverAllForm, Self> {
+		return .init(fromTable: self, max: max, skip: skip)
 	}
 }
 
@@ -235,13 +245,17 @@ struct SQLGenState {
 	var whereExpr: Expression?
 	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
+	var currentLimit: (max: Int, skip: Int)?
 	var bindingsEncoder: SwORMBindingsEncoder?
 	init(delegate d: SQLGenDelegate) {
 		delegate = d
 	}
-	mutating func consumeOrderings() -> [Ordering] {
-		defer { accumulatedOrderings = [] }
-		return accumulatedOrderings
+	mutating func consumeState() -> ([Ordering], (max: Int, skip: Int)?) {
+		defer {
+			accumulatedOrderings = []
+			currentLimit = nil
+		}
+		return (accumulatedOrderings, currentLimit)
 	}
 	mutating func addTable<A: Codable>(type: A.Type, joinData: PropertyJoinData? = nil) throws {
 		let decoder = SwORMKeyPathsDecoder()

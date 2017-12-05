@@ -93,7 +93,7 @@ extension Where where OverAllForm == FromTableType.Form {
 	}
 }
 
-struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
+struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
 	typealias Form = A.Form
 	typealias FromTableType = A
 	typealias OverAllForm = OAF
@@ -109,7 +109,23 @@ struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtoco
 	}
 }
 
-struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, JoinProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
+struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
+	typealias Form = A.Form
+	typealias FromTableType = A
+	typealias OverAllForm = OAF
+	let fromTable: FromTableType
+	let max: Int
+	let skip: Int
+	func setState(var state: inout SQLGenState) throws {
+		state.currentLimit = (max, skip)
+		try fromTable.setState(state: &state)
+	}
+	func setSQL(var state: inout SQLGenState) throws {
+		try fromTable.setSQL(state: &state)
+	}
+}
+
+struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, JoinProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
 	typealias Form = B
 	typealias FromTableType = A
 	typealias ComparisonType = O
@@ -123,7 +139,7 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals))
 	}
 	func setSQL(var state: inout SQLGenState) throws {
-		let orderings = state.consumeOrderings()
+		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
 		
 		let tableData = state.tableData
@@ -173,7 +189,15 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 			}
 			if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
-				sqlStr += "ORDER BY \(m.joined(separator: ", "))"
+				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
+			}
+			if let (max, skip) = limit {
+				if max > 0 {
+					sqlStr += "LIMIT \(max)\n"
+				}
+				if skip > 0 {
+					sqlStr += "OFFSET \(skip)\n"
+				}
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []

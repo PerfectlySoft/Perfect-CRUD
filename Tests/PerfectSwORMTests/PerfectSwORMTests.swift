@@ -159,13 +159,13 @@ class PerfectSwORMTests: XCTestCase {
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-			try db.table(TestTable1.self).insert(newOne)
-			let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 40, double: nil, blob: nil, subTables: nil)
-			
-			try db.table(TestTable1.self)
-				.where(\TestTable1.id == .integer(newOne.id))
-				.update(newOne2, setKeys: \TestTable1.name)
-			
+			try db.transaction {
+				try db.table(TestTable1.self).insert(newOne)
+				let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 40, double: nil, blob: nil, subTables: nil)
+				try db.table(TestTable1.self)
+					.where(\TestTable1.id == .integer(newOne.id))
+					.update(newOne2, setKeys: \TestTable1.name)
+			}
 			let j2 = try db.table(TestTable1.self)
 				.where(\TestTable1.id == .integer(newOne.id))
 				.select().map { $0 }
@@ -232,6 +232,18 @@ class PerfectSwORMTests: XCTestCase {
 			}
 		} catch {
 			XCTAssert(false, "\(error)")
+		}
+	}
+	
+	func testSelectLimit() {
+		getTestDB()
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let j2 = try db.table(TestTable1.self)
+				.limit(3, skip: 2)
+			XCTAssert(try j2.count() == 3)
+		} catch {
+			print("\(error)")
 		}
 	}
 
