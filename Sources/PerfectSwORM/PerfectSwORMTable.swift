@@ -26,7 +26,7 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 		let nameQ = try delegate.quote(identifier: "\(Form.self)")
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		switch state.command {
-		case .select:
+		case .select, .count:
 			var sqlStr =
 			"""
 			SELECT DISTINCT \(aliasQ).*
@@ -54,7 +54,9 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
-			if !orderings.isEmpty {
+			if state.command == .count {
+				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr)) AS s1"
+			} else if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))"
 			}

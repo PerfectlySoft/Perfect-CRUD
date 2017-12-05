@@ -304,7 +304,8 @@ class PostgresExeDelegate: SQLExeDelegate {
 		if nil == results {
 			let r = try connection.exec(statement: sql, params: nextBindings.map { try bindOne(expr: $0.1) })
 			results = r
-			if r.status() == .tuplesOK {
+			let status = r.status()
+			if status == .commandOK || status == .singleTuple || status == .tuplesOK {
 				numTuples = r.numTuples()
 				for i in 0..<numTuples {
 					guard let fieldName = r.fieldName(index: i) else {

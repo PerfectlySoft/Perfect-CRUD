@@ -130,9 +130,13 @@ class PerfectSwORMTests: XCTestCase {
 				.join(\.subTables, on: \.id, equals: \.parentId)
 					.order(by: \TestTable2.id)
 				.where(\TestTable2.name == .string("Me"))
-				.select().map { $0 }
-			XCTAssert(j2.count != 0)
-			j2.forEach { row in
+			
+			let j2c = try j2.count()
+			let j2a = try j2.select().map{$0}
+			let j2ac = j2a.count
+			XCTAssert(j2c != 0)
+			XCTAssert(j2c == j2ac)
+			j2a.forEach { row in
 				row.subTables?.forEach {
 					sub in
 					XCTAssert(sub.id % 2 == 1)
@@ -150,10 +154,9 @@ class PerfectSwORMTests: XCTestCase {
 			let t1 = db.table(TestTable1.self)
 			let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 			try t1.insert(newOne)
-			let j2 = try t1
-				.where(\TestTable1.id == .integer(newOne.id))
-				.select().map { $0 }
-			XCTAssert(j2.count == 1)
+			let j1 = t1.where(\TestTable1.id == .integer(newOne.id))
+			let j2 = try j1.select().map {$0}
+			XCTAssert(try j1.count() == 1)
 			XCTAssert(j2[0].id == 2000)
 		} catch {
 			XCTAssert(false, "\(error)")
@@ -242,9 +245,16 @@ class PerfectSwORMTests: XCTestCase {
 	}
 
 	// -- postgres
-	let postgresTestConnInfo = "host=localhost dbname=postgres"
+	let postgresTestDBName = "testing123"
+	let postgresInitConnInfo = "host=localhost dbname=postgres"
+	let postgresTestConnInfo = "host=localhost dbname=testing123"
 	func testCreatePG() {
 		do {
+			do {
+				let db = Database(configuration: try PostgresDatabaseConfiguration(postgresInitConnInfo))
+				try db.sql("DROP DATABASE \(postgresTestDBName)")
+				try db.sql("CREATE DATABASE \(postgresTestDBName)")
+			}
 			let db = Database(configuration: try PostgresDatabaseConfiguration(postgresTestConnInfo))
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
@@ -256,21 +266,21 @@ class PerfectSwORMTests: XCTestCase {
 				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 				try t1.insert(newOne)
 			}
-			let j2 = try t1.where(\TestTable1.id == .integer(2000)).select()
+			let j2 = t1.where(\TestTable1.id == .integer(2000))
 			do {
-				let j2a = j2.map { $0 }
-				XCTAssert(j2a.count == 1)
+				let j2a = try j2.select().map { $0 }
+				XCTAssert(try j2.count() == 1)
 				XCTAssert(j2a[0].id == 2000)
 			}
 			try db.create(TestTable1.self)
 			do {
-				let j2a = j2.map { $0 }
-				XCTAssert(j2a.count == 1)
+				let j2a = try j2.select().map { $0 }
+				XCTAssert(try j2.count() == 1)
 				XCTAssert(j2a[0].id == 2000)
 			}
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
-				let j2b = j2.map { $0 }
+				let j2b = try j2.select().map { $0 }
 				XCTAssert(j2b.count == 0)
 			}
 		} catch {

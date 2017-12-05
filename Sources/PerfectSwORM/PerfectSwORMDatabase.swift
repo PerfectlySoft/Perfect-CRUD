@@ -14,3 +14,11 @@ struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 		return .init(database: self)
 	}
 }
+
+extension Database {
+	func sql(_ sql: String, bindings: Bindings = []) throws {
+		let delegate = try configuration.sqlExeDelegate(forSQL: sql)
+		try delegate.bind(bindings, skip: 0)
+		_ = try delegate.hasNext()
+	}
+}

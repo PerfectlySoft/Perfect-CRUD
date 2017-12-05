@@ -141,6 +141,8 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 		let lhsStr = try Expression.keyPath(on).sqlSnippet(state: state)
 		let rhsStr = try Expression.keyPath(equals).sqlSnippet(state: state)
 		switch state.command {
+		case .count:
+			() // joins do nothing on .count except limit master #
 		case .select:
 			var sqlStr =
 			"""

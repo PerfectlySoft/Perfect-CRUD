@@ -234,11 +234,15 @@ extension SwORMExpression {
 				throw SwORMSQLGenError("Unable to get KeyPath name for table \(rootType).")
 			}
 			let nameQ = try delegate.quote(identifier: keyName)
-			if case .select = state.command {
+			switch state.command {
+			case .select, .count:
 				let aliasQ = try delegate.quote(identifier: tableData.alias)
 				return "\(aliasQ).\(nameQ)"
+			case .insert, .update, .delete:
+				return nameQ
+			case .unknown:
+				throw SwORMSQLGenError("Can not process unknown command.")
 			}
-			return nameQ
 		case .null:
 			return "NULL"
 		case .lazy(let e):

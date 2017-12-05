@@ -73,6 +73,7 @@ protocol JoinAble: TableProtocol {
 
 protocol SelectAble: TableProtocol {
 	func select() throws -> Select<OverAllForm, Self>
+	func count() throws -> Int
 }
 
 protocol WhereAble: TableProtocol {
@@ -95,6 +96,24 @@ extension JoinAble {
 extension SelectAble {
 	func select() throws -> Select<OverAllForm, Self> {
 		return try .init(fromTable: self)
+	}
+	func count() throws -> Int {
+		var state = SQLGenState(delegate: databaseConfiguration.sqlGenDelegate)
+		state.command = .count
+		try setState(state: &state)
+		try setSQL(state: &state)
+		guard state.statements.count == 1 else {
+			throw SwORMSQLGenError("Too many statements for count().")
+		}
+		let stat = state.statements[0]
+		SwORMLogging.log(.query, stat.sql)
+		let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: stat.sql)
+		try exeDelegate.bind(stat.bindings)
+		guard try exeDelegate.hasNext(),
+			let container: KeyedDecodingContainer<ColumnKey> = try exeDelegate.next() else {
+			throw SwORMSQLGenError("No rows returned in count().")
+		}
+		return try container.decode(Int.self, forKey: ColumnKey(stringValue: "count")!)
 	}
 }
 
@@ -178,6 +197,7 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 struct SQLGenState {
 	enum Command {
 		case select, insert, update, delete, unknown
+		case count
 	}
 	struct TableData {
 		let type: Any.Type
