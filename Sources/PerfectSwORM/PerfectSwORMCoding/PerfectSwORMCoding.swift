@@ -51,3 +51,24 @@ struct ColumnKey : CodingKey {
 		self.intValue = index
 	}
 }
+
+enum SpecialType {
+	case uint8Array, int8Array, data, uuid, date
+	init?(_ type: Any.Type) {
+		switch type {
+		case is [Int8].Type:
+			self = .int8Array
+		case is [UInt8].Type:
+			self = .uint8Array
+		case is Data.Type:
+			self = .data
+		case is UUID.Type:
+			self = .uuid
+		case is Date.Type:
+			self = .date
+		default:
+			return nil
+		}
+	}
+}
+

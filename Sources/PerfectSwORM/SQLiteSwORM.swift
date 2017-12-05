@@ -27,6 +27,9 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columns: SQLiteSwORMColumnMap
+	var dateFormatter: DateFormatter {
+		return dateFormatterISO8601()
+	}
 	// the SQLiteStmt has been successfully step()ed to the next row
 	init(_ db: SQLite, stat: SQLiteStmt, columns cols: SQLiteSwORMColumnMap) {
 		database = db
@@ -86,18 +89,32 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
 		let position = columnPosition(key)
-		switch type {
-		case is [Int8].Type:
-			let ret: [Int8] = statement.columnIntBlob(position: position)
-			return ret as! T
-		case is [UInt8].Type:
+		guard let special = SpecialType(type) else {
+			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
+		}
+		switch special {
+		case .uint8Array:
 			let ret: [UInt8] = statement.columnIntBlob(position: position)
 			return ret as! T
-		case is Data.Type:
+		case .int8Array:
+			let ret: [Int8] = statement.columnIntBlob(position: position)
+			return ret as! T
+		case .data:
 			let bytes: [UInt8] = statement.columnIntBlob(position: position)
 			return Data(bytes: bytes) as! T
-		default:
-			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
+		case .uuid:
+			let str = statement.columnText(position: position)
+			guard let uuid = UUID(uuidString: str) else {
+				throw SwORMDecoderError("Invalid UUID string \(str).")
+			}
+			return uuid as! T
+		case .date:
+			let str = statement.columnText(position: position)
+			let formatter = dateFormatter
+			guard let date = formatter.date(from: str) else {
+				throw SwORMDecoderError("Invalid Date string \(str).")
+			}
+			return date as! T
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -183,14 +200,22 @@ class SQLiteGenDelegate: SQLGenDelegate {
 			typeName = "INT"
 		case is String.Type:
 			typeName = "TEXT"
-		case is [UInt8].Type:
-			typeName = "BLOB"
-		case is [Int8].Type:
-			typeName = "BLOB"
-		case is Data.Type:
-			typeName = "BLOB"
 		default:
-			throw SQLiteSwORMError("Unsupported SQLite column type \(type)")
+			guard let special = SpecialType(type) else {
+				throw SQLiteSwORMError("Unsupported SQL column type \(type)")
+			}
+			switch special {
+			case .uint8Array:
+				typeName = "BLOB"
+			case .int8Array:
+				typeName = "BLOB"
+			case .data:
+				typeName = "BLOB"
+			case .uuid:
+				typeName = "TEXT"
+			case .date:
+				typeName = "TEXT"
+			}
 		}
 		let addendum: String
 		if column.properties.contains(.primaryKey) {

@@ -100,15 +100,24 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return ""
 	}
 	func decode<T>(_ t: T.Type, forKey key: Key) throws -> T where T : Decodable {
-		if T.self == [Int8].self {
-			appendKey(key, t)
-			return [Int8]() as! T
-		} else if T.self == [UInt8].self {
-			appendKey(key, t)
-			return [UInt8]() as! T
-		} else if T.self == Data.self {
-			appendKey(key, t)
-			return Data() as! T
+		if let special = SpecialType(t) {
+			switch special {
+			case .uint8Array:
+				appendKey(key, t)
+				return [UInt8]() as! T
+			case .int8Array:
+				appendKey(key, t)
+				return [Int8]() as! T
+			case .data:
+				appendKey(key, t)
+				return Data() as! T
+			case .uuid:
+				appendKey(key, t)
+				return UUID() as! T
+			case .date:
+				appendKey(key, t)
+				return Date() as! T
+			}
 		} else {
 			let sub = SwORMColumnNameDecoder()
 			sub.codingPath.append(key)

@@ -16,16 +16,8 @@ struct TestTable1: Codable {
 }
 
 struct TestTable2: Codable {
-	let id: Int
+	let id: UUID
 	let parentId: Int
-	let name: String?
-	let int: Int?
-	let doub: Double?
-	let blob: [UInt8]?
-}
-
-struct TestTable3: Codable {
-	let id: Int
 	let name: String?
 	let int: Int?
 	let doub: Double?
@@ -49,7 +41,7 @@ class PerfectSwORMTests: XCTestCase {
 			try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable1.self)")
 			try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable2.self)")
 			try db.execute(statement: "CREATE TABLE \(TestTable1.self) (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
-			try db.execute(statement: "CREATE TABLE \(TestTable2.self) (id INTEGER PRIMARY KEY, parentId INTEGER, name TEXT, int, doub, blob)")
+			try db.execute(statement: "CREATE TABLE \(TestTable2.self) (id TEXT PRIMARY KEY, parentId INTEGER, name TEXT, int, doub, blob)")
 			try db.doWithTransaction {
 				try db.execute(statement: "INSERT INTO \(TestTable1.self) (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: testDBRowCount) {
 					(stmt: SQLiteStmt, num: Int) throws -> () in
@@ -67,7 +59,8 @@ class PerfectSwORMTests: XCTestCase {
 				for relCount in 1...testDBRowCount {
 					try db.execute(statement: "INSERT INTO \(TestTable2.self) (id,parentId,name,int,doub,blob) VALUES (?,?,?,?,?,?)", count: testDBRowCount) {
 						(stmt: SQLiteStmt, num: Int) throws -> () in
-						try stmt.bind(position: 1, idCount)
+						let id = UUID()
+						try stmt.bind(position: 1, id.uuidString)
 						try stmt.bind(position: 2, relCount)
 						if idCount % 2 == 0 {
 							try stmt.bind(position: 3, "This is name bind \(num)")
@@ -137,10 +130,7 @@ class PerfectSwORMTests: XCTestCase {
 			XCTAssert(j2c != 0)
 			XCTAssert(j2c == j2ac)
 			j2a.forEach { row in
-				row.subTables?.forEach {
-					sub in
-					XCTAssert(sub.id % 2 == 1)
-				}
+				XCTAssertFalse(row.subTables?.isEmpty ?? true)
 			}
 		} catch {
 			XCTAssert(false, "\(error)")
@@ -262,15 +252,31 @@ class PerfectSwORMTests: XCTestCase {
 				try t2.index(\TestTable2.parentId)
 			}
 			let t1 = db.table(TestTable1.self)
+			let subId = UUID()
 			do {
 				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 				try t1.insert(newOne)
+				let newSub1 = TestTable2(id: subId, parentId: 2000, name: "Me", int: nil, doub: nil, blob: nil)
+				let newSub2 = TestTable2(id: UUID(), parentId: 2000, name: "Not Me", int: nil, doub: nil, blob: nil)
+				let t2 = db.table(TestTable2.self)
+				try t2.insert([newSub1, newSub2])
 			}
-			let j2 = t1.where(\TestTable1.id == .integer(2000))
+			let j2 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
+						.where(\TestTable1.id == .integer(2000) && \TestTable2.name == .string("Me"))
 			do {
 				let j2a = try j2.select().map { $0 }
 				XCTAssert(try j2.count() == 1)
-				XCTAssert(j2a[0].id == 2000)
+				XCTAssert(j2a.count == 1)
+				guard j2a.count == 1 else {
+					return
+				}
+				let obj = j2a[0]
+				XCTAssert(obj.id == 2000)
+				XCTAssertNotNil(obj.subTables)
+				let subTables = obj.subTables!
+				XCTAssert(subTables.count == 1)
+				let obj2 = subTables[0]
+				XCTAssert(obj2.id == subId)
 			}
 			try db.create(TestTable1.self)
 			do {

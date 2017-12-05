@@ -106,7 +106,6 @@ extension SelectAble {
 			throw SwORMSQLGenError("Too many statements for count().")
 		}
 		let stat = state.statements[0]
-		SwORMLogging.log(.query, stat.sql)
 		let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: stat.sql)
 		try exeDelegate.bind(stat.bindings)
 		guard try exeDelegate.hasNext(),
@@ -263,5 +262,11 @@ struct SQLGenState {
 	}
 }
 
-
+func dateFormatterISO8601() -> DateFormatter {
+	let locale = Locale(identifier: "en_US_POSIX")
+	let formatter = DateFormatter()
+	formatter.locale = locale
+	formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+	return formatter
+}
 

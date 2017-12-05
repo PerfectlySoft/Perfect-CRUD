@@ -76,15 +76,20 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		try addBinding(key, value: .string(value))
 	}
 	func encode<T>(_ value: T, forKey key: K) throws where T : Encodable {
-		switch value {
-		case let a as [Int8]:
-			try addBinding(key, value: .blob(a.map { UInt8($0) }))
-		case let a as [UInt8]:
-			try addBinding(key, value: .blob(a))
-		case let a as Data:
-			try addBinding(key, value: .blob(a.map { $0 }))
-		default:
+		guard let special = SpecialType(T.self) else {
 			throw SwORMEncoderError("Unsupported encoding type: \(value) for key: \(key.stringValue)")
+		}
+		switch special {
+		case .uint8Array:
+			try addBinding(key, value: .blob((value as! [UInt8])))
+		case .int8Array:
+			try addBinding(key, value: .blob((value as! [Int8]).map { UInt8($0) }))
+		case .data:
+			try addBinding(key, value: .blob((value as! Data).map { $0 }))
+		case .uuid:
+			try addBinding(key, value: .uuid(value as! UUID))
+		case .date:
+			try addBinding(key, value: .date(value as! Date))
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: K) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {

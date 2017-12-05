@@ -84,10 +84,10 @@ class PostgresSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		fieldNames = fn
 	}
 	func contains(_ key: K) -> Bool {
-		return fieldNames[key.stringValue] != nil
+		return fieldNames[key.stringValue.lowercased()] != nil
 	}
 	func ensureIndex(forKey key: K) throws -> Int {
-		guard let index = fieldNames[key.stringValue] else {
+		guard let index = fieldNames[key.stringValue.lowercased()] else {
 			throw PostgresSwORMError("No index for column \(key.stringValue)")
 		}
 		return index
@@ -154,18 +154,32 @@ class PostgresSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	
 	func decode<T>(_ type: T.Type, forKey key: K) throws -> T where T : Decodable {
 		let index = try ensureIndex(forKey: key)
-		switch type {
-		case is [Int8].Type:
-			let ret: [Int8] = results.getFieldBlob(tupleIndex: tupleIndex, fieldIndex: index) ?? []
-			return ret as! T
-		case is [UInt8].Type:
+		guard let special = SpecialType(type) else {
+			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
+		}
+		switch special {
+		case .uint8Array:
 			let ret: [UInt8] = results.getFieldBlobUInt8(tupleIndex: tupleIndex, fieldIndex: index) ?? []
 			return ret as! T
-		case is Data.Type:
+		case .int8Array:
+			let ret: [Int8] = results.getFieldBlob(tupleIndex: tupleIndex, fieldIndex: index) ?? []
+			return ret as! T
+		case .data:
 			let bytes: [UInt8] = results.getFieldBlobUInt8(tupleIndex: tupleIndex, fieldIndex: index) ?? []
 			return Data(bytes: bytes) as! T
-		default:
-			throw SwORMDecoderError("Unsupported type: \(type) for key: \(key.stringValue)")
+		case .uuid:
+			let str = results.getFieldString(tupleIndex: tupleIndex, fieldIndex: index) ?? ""
+			guard let ret = UUID(uuidString: str) else {
+				throw SwORMDecoderError("Invalid UUID string \(str).")
+			}
+			return ret as! T
+		case .date:
+			let str = results.getFieldString(tupleIndex: tupleIndex, fieldIndex: index) ?? ""
+			let formatter = dateFormatterISO8601()
+			guard let date = formatter.date(from: str) else {
+				throw SwORMDecoderError("Invalid Date string \(str).")
+			}
+			return date as! T
 		}
 	}
 	
@@ -195,7 +209,7 @@ class PostgresGenDelegate: SQLGenDelegate {
 		return id
 	}
 	func quote(identifier: String) throws -> String {
-		return "\"\(identifier)\""
+		return "\"\(identifier.lowercased())\""
 	}
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String] {
 		parentTableStack.append(forTable)
@@ -252,14 +266,22 @@ class PostgresGenDelegate: SQLGenDelegate {
 			typeName = "boolean"
 		case is String.Type:
 			typeName = "text"
-		case is [UInt8].Type:
-			typeName = "bytea"
-		case is [Int8].Type:
-			typeName = "bytea"
-		case is Data.Type:
-			typeName = "bytea"
 		default:
-			throw PostgresSwORMError("Unsupported SQLite column type \(type)")
+			guard let special = SpecialType(type) else {
+				throw PostgresSwORMError("Unsupported SQL column type \(type)")
+			}
+			switch special {
+			case .uint8Array:
+				typeName = "bytea"
+			case .int8Array:
+				typeName = "bytea"
+			case .data:
+				typeName = "bytea"
+			case .uuid:
+				typeName = "uuid"
+			case .date:
+				typeName = "timestamp with time zone"
+			}
 		}
 		let addendum: String
 		if column.properties.contains(.primaryKey) {
@@ -267,7 +289,7 @@ class PostgresGenDelegate: SQLGenDelegate {
 		} else {
 			addendum = ""
 		}
-		return "\(name) \(typeName)\(addendum)"
+		return "\(try quote(identifier: name)) \(typeName)\(addendum)"
 	}
 	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String] {
 		let stat =
@@ -305,14 +327,23 @@ class PostgresExeDelegate: SQLExeDelegate {
 			let r = try connection.exec(statement: sql, params: nextBindings.map { try bindOne(expr: $0.1) })
 			results = r
 			let status = r.status()
-			if status == .commandOK || status == .singleTuple || status == .tuplesOK {
+			switch status {
+			case .emptyQuery:
+				return false
+			case .commandOK, .tuplesOK, .singleTuple:
 				numTuples = r.numTuples()
-				for i in 0..<numTuples {
+				for i in 0..<r.numFields() {
 					guard let fieldName = r.fieldName(index: i) else {
 						continue
 					}
 					fieldNames[fieldName] = i
 				}
+			case .badResponse, .fatalError:
+				throw SwORMSQLExeError(r.errorMessage())
+			case .nonFatalError:
+				SwORMLogging.log(.warning, r.errorMessage())
+			case .unknown:
+				return false
 			}
 		}
 		return tupleIndex < numTuples
@@ -341,9 +372,16 @@ class PostgresExeDelegate: SQLExeDelegate {
 			return b
 		case .bool(let b):
 			return b
+		case .date(let d):
+			return dateFormatterISO8601().string(from: d)
+		case .uuid(let u):
+			return u.uuidString
 		case .null:
 			return nil as String?
-		default:
+		case .column(_), .and(_, _), .or(_, _),
+			 .equality(_, _), .inequality(_, _),
+			 .not(_), .lessThan(_, _), .lessThanEqual(_, _),
+			 .greaterThan(_, _), .greaterThanEqual(_, _), .keyPath(_):
 			throw PostgresSwORMError("Asked to bind unsupported expression type: \(expr)")
 		}
 	}

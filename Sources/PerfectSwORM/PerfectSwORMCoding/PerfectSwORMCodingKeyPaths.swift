@@ -99,12 +99,19 @@ class SwORMKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	func decode<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T {
 		counter += 1
 		parent.typeMap[counter] = key.stringValue
-		if T.self == [Int8].self {
-			return [UInt8(counter)] as! T
-		} else if T.self == [UInt8].self {
-			return [UInt8(counter)] as! T
-		} else if T.self == Data.self {
-			return Data(bytes: [UInt8(counter)]) as! T
+		if let special = SpecialType(type) {
+			switch special {
+			case .uint8Array:
+				return [UInt8(counter)] as! T
+			case .int8Array:
+				return [UInt8(counter)] as! T
+			case .data:
+				return Data(bytes: [UInt8(counter)]) as! T
+			case .uuid:
+				return UUID(uuid: uuid_t(UInt8(counter),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)) as! T
+			case .date:
+				return Date(timeIntervalSinceReferenceDate: TimeInterval(counter)) as! T
+			}
 		} else {
 			let decoder = SwORMKeyPathsDecoder()
 			let decoded = try T(from: decoder)
@@ -232,6 +239,9 @@ class SwORMKeyPathsDecoder: Decoder {
 		guard let v = instance[keyPath: keyPath] else {
 			return nil
 		}
+		return try getKeyPathName(fromValue: v)
+	}
+	private func getKeyPathName(fromValue v: Any) throws -> String? {
 		switch v {
 		case let b as Bool:
 			return typeMap[b ? 1 : 0]
@@ -264,20 +274,33 @@ class SwORMKeyPathsDecoder: Decoder {
 			return typeMap[Int8(i)]
 		case let i as Double:
 			return typeMap[Int8(i)]
-		case let i as [UInt8]:
-			return typeMap[Int8(i[0])]
-		case let i as [Int8]:
-			return typeMap[Int8(i[0])]
-		case let i as Data:
-			return typeMap[Int8(i.first!)]
 		case let o as Any?:
-			guard let unType = o,
-				let found = subTypeMap.first(where: { $0.1 == type(of: unType) }) else {
+			guard let unType = o else {
+				return nil
+			}
+			if let found = subTypeMap.first(where: { $0.1 == type(of: unType) }) {
+				return found.0
+			}
+			if let special = SpecialType(type(of: unType)) {
+				switch special {
+				case .uint8Array:
+					return typeMap[Int8((v as! [UInt8])[0])]
+				case .int8Array:
+					return typeMap[Int8((v as! [Int8])[0])]
+				case .data:
+					return typeMap[Int8((v as! Data).first!)]
+				case .uuid:
+					return typeMap[Int8((v as! UUID).uuid.0)]
+				case .date:
+					return typeMap[Int8((v as! Date).timeIntervalSinceReferenceDate)]
+				}
+			}
+			return nil
+		default:
+			guard let found = subTypeMap.first(where: { $0.1 == type(of: v) }) else {
 				return nil
 			}
 			return found.0
-		default:
-			return nil
 		}
 	}
 }

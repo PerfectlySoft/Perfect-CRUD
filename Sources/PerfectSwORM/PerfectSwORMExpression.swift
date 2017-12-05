@@ -39,6 +39,8 @@ public indirect enum SwORMExpression {
 	case string(String)
 	case blob([UInt8])
 	case bool(Bool)
+	case uuid(UUID)
+	case date(Date)
 	case null
 	
 	// todo:
@@ -247,7 +249,7 @@ extension SwORMExpression {
 			return "NULL"
 		case .lazy(let e):
 			return try e().sqlSnippet(state: state)
-		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_):
+		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_), .uuid(_), .date(_):
 			return try delegate.getBinding(for: self)
 		}
 	}
@@ -285,7 +287,7 @@ extension SwORMExpression {
 			return []
 		case .lazy(let e):
 			return e().referencedTypes()
-		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_):
+		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_), .uuid(_), .date(_):
 			return []
 		}
 	}
