@@ -22,3 +22,17 @@ extension Database {
 		_ = try delegate.hasNext()
 	}
 }
+
+extension Database {
+	func transaction<T>(_ body: () throws -> T) throws -> T {
+		try sql("BEGIN")
+		do {
+			let r = try body()
+			try sql("COMMIT")
+			return r
+		} catch {
+			try sql("ROLLBACK")
+			throw error
+		}
+	}
+}

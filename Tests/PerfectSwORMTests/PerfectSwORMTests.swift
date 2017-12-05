@@ -254,7 +254,7 @@ class PerfectSwORMTests: XCTestCase {
 			}
 			let t1 = db.table(TestTable1.self)
 			let subId = UUID()
-			do {
+			try db.transaction {
 				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 				try t1.insert(newOne)
 				let newSub1 = TestTable2(id: subId, date: Date(), parentId: 2000, name: "Me", int: nil, doub: nil, blob: nil)
@@ -264,7 +264,7 @@ class PerfectSwORMTests: XCTestCase {
 			}
 			let j2 = try t1.join(\.subTables, on: \.id, equals: \.parentId)
 						.where(\TestTable1.id == .integer(2000) && \TestTable2.name == .string("Me"))
-			do {
+			try db.transaction {
 				let j2a = try j2.select().map { $0 }
 				XCTAssert(try j2.count() == 1)
 				XCTAssert(j2a.count == 1)
