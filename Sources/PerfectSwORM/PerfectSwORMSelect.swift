@@ -134,9 +134,9 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 		}
 		let joinTables = Array(tableData[1..<myTableIndex]) + Array(tableData[(myTableIndex+1)...])
 		let myTable = tableData[myTableIndex]
-		let nameQ = try delegate.quote(identifier: "\(Form.self)")
+		let nameQ = try delegate.quote(identifier: Form.swormTableName)
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
-		let fNameQ = try delegate.quote(identifier: "\(firstTable.type)")
+		let fNameQ = try delegate.quote(identifier: firstTable.type.swormTableName)
 		let fAliasQ = try delegate.quote(identifier: firstTable.alias)
 		let lhsStr = try Expression.keyPath(on).sqlSnippet(state: state)
 		let rhsStr = try Expression.keyPath(equals).sqlSnippet(state: state)
@@ -163,7 +163,7 @@ struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProt
 					guard let joinData = joinTable.joinData else {
 						throw SwORMSQLGenError("Join without a clause \(type).")
 					}
-					let nameQ = try delegate.quote(identifier: "\(joinTable.type)")
+					let nameQ = try delegate.quote(identifier: joinTable.type.swormTableName)
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
 					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
 					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)

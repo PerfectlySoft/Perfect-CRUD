@@ -35,7 +35,7 @@ struct TableStructure {
 extension Decodable {
 	static func swormTableStructure(policy: TableCreatePolicy, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let columnDecoder = SwORMColumnNameDecoder()
-		columnDecoder.tableNamePath.append("\(Self.self)")
+		columnDecoder.tableNamePath.append("\(Self.swormTableName)")
 		_ = try Self.init(from: columnDecoder)
 		return try swormTableStructure(policy: policy, columnDecoder: columnDecoder, primaryKey: primaryKey)
 	}
@@ -107,7 +107,7 @@ struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol {
 	init(fromTable ft: FromTableType, keys: [PartialKeyPath<FromTableType.Form>]) throws {
 		fromTable = ft
 		let delegate = ft.databaseConfiguration.sqlGenDelegate
-		let tableName = "\(OverAllForm.self)"
+		let tableName = "\(OverAllForm.swormTableName)"
 		let pathDecoder = SwORMKeyPathsDecoder()
 		let pathInstance = try OverAllForm.init(from: pathDecoder)
 		let keyNames: [String] = try keys.map {

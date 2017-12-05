@@ -23,7 +23,7 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 		guard let myTable = tableData.first else {
 			throw SwORMSQLGenError("No tables specified.")
 		}
-		let nameQ = try delegate.quote(identifier: "\(Form.self)")
+		let nameQ = try delegate.quote(identifier: "\(Form.swormTableName)")
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		switch state.command {
 		case .select, .count:

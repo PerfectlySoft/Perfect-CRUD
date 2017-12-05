@@ -65,6 +65,10 @@ protocol DatabaseProtocol {
 	func table<T: Codable>(_ form: T.Type) -> Table<T, Self>
 }
 
+protocol TableNameProvider {
+	static var tableName: String { get }
+}
+
 protocol JoinAble: TableProtocol {
 	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
 													on: KeyPath<OverAllForm, KeyType>,
@@ -143,6 +147,15 @@ extension SQLExeDelegate {
 	func bind(_ bindings: Bindings) throws { return try bind(bindings, skip: 0) }
 }
 
+extension Decodable {
+	static var swormTableName: String {
+		if let p = self as? TableNameProvider.Type {
+			return p.tableName
+		}
+		return "\(Self.self)"
+	}
+}
+
 struct SQLTopExeDelegate: SQLExeDelegate {
 	let genState: SQLGenState
 	let master: (table: SQLGenState.TableData, delegate: SQLExeDelegate)
@@ -199,9 +212,9 @@ struct SQLGenState {
 		case count
 	}
 	struct TableData {
-		let type: Any.Type
+		let type: Codable.Type
 		let alias: String
-		let modelInstance: Any?
+		let modelInstance: Codable?
 		let keyPathDecoder: SwORMKeyPathsDecoder
 		let joinData: PropertyJoinData?
 	}
@@ -250,7 +263,7 @@ struct SQLGenState {
 		return "t\(aliasCounter)"
 	}
 	func getTableName<A: Codable>(type: A.Type) -> String {
-		return "\(type)" // this is where table name mapping might go
+		return type.swormTableName // this is where table name mapping might go
 	}
 	mutating func getKeyName<A: Codable>(type: A.Type, key: PartialKeyPath<A>) throws -> String? {
 		guard let td = getTableData(type: type),

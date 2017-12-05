@@ -26,7 +26,7 @@ struct Insert<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtoco
 		try instances[0].encode(to: encoder)
 		let columns = try encoder.columnNames.map { try delegate.quote(identifier: $0) }
 		let binds = encoder.bindIdentifiers
-		let nameQ = try delegate.quote(identifier: "\(OAF.self)")
+		let nameQ = try delegate.quote(identifier: "\(OAF.swormTableName)")
 		let sqlStr = "INSERT INTO \(nameQ) (\(columns.joined(separator: ", "))) VALUES (\(binds.joined(separator: ", ")))"
 		SwORMLogging.log(.query, sqlStr)
 		let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: sqlStr)
