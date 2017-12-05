@@ -27,9 +27,6 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	let database: SQLite
 	let statement: SQLiteStmt
 	let columns: SQLiteSwORMColumnMap
-	var dateFormatter: DateFormatter {
-		return dateFormatterISO8601()
-	}
 	// the SQLiteStmt has been successfully step()ed to the next row
 	init(_ db: SQLite, stat: SQLiteStmt, columns cols: SQLiteSwORMColumnMap) {
 		database = db
@@ -110,8 +107,7 @@ class SQLiteSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			return uuid as! T
 		case .date:
 			let str = statement.columnText(position: position)
-			let formatter = dateFormatter
-			guard let date = formatter.date(from: str) else {
+			guard let date = Date(fromISO8601: str) else {
 				throw SwORMDecoderError("Invalid Date string \(str).")
 			}
 			return date as! T

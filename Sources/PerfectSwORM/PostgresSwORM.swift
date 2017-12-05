@@ -175,8 +175,7 @@ class PostgresSwORMRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			return ret as! T
 		case .date:
 			let str = results.getFieldString(tupleIndex: tupleIndex, fieldIndex: index) ?? ""
-			let formatter = dateFormatterISO8601()
-			guard let date = formatter.date(from: str) else {
+			guard let date = Date(fromISO8601: str) else {
 				throw SwORMDecoderError("Invalid Date string \(str).")
 			}
 			return date as! T
@@ -373,7 +372,7 @@ class PostgresExeDelegate: SQLExeDelegate {
 		case .bool(let b):
 			return b
 		case .date(let d):
-			return dateFormatterISO8601().string(from: d)
+			return d.iso8601()
 		case .uuid(let u):
 			return u.uuidString
 		case .null:

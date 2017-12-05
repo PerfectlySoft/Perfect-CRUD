@@ -17,6 +17,7 @@ struct TestTable1: Codable {
 
 struct TestTable2: Codable {
 	let id: UUID
+	let date: Date
 	let parentId: Int
 	let name: String?
 	let int: Int?
@@ -41,7 +42,7 @@ class PerfectSwORMTests: XCTestCase {
 			try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable1.self)")
 			try db.execute(statement: "DROP TABLE IF EXISTS \(TestTable2.self)")
 			try db.execute(statement: "CREATE TABLE \(TestTable1.self) (id INTEGER PRIMARY KEY, name TEXT, int, doub, blob)")
-			try db.execute(statement: "CREATE TABLE \(TestTable2.self) (id TEXT PRIMARY KEY, parentId INTEGER, name TEXT, int, doub, blob)")
+			try db.execute(statement: "CREATE TABLE \(TestTable2.self) (id TEXT PRIMARY KEY, parentId INTEGER, name TEXT, int INTEGER, doub REAL, blob BLOB, date TEXT)")
 			try db.doWithTransaction {
 				try db.execute(statement: "INSERT INTO \(TestTable1.self) (id,name,int,doub,blob) VALUES (?,?,?,?,?)", count: testDBRowCount) {
 					(stmt: SQLiteStmt, num: Int) throws -> () in
@@ -57,7 +58,7 @@ class PerfectSwORMTests: XCTestCase {
 			try db.doWithTransaction {
 				var idCount = 1
 				for relCount in 1...testDBRowCount {
-					try db.execute(statement: "INSERT INTO \(TestTable2.self) (id,parentId,name,int,doub,blob) VALUES (?,?,?,?,?,?)", count: testDBRowCount) {
+					try db.execute(statement: "INSERT INTO \(TestTable2.self) (id,parentId,name,int,doub,blob,date) VALUES (?,?,?,?,?,?,?)", count: testDBRowCount) {
 						(stmt: SQLiteStmt, num: Int) throws -> () in
 						let id = UUID()
 						try stmt.bind(position: 1, id.uuidString)
@@ -71,6 +72,9 @@ class PerfectSwORMTests: XCTestCase {
 						try stmt.bind(position: 5, Double(num))
 						let num = Int8(num)
 						try stmt.bind(position: 6, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
+						
+						try stmt.bind(position: 7, Date().iso8601())
+						
 						idCount += 1
 					}
 				}
@@ -256,8 +260,8 @@ class PerfectSwORMTests: XCTestCase {
 			do {
 				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 				try t1.insert(newOne)
-				let newSub1 = TestTable2(id: subId, parentId: 2000, name: "Me", int: nil, doub: nil, blob: nil)
-				let newSub2 = TestTable2(id: UUID(), parentId: 2000, name: "Not Me", int: nil, doub: nil, blob: nil)
+				let newSub1 = TestTable2(id: subId, date: Date(), parentId: 2000, name: "Me", int: nil, doub: nil, blob: nil)
+				let newSub2 = TestTable2(id: UUID(), date: Date(), parentId: 2000, name: "Not Me", int: nil, doub: nil, blob: nil)
 				let t2 = db.table(TestTable2.self)
 				try t2.insert([newSub1, newSub2])
 			}

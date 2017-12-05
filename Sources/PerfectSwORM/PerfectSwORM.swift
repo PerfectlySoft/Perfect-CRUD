@@ -262,11 +262,32 @@ struct SQLGenState {
 	}
 }
 
-func dateFormatterISO8601() -> DateFormatter {
-	let locale = Locale(identifier: "en_US_POSIX")
-	let formatter = DateFormatter()
-	formatter.locale = locale
-	formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-	return formatter
+extension Date {
+	func iso8601() -> String {
+		let dateFormatter = DateFormatter()
+		dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+		dateFormatter.timeZone = TimeZone(abbreviation: "GMT")
+		dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+		let ret = dateFormatter.string(from: self) + "Z"
+		return ret
+	}
+	
+	init?(fromISO8601 string: String) {
+		let dateFormatter = DateFormatter()
+		dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+		dateFormatter.timeZone = TimeZone.current
+		dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+		if let d = dateFormatter.date(from: string) {
+			self = d
+			return
+		}
+		dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSx"
+		if let d = dateFormatter.date(from: string) {
+			self = d
+			return
+		}
+		return nil
+	}
 }
+
 
