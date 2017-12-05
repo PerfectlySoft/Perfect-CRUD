@@ -388,6 +388,19 @@ class PostgresExeDelegate: SQLExeDelegate {
 
 struct PostgresDatabaseConfiguration: DatabaseConfigurationProtocol {
 	let connection: PGConnection
+	init(database: String, host: String, port: Int? = nil, username: String? = nil, password: String? = nil) throws {
+		var s = "host=\(host) dbname=\(database)"
+		if let p = port {
+			s += " port=\(p)"
+		}
+		if let u = username {
+			s += " user=\(u)"
+		}
+		if let p = password {
+			s += " password=\(p)"
+		}
+		try self.init(s)
+	}
 	init(_ connectionInfo: String) throws {
 		let con = PGConnection()
 		guard case .ok = con.connectdb(connectionInfo) else {

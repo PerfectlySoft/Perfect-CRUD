@@ -189,12 +189,12 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 		subObjects = Dictionary(uniqueKeysWithValues: try joins.map {
 			let (joinTable, joinDelegate) = $0
 			guard let joinData = joinTable.joinData,
-				let type = joinTable.type as? Codable.Type,
 				let keyStr = try keyPathDecoder.getKeyPathName(modelInstance, keyPath: joinData.to),
 				let onKeyStr = try keyPathDecoder.getKeyPathName(modelInstance, keyPath: joinData.on) else {
 					throw SwORMSQLExeError("No join data on \(joinTable.type)")
 			}
 			var ary: [Codable] = []
+			let type = joinTable.type
 			while try joinDelegate.hasNext() {
 				let decoder = SwORMRowDecoder2<ColumnKey>(delegate: joinDelegate)
 				ary.append(try type.init(from: decoder))

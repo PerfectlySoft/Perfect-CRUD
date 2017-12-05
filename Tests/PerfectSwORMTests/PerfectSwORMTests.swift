@@ -254,11 +254,11 @@ class PerfectSwORMTests: XCTestCase {
 	func testCreatePG() {
 		do {
 			do {
-				let db = Database(configuration: try PostgresDatabaseConfiguration(postgresInitConnInfo))
+				let db = Database(configuration: try PostgresDatabaseConfiguration(database: "postgres", host: "localhost"))
 				try db.sql("DROP DATABASE \(postgresTestDBName)")
 				try db.sql("CREATE DATABASE \(postgresTestDBName)")
 			}
-			let db = Database(configuration: try PostgresDatabaseConfiguration(postgresTestConnInfo))
+			let db = Database(configuration: try PostgresDatabaseConfiguration(database: postgresTestDBName, host: "localhost"))
 			try db.create(TestTable1.self, policy: .dropTable)
 			do {
 				let t2 = db.table(TestTable2.self)
