@@ -117,10 +117,10 @@ struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, 
 	let max: Int
 	let skip: Int
 	func setState(var state: inout SQLGenState) throws {
-		state.currentLimit = (max, skip)
 		try fromTable.setState(state: &state)
 	}
 	func setSQL(var state: inout SQLGenState) throws {
+		state.currentLimit = (max, skip)
 		try fromTable.setSQL(state: &state)
 	}
 }
