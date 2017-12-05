@@ -200,7 +200,6 @@ class SQLiteGenDelegate: SQLGenDelegate {
 		}
 		return "\(name) \(typeName)\(addendum)"
 	}
-	
 	func getBinding(for expr: Expression) throws -> String {
 		bindings.append(("?", expr))
 		return "?"
@@ -285,18 +284,4 @@ struct SQLiteDatabaseConfiguration: DatabaseConfigurationProtocol {
 		sqlite = try SQLite(n)
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

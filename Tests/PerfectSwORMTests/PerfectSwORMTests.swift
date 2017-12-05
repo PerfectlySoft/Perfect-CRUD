@@ -241,6 +241,43 @@ class PerfectSwORMTests: XCTestCase {
 		}
 	}
 
+	// -- postgres
+	let postgresTestConnInfo = "host=localhost dbname=postgres"
+	func testCreatePG() {
+		do {
+			let db = Database(configuration: try PostgresDatabaseConfiguration(postgresTestConnInfo))
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let t2 = db.table(TestTable2.self)
+				try t2.index(\TestTable2.parentId)
+			}
+			let t1 = db.table(TestTable1.self)
+			do {
+				let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+				try t1.insert(newOne)
+			}
+			let j2 = try t1.where(\TestTable1.id == .integer(2000)).select()
+			do {
+				let j2a = j2.map { $0 }
+				XCTAssert(j2a.count == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self)
+			do {
+				let j2a = j2.map { $0 }
+				XCTAssert(j2a.count == 1)
+				XCTAssert(j2a[0].id == 2000)
+			}
+			try db.create(TestTable1.self, policy: .dropTable)
+			do {
+				let j2b = j2.map { $0 }
+				XCTAssert(j2b.count == 0)
+			}
+		} catch {
+			XCTAssert(false, "\(error)")
+		}
+	}
+	
     static var allTests = [
 		("testKeyPaths", testKeyPaths),
 		("testSelectAll", testSelectAll),

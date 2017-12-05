@@ -196,8 +196,8 @@ class SwORMKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
 	}
 	
 	func decode<T: Decodable>(_ type: T.Type) throws -> T {
-		print("\(type)")
-		fatalError("Unimplimented")
+		currentIndex += 1
+		return try T(from: parent)
 	}
 	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
