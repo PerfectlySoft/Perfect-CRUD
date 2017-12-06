@@ -9,11 +9,10 @@ let package = Package(
 		.library(name: "PerfectSwORM", targets: ["PerfectSwORM"])
 	],
 	dependencies: [
-		.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", "3.0.0"..<"4.0.0"),
-		.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", "3.0.0"..<"4.0.0")
+		
 	],
 	targets: [
-		.target(name: "PerfectSwORM", dependencies: ["PerfectSQLite", "PerfectPostgreSQL"]),
-		.testTarget(name: "PerfectSwORMTests", dependencies: ["PerfectSwORM", "PerfectSQLite", "PerfectPostgreSQL"])
+		.target(name: "PerfectSwORM", dependencies: []),
+		.testTarget(name: "PerfectSwORMTests", dependencies: ["PerfectSwORM"])
 	]
 )
