@@ -196,8 +196,23 @@ public extension SwORMExpression {
 }
 
 public extension SwORMExpression {
-	static func ==<T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
+	static func == <T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
 		return .equality(lhs: .keyPath(lhs), rhs: rhs)
+	}
+	static func != <T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
+		return .inequality(lhs: .keyPath(lhs), rhs: rhs)
+	}
+	static func > <T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
+		return .greaterThan(lhs: .keyPath(lhs), rhs: rhs)
+	}
+	static func >= <T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
+		return .greaterThanEqual(lhs: .keyPath(lhs), rhs: rhs)
+	}
+	static func < <T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
+		return .lessThan(lhs: .keyPath(lhs), rhs: rhs)
+	}
+	static func <= <T: Codable>(lhs: PartialKeyPath<T>, rhs: SwORMExpression) -> SwORMExpression {
+		return .lessThanEqual(lhs: .keyPath(lhs), rhs: rhs)
 	}
 }
 
@@ -212,6 +227,7 @@ extension SwORMExpression {
 		case .or(let lhs, let rhs):
 			return try bin(state, "OR", lhs, rhs)
 		case .equality(let lhs, let rhs):
+			
 			return try bin(state, "=", lhs, rhs)
 		case .inequality(let lhs, let rhs):
 			return try bin(state, "!=", lhs, rhs)
@@ -254,6 +270,13 @@ extension SwORMExpression {
 		}
 	}
 	private func bin(_ state: SQLGenState, _ op: String, _ lhs: SwORMExpression, _ rhs: SwORMExpression) throws -> String {
+		if case .null = rhs {
+			if op == "=" {
+				return "\(try lhs.sqlSnippet(state: state)) IS NULL"
+			} else if op == "!=" {
+				return "\(try lhs.sqlSnippet(state: state)) NOT NULL"				
+			}
+		}
 		return "\(try lhs.sqlSnippet(state: state)) \(op) \(try rhs.sqlSnippet(state: state))"
 	}
 	private func un(_ state: SQLGenState, _ op: String, _ rhs: SwORMExpression) throws -> String {

@@ -51,8 +51,12 @@ class PerfectSwORMTests: XCTestCase {
 					try stmt.bind(position: 2, "This is name bind \(num)")
 					try stmt.bind(position: 3, num)
 					try stmt.bind(position: 4, Double(num))
-					let num = Int8(num)
-					try stmt.bind(position: 5, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
+					if num % 2 == 0 {
+						try stmt.bindNull(position: 5)
+					} else {
+						let num = Int8(num)
+						try stmt.bind(position: 5, [Int8](arrayLiteral: num+1, num+2, num+3, num+4, num+5))
+					}
 				}
 			}
 			try db.doWithTransaction {
@@ -239,9 +243,22 @@ class PerfectSwORMTests: XCTestCase {
 		getTestDB()
 		do {
 			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
-			let j2 = try db.table(TestTable1.self)
-				.limit(3, skip: 2)
+			let j2 = db.table(TestTable1.self).limit(3, skip: 2)
 			XCTAssert(try j2.count() == 3)
+		} catch {
+			print("\(error)")
+		}
+	}
+	
+	func testSelectWhereNULL() {
+		getTestDB()
+		do {
+			let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+			let t1 = db.table(TestTable1.self)
+			let j1 = t1.where(\TestTable1.blob == .null)
+			XCTAssert(try j1.count() > 0)
+			let j2 = t1.where(\TestTable1.blob != .null)
+			XCTAssert(try j2.count() > 0)
 		} catch {
 			print("\(error)")
 		}
