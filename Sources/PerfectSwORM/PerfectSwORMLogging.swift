@@ -20,16 +20,16 @@
 import Foundation
 import Dispatch
 
-struct SwORMSQLGenError: Error {
-	let msg: String
-	init(_ msg: String) {
+public struct SwORMSQLGenError: Error {
+	public let msg: String
+	public init(_ msg: String) {
 		self.msg = msg
 		SwORMLogging.log(.error, msg)
 	}
 }
-struct SwORMSQLExeError: Error {
-	let msg: String
-	init(_ msg: String) {
+public struct SwORMSQLExeError: Error {
+	public let msg: String
+	public init(_ msg: String) {
 		self.msg = msg
 		SwORMLogging.log(.error, msg)
 	}
