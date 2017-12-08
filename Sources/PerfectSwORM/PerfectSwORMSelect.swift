@@ -7,8 +7,8 @@
 
 import Foundation
 
-struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
-	typealias Element = A.OverAllForm
+public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
+	public typealias Element = A.OverAllForm
 	let select: A?
 	let exeDelegate: SQLExeDelegate?
 	init(select s: A) throws {
@@ -19,7 +19,7 @@ struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 		select = nil
 		exeDelegate = nil
 	}
-	mutating func next() -> Element? {
+	public mutating func next() -> Element? {
 		guard let delegate = exeDelegate else {
 			return nil
 		}
@@ -35,12 +35,12 @@ struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 	}
 }
 
-struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
-	typealias Iterator = SelectIterator<Select<OAF, A>>
-	typealias FromTableType = A
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
-	let sqlGenState: SQLGenState
+public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
+	public typealias Iterator = SelectIterator<Select<OAF, A>>
+	public typealias FromTableType = A
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
+	public let sqlGenState: SQLGenState
 	init(fromTable ft: FromTableType) throws {
 		fromTable = ft
 		var state = SQLGenState(delegate: ft.databaseConfiguration.sqlGenDelegate)
@@ -52,7 +52,7 @@ struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		}
 		sqlGenState = state
 	}
-	func makeIterator() -> Iterator {
+	public func makeIterator() -> Iterator {
 		do {
 			return try SelectIterator(select: self)
 		} catch {
@@ -62,23 +62,23 @@ struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 	}
 }
 
-struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, SelectAble {
-	typealias Form = OAF
-	typealias FromTableType = A
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
+public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, SelectAble {
+	public typealias Form = OAF
+	public typealias FromTableType = A
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
 	let expression: Expression
-	func setState(var state: inout SQLGenState) throws {
+	public func setState(var state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		state.whereExpr = expression
 	}
-	func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(var state: inout SQLGenState) throws {
 		try fromTable.setSQL(state: &state)
 	}
 }
 
 // this is not an excellent check for Table<OAF, _>
-extension Where where OverAllForm == FromTableType.Form {
+public extension Where where OverAllForm == FromTableType.Form {
 	@discardableResult
 	func update(_ instance: OAF, setKeys: PartialKeyPath<OAF>...) throws -> Update<OAF, Where<OAF,A>> {
 		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])
@@ -93,52 +93,52 @@ extension Where where OverAllForm == FromTableType.Form {
 	}
 }
 
-struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
-	typealias Form = A.Form
-	typealias FromTableType = A
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
+public struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
+	public typealias Form = A.Form
+	public typealias FromTableType = A
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
 	let keys: [PartialKeyPath<A.Form>]
 	let descending: Bool
-	func setState(var state: inout SQLGenState) throws {
+	public func setState(var state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 	}
-	func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(var state: inout SQLGenState) throws {
 		state.accumulatedOrderings.append(contentsOf: keys.map { (key: $0, desc: descending) })
 		try fromTable.setSQL(state: &state)
 	}
 }
 
-struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
-	typealias Form = A.Form
-	typealias FromTableType = A
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
+public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
+	public typealias Form = A.Form
+	public typealias FromTableType = A
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
 	let max: Int
 	let skip: Int
-	func setState(var state: inout SQLGenState) throws {
+	public func setState(var state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 	}
-	func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(var state: inout SQLGenState) throws {
 		state.currentLimit = (max, skip)
 		try fromTable.setSQL(state: &state)
 	}
 }
 
-struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, JoinProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
-	typealias Form = B
-	typealias FromTableType = A
-	typealias ComparisonType = O
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
+public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, JoinProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
+	public typealias Form = B
+	public typealias FromTableType = A
+	public typealias ComparisonType = O
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
 	let to: KeyPath<OverAllForm, [Form]?>
-	let on: KeyPath<OverAllForm, ComparisonType>
-	let equals: KeyPath<Form, ComparisonType>
-	func setState(var state: inout SQLGenState) throws {
+	public let on: KeyPath<OverAllForm, ComparisonType>
+	public let equals: KeyPath<Form, ComparisonType>
+	public func setState(var state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals))
 	}
-	func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(var state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
 		

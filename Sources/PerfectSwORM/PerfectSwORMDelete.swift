@@ -7,23 +7,23 @@
 
 import Foundation
 
-protocol DeleteAble: TableProtocol {
+public protocol DeleteAble: TableProtocol {
 	@discardableResult
 	func delete() throws -> Delete<OverAllForm, Self>
 }
 
-extension DeleteAble {
+public extension DeleteAble {
 	@discardableResult
 	func delete() throws -> Delete<OverAllForm, Self> {
 		return try .init(fromTable: self)
 	}
 }
 
-struct Delete<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtocol {
-	typealias FromTableType = A
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
-	let sqlGenState: SQLGenState
+public struct Delete<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtocol {
+	public typealias FromTableType = A
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
+	public let sqlGenState: SQLGenState
 	init(fromTable ft: FromTableType) throws {
 		fromTable = ft
 		let delegate = ft.databaseConfiguration.sqlGenDelegate

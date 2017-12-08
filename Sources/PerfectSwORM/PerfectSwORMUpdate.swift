@@ -7,14 +7,14 @@
 
 import Foundation
 
-protocol UpdateAble: TableProtocol {
+public protocol UpdateAble: TableProtocol {
 	@discardableResult
 	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	@discardableResult
 	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 }
 
-extension UpdateAble {
+public extension UpdateAble {
 	@discardableResult
 	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
 		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])
@@ -25,11 +25,11 @@ extension UpdateAble {
 	}
 }
 
-struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtocol {
-	typealias FromTableType = A
-	typealias OverAllForm = OAF
-	let fromTable: FromTableType
-	let sqlGenState: SQLGenState
+public struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtocol {
+	public typealias FromTableType = A
+	public typealias OverAllForm = OAF
+	public let fromTable: FromTableType
+	public let sqlGenState: SQLGenState
 	init(fromTable ft: FromTableType,
 		 instance: OAF,
 		 includeKeys: [PartialKeyPath<OAF>],
@@ -56,7 +56,7 @@ struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, CommandProtoco
 			}
 			return n
 		}
-		let encoder = SwORMBindingsEncoder(delegate: delegate, ignoreKeys: Set(excludeNames), includeKeys: Set(includeNames))
+		let encoder = try SwORMBindingsEncoder(delegate: delegate)
 		try instance.encode(to: encoder)
 		state.bindingsEncoder = encoder
 		try ft.setSQL(state: &state)

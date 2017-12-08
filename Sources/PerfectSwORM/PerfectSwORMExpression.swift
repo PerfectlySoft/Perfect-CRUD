@@ -227,9 +227,14 @@ extension SwORMExpression {
 		case .or(let lhs, let rhs):
 			return try bin(state, "OR", lhs, rhs)
 		case .equality(let lhs, let rhs):
-			
+			if case .null = rhs {
+				return "\(try lhs.sqlSnippet(state: state)) IS NULL"
+			}
 			return try bin(state, "=", lhs, rhs)
 		case .inequality(let lhs, let rhs):
+			if case .null = rhs {
+				return "\(try lhs.sqlSnippet(state: state)) IS NOT NULL"
+			}
 			return try bin(state, "!=", lhs, rhs)
 		case .not(let rhs):
 			let rhsStr = try rhs.sqlSnippet(state: state)
@@ -270,13 +275,6 @@ extension SwORMExpression {
 		}
 	}
 	private func bin(_ state: SQLGenState, _ op: String, _ lhs: SwORMExpression, _ rhs: SwORMExpression) throws -> String {
-		if case .null = rhs {
-			if op == "=" {
-				return "\(try lhs.sqlSnippet(state: state)) IS NULL"
-			} else if op == "!=" {
-				return "\(try lhs.sqlSnippet(state: state)) NOT NULL"				
-			}
-		}
 		return "\(try lhs.sqlSnippet(state: state)) \(op) \(try rhs.sqlSnippet(state: state))"
 	}
 	private func un(_ state: SQLGenState, _ op: String, _ rhs: SwORMExpression) throws -> String {
