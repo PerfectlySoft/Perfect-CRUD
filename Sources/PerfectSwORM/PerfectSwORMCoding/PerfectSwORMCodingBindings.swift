@@ -27,11 +27,16 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 	init(_ p: SwORMBindingsEncoder) {
 		parent = p
 	}
-	func addBinding(_ key: Key, value: SwORMExpression) throws {
+	func addBinding(_ key: Key, value: Expression) throws {
 		try parent.addBinding(key: key, value: value)
 	}
 	func encodeNil(forKey key: K) throws {
-		try addBinding(key, value: .null)
+		// !FIX! this is never called
+		// Expect this to change in the future
+		// When nulls are important we have to use the column named decoder first
+		// and pass in the list of optionals to SwORMBindingsEncoder
+		SwORMLogging.log(.info, "SwORMBindingsWriter.encodeNil started being called.")
+		//try addBinding(key, value: .null)
 	}
 	func encode(_ value: Bool, forKey key: K) throws {
 		try addBinding(key, value: .bool(value))
@@ -110,24 +115,34 @@ class SwORMBindingsEncoder: Encoder {
 	let codingPath: [CodingKey] = []
 	let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
-	let ignoreKeys: Set<String>
-	let includeKeys: Set<String>
-	var bindIdentifiers: [String] = []
-	var columnNames: [String] = []
-	init(delegate d: SQLGenDelegate, ignoreKeys ignore: Set<String> = Set(), includeKeys include: Set<String> = Set()) {
+	private var collectedBinds: [(String, Expression)] = []
+	
+	init(delegate d: SQLGenDelegate) throws {
 		delegate = d
-		ignoreKeys = ignore
-		includeKeys = include
 	}
-	func addBinding<Key: CodingKey>(key: Key, value: SwORMExpression) throws {
-		guard includeKeys.isEmpty || includeKeys.contains(key.stringValue) else {
-			return
+	
+	func completedBindings(allKeys: [String],
+						   ignoreKeys: Set<String>) throws -> [(column: String, identifier: String)] {
+		let exprDict: [String:Expression] = .init(uniqueKeysWithValues: collectedBinds)
+		let ret: [(column: String, identifier: String)] = try allKeys.map {
+			key in
+			let bindId: String
+			if let expr = exprDict[key] {
+				bindId = try delegate.getBinding(for: expr)
+			} else {
+				bindId = try delegate.getBinding(for: .null)
+			}
+			return (key, bindId)
 		}
-		guard ignoreKeys.isEmpty || !ignoreKeys.contains(key.stringValue) else {
-			return
-		}
-		bindIdentifiers.append(try delegate.getBinding(for: value))
-		columnNames.append(key.stringValue)
+		return ret
+	}
+	
+	func completedBindings(ignoreKeys: Set<String>) throws -> [(column: String, identifier: String)] {
+		return try completedBindings(allKeys: collectedBinds.map { $0.0 }, ignoreKeys: ignoreKeys)
+	}
+	
+	func addBinding<Key: CodingKey>(key: Key, value: Expression) throws {
+		collectedBinds.append((key.stringValue, value))
 	}
 	func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
 		return KeyedEncodingContainer<Key>(SwORMBindingsWriter<Key>(self))
@@ -139,3 +154,7 @@ class SwORMBindingsEncoder: Encoder {
 		fatalError("Unimplimented")
 	}
 }
+
+
+
+

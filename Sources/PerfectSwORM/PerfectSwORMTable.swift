@@ -7,16 +7,16 @@
 
 import Foundation
 
-struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble, DeleteAble, LimitAble {
-	typealias OverAllForm = A
-	typealias Form = A
+public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble, DeleteAble, LimitAble {
+	public typealias OverAllForm = A
+	public typealias Form = A
 	typealias DatabaseType = C
-	var databaseConfiguration: DatabaseConfigurationProtocol { return database.configuration }
+	public var databaseConfiguration: DatabaseConfigurationProtocol { return database.configuration }
 	let database: DatabaseType
-	func setState(var state: inout SQLGenState) throws {
+	public func setState(var state: inout SQLGenState) throws {
 		try state.addTable(type: Form.self)
 	}
-	func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(var state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		let tableData = state.tableData
 		let delegate = state.delegate
@@ -75,9 +75,11 @@ struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAb
 			guard let encoder = state.bindingsEncoder else {
 				throw SwORMSQLGenError("No bindings encoder for update.")
 			}
-			let columns = try encoder.columnNames.map { try delegate.quote(identifier: $0) }
-			let binds = encoder.bindIdentifiers
-			var sqlStr = "UPDATE \(nameQ)\nSET \(zip(columns, binds).map { "\($0.0)=\($0.1)" }.joined(separator: ", "))\n"
+			let bindings = try encoder.completedBindings(ignoreKeys: Set())
+			let columnNames = try bindings.map { try delegate.quote(identifier: $0.column) }
+			let bindIdentifiers = bindings.map { $0.identifier }
+			
+			var sqlStr = "UPDATE \(nameQ)\nSET \(zip(columnNames, bindIdentifiers).map { "\($0.0)=\($0.1)" }.joined(separator: ", "))\n"
 			if let whereExpr = state.whereExpr {
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))"
 			}

@@ -19,17 +19,17 @@
 
 import Foundation
 
-struct SwORMDecoderError: Error {
-	let msg: String
-	init(_ m: String) {
+public struct SwORMDecoderError: Error {
+	public let msg: String
+	public init(_ m: String) {
 		msg = m
 		SwORMLogging.log(.error, m)
 	}
 }
 
-struct SwORMEncoderError: Error {
-	let msg: String
-	init(_ m: String) {
+public struct SwORMEncoderError: Error {
+	public let msg: String
+	public init(_ m: String) {
 		msg = m
 		SwORMLogging.log(.error, m)
 	}
@@ -52,9 +52,9 @@ struct ColumnKey : CodingKey {
 	}
 }
 
-enum SpecialType {
+public enum SpecialType {
 	case uint8Array, int8Array, data, uuid, date
-	init?(_ type: Any.Type) {
+	public init?(_ type: Any.Type) {
 		switch type {
 		case is [Int8].Type:
 			self = .int8Array

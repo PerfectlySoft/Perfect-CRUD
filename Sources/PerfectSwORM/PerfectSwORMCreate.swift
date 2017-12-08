@@ -7,29 +7,32 @@
 
 import Foundation
 
-struct TableCreatePolicy: OptionSet {
-	let rawValue: Int
-	static let shallow = TableCreatePolicy(rawValue: 1)
-	static let dropTable = TableCreatePolicy(rawValue: 2)
+public struct TableCreatePolicy: OptionSet {
+	public let rawValue: Int
+	public init(rawValue r: Int) { rawValue = r }
+	public static let shallow = TableCreatePolicy(rawValue: 1)
+	public static let dropTable = TableCreatePolicy(rawValue: 2)
 	
-	static let defaultPolicy: TableCreatePolicy = []
+	public static let defaultPolicy: TableCreatePolicy = []
 }
 
-struct TableStructure {
-	struct Column {
-		struct Property: OptionSet {
-			let rawValue: Int
-			static let primaryKey = Property(rawValue: 1)
+public struct TableStructure {
+	public struct Column {
+		public struct Property: OptionSet {
+			public let rawValue: Int
+			public init(rawValue r: Int) { rawValue = r }
+			public static let primaryKey = Property(rawValue: 1)
 		}
-		let name: String
-		let type: Any.Type
-		let properties: Property
+		public let name: String
+		public let type: Any.Type
+		public let optional: Bool
+		public let properties: Property
 	}
-	let tableName: String
-	let primaryKeyName: String
-	let columns: [Column]
-	let subTables: [TableStructure]
-	let indexes: [String]
+	public let tableName: String
+	public let primaryKeyName: String
+	public let columns: [Column]
+	public let subTables: [TableStructure]
+	public let indexes: [String]
 }
 
 extension Decodable {
@@ -73,7 +76,7 @@ extension Decodable {
 				} else {
 					props = []
 				}
-				return .init(name: $0.0, type: $0.1, properties: props)
+				return .init(name: $0.name, type: $0.type, optional: $0.optional, properties: props)
 			},
 			subTables: subTables,
 			indexes: [])
@@ -81,7 +84,7 @@ extension Decodable {
 	}
 }
 
-struct Create<OAF: Codable, D: DatabaseProtocol> {
+public struct Create<OAF: Codable, D: DatabaseProtocol> {
 	typealias OverAllForm = OAF
 	let fromDatabase: D
 	let policy: TableCreatePolicy
@@ -100,10 +103,10 @@ struct Create<OAF: Codable, D: DatabaseProtocol> {
 	}
 }
 
-struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol {
-	typealias FromTableType = A
+public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol {
+	public typealias FromTableType = A
 	typealias OverAllForm = OAF
-	let fromTable: FromTableType
+	public let fromTable: FromTableType
 	init(fromTable ft: FromTableType, keys: [PartialKeyPath<FromTableType.Form>]) throws {
 		fromTable = ft
 		let delegate = ft.databaseConfiguration.sqlGenDelegate
@@ -125,14 +128,14 @@ struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol {
 	}
 }
 
-extension DatabaseProtocol {
+public extension DatabaseProtocol {
 	@discardableResult
 	func create<A: Codable>(_ type: A.Type, primaryKey: PartialKeyPath<A>? = nil, policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self> {
 		return try .init(fromDatabase: self, primaryKey: primaryKey, policy: policy)
 	}
 }
 
-extension Table {
+public extension Table {
 	@discardableResult
 	func index(_ keys: PartialKeyPath<Form>...) throws -> Index<OverAllForm, Table<A, C>> {
 		return try .init(fromTable: self, keys: keys)

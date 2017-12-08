@@ -7,40 +7,40 @@
 
 import Foundation
 
-typealias Expression = SwORMExpression
-typealias Bindings = [(String, Expression)]
+public typealias Expression = SwORMExpression
+public typealias Bindings = [(String, Expression)]
 
-protocol QueryItem {
+public protocol QueryItem {
 	associatedtype OverAllForm: Codable
 	func setState(var state: inout SQLGenState) throws
 	func setSQL(var state: inout SQLGenState) throws
 }
 
-protocol TableProtocol: QueryItem {
+public protocol TableProtocol: QueryItem {
 	associatedtype Form: Codable
 	var databaseConfiguration: DatabaseConfigurationProtocol { get }
 }
 
-protocol FromTableProtocol {
+public protocol FromTableProtocol {
 	associatedtype FromTableType: TableProtocol
 	var fromTable: FromTableType { get }
 }
 
-protocol JoinProtocol: TableProtocol, FromTableProtocol {
+public protocol JoinProtocol: TableProtocol, FromTableProtocol {
 	associatedtype ComparisonType: Equatable
 	var on: KeyPath<OverAllForm, ComparisonType> { get }
 	var equals: KeyPath<Form, ComparisonType> { get }
 }
 
-protocol CommandProtocol: QueryItem {
+public protocol CommandProtocol: QueryItem {
 	var sqlGenState: SQLGenState { get }
 }
 
-protocol SelectProtocol: Sequence, FromTableProtocol, CommandProtocol {
+public protocol SelectProtocol: Sequence, FromTableProtocol, CommandProtocol {
 	var fromTable: FromTableType { get }
 }
 
-protocol SQLGenDelegate {
+public protocol SQLGenDelegate {
 	var bindings: Bindings { get set }
 	func getBinding(for: Expression) throws -> String
 	func quote(identifier: String) throws -> String
@@ -48,52 +48,52 @@ protocol SQLGenDelegate {
 	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String]
 }
 
-protocol SQLExeDelegate {
+public protocol SQLExeDelegate {
 	func bind(_ bindings: Bindings, skip: Int) throws
 	func hasNext() throws -> Bool
 	func next<A: CodingKey>() throws -> KeyedDecodingContainer<A>?
 }
 
-protocol DatabaseConfigurationProtocol {
+public protocol DatabaseConfigurationProtocol {
 	var sqlGenDelegate: SQLGenDelegate { get }
 	func sqlExeDelegate(forSQL: String) throws -> SQLExeDelegate
 }
 
-protocol DatabaseProtocol {
+public protocol DatabaseProtocol {
 	associatedtype Configuration: DatabaseConfigurationProtocol
 	var configuration: Configuration { get }
 	func table<T: Codable>(_ form: T.Type) -> Table<T, Self>
 }
 
-protocol TableNameProvider {
+public protocol TableNameProvider {
 	static var tableName: String { get }
 }
 
-protocol JoinAble: TableProtocol {
+public protocol JoinAble: TableProtocol {
 	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
 													on: KeyPath<OverAllForm, KeyType>,
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType>
 }
 
-protocol SelectAble: TableProtocol {
+public protocol SelectAble: TableProtocol {
 	func select() throws -> Select<OverAllForm, Self>
 	func count() throws -> Int
 }
 
-protocol WhereAble: TableProtocol {
+public protocol WhereAble: TableProtocol {
 	func `where`(_ expr: Expression) -> Where<OverAllForm, Self>
 }
 
-protocol OrderAble: TableProtocol {
+public protocol OrderAble: TableProtocol {
 	func order(by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self>
 	func order(descending by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self>
 }
 
-protocol LimitAble: TableProtocol {
+public protocol LimitAble: TableProtocol {
 	func limit(_ max: Int, skip: Int) -> Limit<OverAllForm, Self>
 }
 
-extension JoinAble {
+public extension JoinAble {
 	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
 													on: KeyPath<OverAllForm, KeyType>,
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
@@ -101,7 +101,7 @@ extension JoinAble {
 	}
 }
 
-extension SelectAble {
+public extension SelectAble {
 	func select() throws -> Select<OverAllForm, Self> {
 		return try .init(fromTable: self)
 	}
@@ -124,12 +124,12 @@ extension SelectAble {
 	}
 }
 
-extension WhereAble {
+public extension WhereAble {
 	func `where`(_ expr: Expression) -> Where<OverAllForm, Self> {
 		return .init(fromTable: self, expression: expr)
 	}
 }
-extension OrderAble {
+public extension OrderAble {
 	func order(by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self> {
 		return .init(fromTable: self, keys: by, descending: false)
 	}
@@ -138,26 +138,26 @@ extension OrderAble {
 	}
 }
 
-extension LimitAble {
+public extension LimitAble {
 	func limit(_ max: Int = 0, skip: Int = 0) -> Limit<OverAllForm, Self> {
 		return .init(fromTable: self, max: max, skip: skip)
 	}
 }
 
 extension FromTableProtocol {
-	var databaseConfiguration: DatabaseConfigurationProtocol { return fromTable.databaseConfiguration }
+	public var databaseConfiguration: DatabaseConfigurationProtocol { return fromTable.databaseConfiguration }
 }
 
 extension CommandProtocol {
-	func setState(state: inout SQLGenState) throws {}
-	func setSQL(state: inout SQLGenState) throws {}
+	public func setState(state: inout SQLGenState) throws {}
+	public func setSQL(state: inout SQLGenState) throws {}
 }
 
 extension SQLExeDelegate {
 	func bind(_ bindings: Bindings) throws { return try bind(bindings, skip: 0) }
 }
 
-extension Decodable {
+public extension Decodable {
 	static var swormTableName: String {
 		if let p = self as? TableNameProvider.Type {
 			return p.tableName
@@ -216,7 +216,7 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 	}
 }
 
-struct SQLGenState {
+public struct SQLGenState {
 	enum Command {
 		case select, insert, update, delete, unknown
 		case count
@@ -289,7 +289,7 @@ struct SQLGenState {
 	}
 }
 
-extension Date {
+public extension Date {
 	func iso8601() -> String {
 		let dateFormatter = DateFormatter()
 		dateFormatter.locale = Locale(identifier: "en_US_POSIX")

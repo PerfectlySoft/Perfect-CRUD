@@ -26,21 +26,23 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	var allKeys: [Key] = []
 	var parent: SwORMColumnNameDecoder
 	var knownKeys = Set<String>()
+	var isOptional = false
 	init(_ p: SwORMColumnNameDecoder) {
 		parent = p
 	}
 	func appendKey(_ key: Key, _ type: Any.Type) {
 		let s = key.stringValue
 		if !knownKeys.contains(s) {
-			parent.collectedKeys.append((s, type))
+			parent.collectedKeys.append((s, isOptional, type))
 			knownKeys.insert(s)
 		}
+		isOptional = false // reset
 	}
 	func contains(_ key: Key) -> Bool {
 		return true
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
-		// if true is returned then you will never get called with the type
+		isOptional = true
 		return false
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
@@ -213,42 +215,32 @@ class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodin
 		advance(type)
 		return 0
 	}
-	
 	func decode(_ type: UInt64.Type) throws -> UInt64 {
 		advance(type)
 		return 0
 	}
-	
 	func decode(_ type: Float.Type) throws -> Float {
 		advance(type)
 		return 0
 	}
-	
 	func decode(_ type: Double.Type) throws -> Double {
 		advance(type)
 		return 0
 	}
-	
 	func decode(_ type: String.Type) throws -> String {
 		advance(type)
 		return ""
 	}
-	
 	func decode<T: Decodable>(_ type: T.Type) throws -> T {
 		advance(type)
-//		let sub = SwORMColumnNameDecoder()
-//		typeDecoder = sub
 		return try T(from: parent)
 	}
-	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
 		fatalError("Unimplimented")
 	}
-	
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
 		fatalError("Unimplimented")
 	}
-	
 	func superDecoder() throws -> Decoder {
 		currentIndex += 1
 		return parent
@@ -259,24 +251,20 @@ class SwORMColumnNameDecoder: Decoder {
 	var codingPath: [CodingKey] = []
 	var tableNamePath: [String] = []
 	var userInfo: [CodingUserInfoKey : Any] = [:]
-	var collectedKeys: [(String, Any.Type)] = []
-	var subTables: [(String, Any.Type, SwORMColumnNameDecoder)] = []
+	var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
+	var subTables: [(name: String, type: Any.Type, decoder: SwORMColumnNameDecoder)] = []
 	var pendingReader: SwORMColumnNameUnkeyedReader?
-	
 	func addSubTable(_ name: String, type: Any.Type, decoder: SwORMColumnNameDecoder) {
 		subTables.append((name, type, decoder))
 	}
-	
 	func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
 		return KeyedDecodingContainer<Key>(SwORMColumnNamesReader<Key>(self))
 	}
-	
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
 		let r = SwORMColumnNameUnkeyedReader(parent: self)
 		pendingReader = r
 		return r
 	}
-	
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
 		let r = SwORMColumnNameUnkeyedReader(parent: self)
 		return r
