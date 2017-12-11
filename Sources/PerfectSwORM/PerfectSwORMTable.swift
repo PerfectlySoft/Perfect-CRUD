@@ -75,7 +75,8 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 			guard let encoder = state.bindingsEncoder else {
 				throw SwORMSQLGenError("No bindings encoder for update.")
 			}
-			let bindings = try encoder.completedBindings(ignoreKeys: Set())
+			let (allKeys, ignoreKeys) = state.columnFilters
+			let bindings = try encoder.completedBindings(allKeys: allKeys, ignoreKeys: Set(ignoreKeys))
 			let columnNames = try bindings.map { try delegate.quote(identifier: $0.column) }
 			let bindIdentifiers = bindings.map { $0.identifier }
 			

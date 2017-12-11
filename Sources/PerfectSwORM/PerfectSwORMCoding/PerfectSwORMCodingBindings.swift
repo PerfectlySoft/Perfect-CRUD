@@ -124,7 +124,7 @@ class SwORMBindingsEncoder: Encoder {
 	func completedBindings(allKeys: [String],
 						   ignoreKeys: Set<String>) throws -> [(column: String, identifier: String)] {
 		let exprDict: [String:Expression] = .init(uniqueKeysWithValues: collectedBinds)
-		let ret: [(column: String, identifier: String)] = try allKeys.map {
+		let ret: [(column: String, identifier: String)] = try allKeys.filter { !ignoreKeys.contains($0) }.map {
 			key in
 			let bindId: String
 			if let expr = exprDict[key] {
