@@ -247,6 +247,7 @@ public struct SQLGenState {
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
 	var bindingsEncoder: SwORMBindingsEncoder?
+	var columnFilters: (include: [String], exclude: [String]) = ([], [])
 	init(delegate d: SQLGenDelegate) {
 		delegate = d
 	}

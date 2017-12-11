@@ -44,11 +44,18 @@ public struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, Command
 		guard let kpInstance = td.modelInstance else {
 			throw SwORMSQLGenError("Could not get model instance for key path decoder \(OAF.self)")
 		}
-		let includeNames: [String] = try includeKeys.map {
-			guard let n = try kpDecoder.getKeyPathName(kpInstance, keyPath: $0) else {
-				throw SwORMSQLGenError("Could not get key path name for \(OAF.self) \($0)")
+		let includeNames: [String]
+		if includeKeys.isEmpty {
+			let columnDecoder = SwORMColumnNameDecoder()
+			_ = try OverAllForm.init(from: columnDecoder)
+			includeNames = columnDecoder.collectedKeys.map { $0.name }
+		} else {
+			includeNames = try includeKeys.map {
+				guard let n = try kpDecoder.getKeyPathName(kpInstance, keyPath: $0) else {
+					throw SwORMSQLGenError("Could not get key path name for \(OAF.self) \($0)")
+				}
+				return n
 			}
-			return n
 		}
 		let excludeNames: [String] = try excludeKeys.map {
 			guard let n = try kpDecoder.getKeyPathName(kpInstance, keyPath: $0) else {
@@ -59,9 +66,10 @@ public struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, Command
 		let encoder = try SwORMBindingsEncoder(delegate: delegate)
 		try instance.encode(to: encoder)
 		state.bindingsEncoder = encoder
+		state.columnFilters = (include: includeNames, exclude: excludeNames)
 		try ft.setSQL(state: &state)
 		sqlGenState = state
-		for stat in state.statements {
+		if let stat = state.statements.first { // multi statements?!
 			let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: stat.sql)
 			try exeDelegate.bind(stat.bindings)
 			_ = try exeDelegate.hasNext()
