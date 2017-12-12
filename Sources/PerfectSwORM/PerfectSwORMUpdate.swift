@@ -9,19 +9,25 @@ import Foundation
 
 public protocol UpdateAble: TableProtocol {
 	@discardableResult
-	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
+	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	@discardableResult
-	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
+	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
+	@discardableResult
+	func update(_ instance: OverAllForm) throws -> Update<OverAllForm, Self>
 }
 
 public extension UpdateAble {
 	@discardableResult
-	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])
+	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys] + rest, excludeKeys: [])
 	}
 	@discardableResult
-	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: ignoreKeys)
+	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys] + rest)
+	}
+	@discardableResult
+	func update(_ instance: OverAllForm) throws -> Update<OverAllForm, Self> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [])
 	}
 }
 
