@@ -4,7 +4,7 @@ SwORM is an object-relational mapping (ORM) system for Swift 4+. SwORM takes Swi
 
 SwORM is designed to be light-weight and has zero additional dependencies. Database client library packages can add SwORM support by implimenting a few protocols. These protocols allow SwORM to operate with the client libraries in a generic way. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite) and [Postgres](https://github.com/kjessup/Perfect-PostgreSQL).
 
-##General Usage
+## General Usage
 
 SwORM usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library. These examples will use SQLite for demonstration purposes.
 
@@ -57,7 +57,7 @@ let foundCount = try query.count()
 let foo = try query.select().map { ... }
 ```
 
-##Codable Types
+## Codable Types
 
 Any `Codable` type can be used with SwORM, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
 
@@ -105,19 +105,19 @@ struct TestTable2: Codable {
 
 Joined types should be an Optional array of Codable objects. Above, the `TestTable1` struct has a joined type on its `subTables` property: `let subTables: [TestTable2]?`. Joined types will only be populated when the corresponding table is joined using the `join` operation.
 
-###Identity
+### Identity
 
 All SwORM Codable types should have an `id` column. When SwORM creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key can not be found an error will be thrown.
 
 Note that a custom primary key name can be specified when creating tables "shallow" but not when recursively creating them. See the "Create" operation for more details.
 
-##Operations
+## Operations
 
 Activity in SwORM is accomplished by obtaining a database connection object and then chaining a series of operations on that database. Some operations execute immediately while others (select) are executed lazily. Each operation that is chained will return an object which can be further chained or executed.
 
 Operations are grouped here according to the objects which impliment them. Note that many of the type definitions shown below have been abbreviated for simplicity and some functions implimented in extensions have been moved in to keep things in a single block.
 
-###Database
+### Database
 
 A Database object wraps and maintains a connection to a database. Database connectivity is specified by using a `DatabaseConfigurationProtocol` object. These will be specific to the database in question.
 
@@ -148,7 +148,7 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 
 The operations available on a Database object include `transaction`, `create`, and `table`. 
 
-####transaction
+#### transaction
 
 The `transaction` operation will execute the body between a set of "BEGIN" and "COMMIT" or "ROLLBACK" statements. If the body completes execution without throwing an error then the transaction will be committed, otherwise it is rolled-back.
 
@@ -158,7 +158,7 @@ try db.transaction {
 }
 ```
 
-####create
+#### create
 
 The `create` operation is given a Codable type. It will create a table corresponding to the type's structure. The table's primary key can be indicated as well as a create policy which determines some aspects of the create. 
 
@@ -170,7 +170,7 @@ The `create` operation is given a Codable type. It will create a table correspon
 
 Calling create on a table which already exists is a harmless operation resulting in no changes unless the `.reconcileTable` or `.dropTable` policies are indicated.
 
-####table
+#### table
 
 The `table` operation returns a Table object based on the indicated Codable type. Table objects are used to perform further operations.
 
@@ -178,7 +178,7 @@ The `table` operation returns a Table object based on the indicated Codable type
 let table1 = db.table(TestTable1.self)
 ```
 
-###Table
+### Table
 
 A Table object can be used to perform updates, inserts, deletes or select queries. Tables can only be accessed by providing the Codable type which is to be mapped. Tables indicate the over-all resulting type of any operation (referred to as the *OverAllForm*).
 
@@ -250,41 +250,41 @@ Table can follow: `Database`.
 
 Table supports: `update`, `insert`, `delete`, `join`, `order`, `limit`, `where`, `select`, `count`.
 
-###Join
+### Join
 
 A `join` operation represents a set of objects from another table which will be selected along with the main over-all type. 
 
 Join can follow: `table`, `order`, `limit`, or another `join`.
 
-###Where
+### Where
 
 A `where` operation introduces a criteria which will be used to indicate exactly which objects should be selected or updated from the database. Where can be used when performing a select or an update.
 
-###Order
+### Order
 
 An `order` operation introduces an ordering of the over-all resulting objects and/or of the objects selected for a particular join. An order operation should immediately follow either a `table` or a `join`.
 
-###Limit
+### Limit
 
 A `limit` operation can follow a `table`, `join`, or `order` operation. Limit can both apply an upper bound on the number of resulting objects and impose a "skip" value. For example the first five found records may be skipped and the result set will begin at the sixth row.
 
-###Update
+### Update
 
 An `update` operation can be used to replace values in existing records. An `update` can follow a `table` operation. It can also follow a `where` operation if that `where` follows a `table`.
 
-###Insert
+### Insert
 
 An `insert` operation can follow a `table`. Insert is used to add new records to the database.
 
-###Delete
+### Delete
 
 A `delete` can follow a `table` operation. It can also follow a `where` operation if that `where` follows a `table`.
 
-###Select
+### Select
 
 A `select` operation can follow a `where`, `order`, `limit`, `join`, or `table` operation. Select returns an object which can be used to iterate over the resulting values.
 
-###Count
+### Count
 
 A `count` operation can follow a `where`, `order`, `limit`, `join`, or `table` operation. Count works similarly to `select` but it will execute the query immediately and simply return the number of resulting objects.
 
