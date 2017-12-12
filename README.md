@@ -139,7 +139,6 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 	public init(configuration c: Configuration)
 	public func table<T: Codable>(_ form: T.Type) -> Table<T, Database<C>>
 	public func transaction<T>(_ body: () throws -> T) throws -> T
-	@discardableResult
 	public func create<A: Codable>(_ type: A.Type, 
 		primaryKey: PartialKeyPath<A>? = nil, 
 		policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self>
@@ -161,6 +160,10 @@ try db.transaction {
 #### create
 
 The `create` operation is given a Codable type. It will create a table corresponding to the type's structure. The table's primary key can be indicated as well as a create policy which determines some aspects of the create. 
+
+```swift
+try db.create(TestTable1.self, primaryKey: \TestTable1.id, policy: .reconcileTable)
+```
 
 `TableCreatePolicy` consists of the following options:
 
@@ -189,39 +192,30 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 	public var databaseConfiguration: DatabaseConfigurationProtocol { return database.configuration }
 	
 	// update - UpdateAble
-	@discardableResult
 	public func update(
 		_ instance: OverAllForm, 
 		setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
-	@discardableResult
 	public func update(
 		_ instance: OverAllForm, 
 		ignoreKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	
 	// insert - InsertAble
-	@discardableResult
 	public func insert(_ instances: [Form]) throws -> Insert<Form, Table<A,C>>
-	@discardableResult
 	public func insert(_ instance: Form) throws -> Insert<Form, Table<A,C>>
-	@discardableResult
 	public func insert(
 		_ instances: [Form], 
 		setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>>
-	@discardableResult
 	public func insert(
 		_ instance: Form, 
 		setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>>
-	@discardableResult
 	public func insert(
 		_ instances: [Form], 
 		ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>>
-	@discardableResult
 	public func insert(
 		_ instance: Form, 
 		ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>>
 	
 	// delete - DeleteAble
-	@discardableResult
 	public func delete() throws -> Delete<OverAllForm, Self>
 	
 	// join - JoinAble
@@ -256,37 +250,71 @@ A `join` operation represents a set of objects from another table which will be 
 
 Join can follow: `table`, `order`, `limit`, or another `join`.
 
+Join supports: `join`, `where`, `order`, `limit`, `select`, `count`.
+
 ### Where
 
 A `where` operation introduces a criteria which will be used to indicate exactly which objects should be selected or updated from the database. Where can be used when performing a select or an update.
+
+Where can follow: `table`, `join`, `order`.
+
+Where supports: `select`, `count`, `update` (when following `table`), `delete` (when following `table`).
 
 ### Order
 
 An `order` operation introduces an ordering of the over-all resulting objects and/or of the objects selected for a particular join. An order operation should immediately follow either a `table` or a `join`.
 
+Order can follow: `table`, `join`.
+
+Order supports: `join`, `where`, `order`, `limit` `select`, `count`.
+
 ### Limit
 
 A `limit` operation can follow a `table`, `join`, or `order` operation. Limit can both apply an upper bound on the number of resulting objects and impose a "skip" value. For example the first five found records may be skipped and the result set will begin at the sixth row.
 
+Limit can follow: `order`, `join`, `table`.
+
+Limit supports: `join`, `where`, `order`, `select`, `count`.
+
 ### Update
 
-An `update` operation can be used to replace values in existing records. An `update` can follow a `table` operation. It can also follow a `where` operation if that `where` follows a `table`.
+An `update` operation can be used to replace values in existing records.
+
+Update can follow: `table`, `where` (when `where` follows `table`).
+
+Update supports: immediate execution.
 
 ### Insert
 
-An `insert` operation can follow a `table`. Insert is used to add new records to the database.
+Insert is used to add new records to the database.
+
+Insert can follow: `table`.
+
+Insert supports: immediate execution.
 
 ### Delete
 
-A `delete` can follow a `table` operation. It can also follow a `where` operation if that `where` follows a `table`.
+A `delete` operation is used to remove records from the table.
+
+Delete can follow: `table`, `where` (when `where` follows `table`).
+
+Delete supports: immediate execution.
 
 ### Select
 
-A `select` operation can follow a `where`, `order`, `limit`, `join`, or `table` operation. Select returns an object which can be used to iterate over the resulting values.
+Select returns an object which can be used to iterate over the resulting values.
+
+Select can follow: `where`, `order`, `limit`, `join`, `table`.
+
+Select supports: iteration.
 
 ### Count
 
-A `count` operation can follow a `where`, `order`, `limit`, `join`, or `table` operation. Count works similarly to `select` but it will execute the query immediately and simply return the number of resulting objects.
+Count works similarly to `select` but it will execute the query immediately and simply return the number of resulting objects.
+
+Count can follow: `where`, `order`, `limit`, `join`, `table`.
+
+Count supports: iteration.
 
 
 
