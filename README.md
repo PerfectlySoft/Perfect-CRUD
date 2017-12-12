@@ -28,7 +28,7 @@ Table objects can be used to `insert`, `update`, and `delete` objects, or to con
 
 ```swift
 let newOne = TestTable1(id: 2000, name: "New One", integer: 40, 
-						double: nil, blob: nil, subTables: nil)
+	double: nil, blob: nil, subTables: nil)
 // insert a new object
 try table.insert(newOne)
 ```
@@ -36,11 +36,11 @@ try table.insert(newOne)
 ```swift
 // create a join with a where clause
 let query = try table
-					.order(by: \TestTable1.name)
-				.join(\.subTables, on: \.id, equals: \.parentId)
-					.order(by: \TestTable2.id)
-				.where(\TestTable1.id == .integer(2000) && 
-					\TestTable2.name == .string("Me"))
+		.order(by: \TestTable1.name)
+	.join(\.subTables, on: \.id, equals: \.parentId)
+		.order(by: \TestTable2.id)
+	.where(\TestTable1.id == .integer(2000) && 
+		\TestTable2.name == .string("Me"))
 ```
 
 The query has not been executed yet, but `select` can be called to return an iterable object containing all of the found items.
