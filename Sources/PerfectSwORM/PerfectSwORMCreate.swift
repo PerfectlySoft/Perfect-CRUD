@@ -12,6 +12,7 @@ public struct TableCreatePolicy: OptionSet {
 	public init(rawValue r: Int) { rawValue = r }
 	public static let shallow = TableCreatePolicy(rawValue: 1)
 	public static let dropTable = TableCreatePolicy(rawValue: 2)
+	public static let reconcileTable = TableCreatePolicy(rawValue: 4)
 	
 	public static let defaultPolicy: TableCreatePolicy = []
 }

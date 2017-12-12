@@ -19,12 +19,12 @@
 
 import Foundation
 
-public class SwORMRowDecoder2<K: CodingKey>: Decoder {
+public class SwORMRowDecoder<K: CodingKey>: Decoder {
 	public typealias Key = K
 	public var codingPath: [CodingKey] = []
 	public var userInfo: [CodingUserInfoKey:Any] = [:]
 	let delegate: SQLExeDelegate
-	init(delegate d: SQLExeDelegate) {
+	public init(delegate d: SQLExeDelegate) {
 		delegate = d
 	}
 	public func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {

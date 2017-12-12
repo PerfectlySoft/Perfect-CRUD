@@ -196,7 +196,7 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 			var ary: [Codable] = []
 			let type = joinTable.type
 			while try joinDelegate.hasNext() {
-				let decoder = SwORMRowDecoder2<ColumnKey>(delegate: joinDelegate)
+				let decoder = SwORMRowDecoder<ColumnKey>(delegate: joinDelegate)
 				ary.append(try type.init(from: decoder))
 			}
 			return (keyStr, (onKeyStr, joinData.on, joinData.equals, ary))
