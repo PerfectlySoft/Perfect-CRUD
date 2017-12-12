@@ -80,12 +80,16 @@ public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 // this is not an excellent check for Table<OAF, _>
 public extension Where where OverAllForm == FromTableType.Form {
 	@discardableResult
-	func update(_ instance: OAF, setKeys: PartialKeyPath<OAF>...) throws -> Update<OAF, Where<OAF,A>> {
-		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])
+	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OAF, Where<OAF,A>> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys] + rest, excludeKeys: [])
 	}
 	@discardableResult
-	func update(_ instance: OAF, ignoreKeys: PartialKeyPath<OAF>...) throws -> Update<OAF, Where<OAF,A>> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: ignoreKeys)
+	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OAF, Where<OAF,A>> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys] + rest)
+	}
+	@discardableResult
+	func update(_ instance: OverAllForm) throws -> Update<OAF, Where<OAF,A>> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [])
 	}
 	@discardableResult
 	func delete() throws -> Delete<OAF, Where<OAF,A>> {
