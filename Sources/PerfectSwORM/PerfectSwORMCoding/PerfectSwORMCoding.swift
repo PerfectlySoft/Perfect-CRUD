@@ -35,7 +35,7 @@ public struct SwORMEncoderError: Error {
 	}
 }
 
-struct ColumnKey : CodingKey {
+public struct ColumnKey : CodingKey {
 	public var stringValue: String
 	public var intValue: Int?
 	public init?(stringValue: String) {

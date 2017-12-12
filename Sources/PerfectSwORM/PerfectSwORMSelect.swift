@@ -25,7 +25,7 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 		}
 		do {
 			if try delegate.hasNext() {
-				let rowDecoder: SwORMRowDecoder2<ColumnKey> = SwORMRowDecoder2(delegate: delegate)
+				let rowDecoder: SwORMRowDecoder<ColumnKey> = SwORMRowDecoder(delegate: delegate)
 				return try Element(from: rowDecoder)
 			}
 		} catch {
