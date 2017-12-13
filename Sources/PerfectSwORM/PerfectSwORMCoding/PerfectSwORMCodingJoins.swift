@@ -127,6 +127,9 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case let i as Data.Type:
 				let keyValue = try subRowReader.decode(i, forKey: columnKey)
 				theseObjs = filteredValues(objects, lhs: keyValue, rhsKey: equalsKey)
+			case let i as UUID.Type:
+				let keyValue = try subRowReader.decode(i, forKey: columnKey)
+				theseObjs = filteredValues(objects, lhs: keyValue, rhsKey: equalsKey)
 			default:
 				throw SwORMSQLExeError("Invalid join comparison type \(comparisonType).")
 			}
