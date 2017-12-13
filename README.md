@@ -72,7 +72,7 @@ for user in query {
 
 Activity in SwORM is accomplished by obtaining a database connection object and then chaining a series of operations on that database. Some operations execute immediately while others (select) are executed lazily. Each operation that is chained will return an object which can be further chained or executed.
 
-Operations are grouped here according to the objects which impliment them. Note that many of the type definitions shown below have been abbreviated for simplicity and some functions implimented in extensions have been moved in to keep things in a single block.
+Operations are grouped here according to the objects which implement them. Note that many of the type definitions shown below have been abbreviated for simplicity and some functions implemented in extensions have been moved in to keep things in a single block.
 
 ### Database
 
