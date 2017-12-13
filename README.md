@@ -1,69 +1,76 @@
-# PerfectSwORM
+# Perfect SwORM
 
 SwORM is an object-relational mapping (ORM) system for Swift 4+. SwORM takes Swift 4 `Codable` types and maps them to SQL database tables. SwORM can create tables based on `Codable` types and perform inserts and updates of objects in those tables. SwORM can also perform selects and joins of tables, all in a type-safe manner.
 
-SwORM is designed to be light-weight and has zero additional dependencies. Database client library packages can add SwORM support by implimenting a few protocols. These protocols allow SwORM to operate with the client libraries in a generic way. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite) and [Postgres](https://github.com/kjessup/Perfect-PostgreSQL).
+SwORM uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to make sure any misusage is caught at compile time.
+
+Database client library packages can add SwORM support by implementing a few protocols. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite) and [Postgres](https://github.com/kjessup/Perfect-PostgreSQL).
 
 ## General Usage
 
-SwORM usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library. These examples will use SQLite for demonstration purposes.
-
-Create a `Database` object by providing a configuration.
+This is a simple example to show how SwORM is used.
 
 ```swift
-let db = Database(configuration: try 
-	SQLiteDatabaseConfiguration(testDBName))
-```
-
-Database objects are used to create or access tables.
-
-```swift
-// ensure the table has been initialized
-try db.create(TestTable1.self, policy: .reconcileTable)
-// get the table
-let table = db.table(TestTable1.self)
-```
-
-Table objects can be used to `insert`, `update`, and `delete` objects, or to construct more complex queries and then `select` a result set.
-
-```swift
-let newOne = TestTable1(id: 2000, name: "New One", integer: 40, 
-	double: nil, blob: nil, subTables: nil)
-// insert a new object
-try table.insert(newOne)
-```
-
-```swift
-// create a join with a where clause
-let query = try table
-		.order(by: \TestTable1.name)
-	.join(\.subTables, on: \.id, equals: \.parentId)
-		.order(by: \TestTable2.id)
-	.where(\TestTable1.id == .integer(2000) && 
-		\TestTable2.name == .string("Me"))
-```
-
-The query has not been executed yet, but `select` can be called to return an iterable object containing all of the found items.
-
-```swift
-// iterate through found objects
-for row in try query.select() {
-	let thisId = row.id
-	...
+// SwORM can work with most Codable types.
+struct PhoneNumber: Codable {
+	let id: UUID
+	let personId: UUID
+	let planetCode: Int
+	let number: String
 }
-// the query can execute multiple times
-let foundCount = try query.count()
-// select results can use map, filter, etc.
-let foo = try query.select().map { ... }
+struct Person: Codable {
+	let id: UUID
+	let firstName: String
+	let lastName: String
+	let phoneNumbers: [PhoneNumber]?
+}
+// SwORM usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
+// Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
+let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+// Create the table if it hasn't been done already.
+// Table creates are recursive by default, so "PhoneNumber" is also created here.
+try db.create(Person.self, policy: .reconcileTable)
+// Get a reference to the tables we will be inserting data into.
+let personTable = db.table(Person.self)
+let numbersTable = db.table(PhoneNumber.self)
+// Add an index for personId, if it does not already exist.
+try numbersTable.index(\PhoneNumber.personId)
+do {
+	// Insert some sample data.
+	let personId1 = UUID()
+	let personId2 = UUID()
+	try personTable.insert([
+		Person(id: personId1, firstName: "Owen", lastName: "Lars", phoneNumbers: nil),
+		Person(id: personId2, firstName: "Beru", lastName: "Lars", phoneNumbers: nil)])
+	try numbersTable.insert([
+		PhoneNumber(id: UUID(), personId: personId1, planetCode: 12, number: "555-555-1212"),
+		PhoneNumber(id: UUID(), personId: personId1, planetCode: 15, number: "555-555-2222"),
+		PhoneNumber(id: UUID(), personId: personId2, planetCode: 12, number: "555-555-1212")
+	])
+}
+// Let's find all people with the last name of Lars which have a phone number on planet 12.
+let query = try personTable
+		.order(by: \Person.lastName)
+	.join(\.phoneNumbers, on: \.id, equals: \.personId)
+		.order(by: \PhoneNumber.planetCode)
+	.where(\Person.lastName == .string("Lars") && \PhoneNumber.planetCode == .integer(12))
+	.select()
+// Loop through them and print the names.
+for user in query {
+	print("\(user.firstName) \(user.lastName)")
+	// We joined PhoneNumbers, so we should have values here.
+	guard let numbers = user.phoneNumbers else {
+		continue
+	}
+	for number in numbers {
+		print(number.number)
+	}
+}
 ```
-
-## Philosophy
-
-write me. project goals
 
 ## Codable Types
 
-Any `Codable` type can be used with SwORM, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
+Most `Codable` types can be used with SwORM, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
 
 By default, the type name will be used as the table name. To customize the name used for a type's table, have the type implement the `TableNameProvider` protocol. This requires a `static let tableName: String` property.
 
