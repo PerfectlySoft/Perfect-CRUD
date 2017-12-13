@@ -68,60 +68,6 @@ for user in query {
 }
 ```
 
-## Codable Types
-
-Most `Codable` types can be used with SwORM, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
-
-By default, the type name will be used as the table name. To customize the name used for a type's table, have the type implement the `TableNameProvider` protocol. This requires a `static let tableName: String` property.
-
-SwORM supports the following property types:
-
-* All Ints, Double, Float, Bool, String
-* [UInt8], [Int8], Data
-* Date, UUID
-
-The actual storage in the database for each of these types will depend on the client library in use. For example, Postgres will have an actual "date" and "uuid" column types while in SQLite these will be stored as strings.
-
-A type used with SwORM can also have one or more arrays of child, or joined types. These arrays can be populated by using a `join` operation in a query. Note that a table column will not be created for joined type properties.
-
-The following example types illustrate valid SwORM `Codables` using `CodingKeys`, `TableNameProvider` and joined types.
-
-```swift
-struct TestTable1: Codable, TableNameProvider {
-	enum CodingKeys: String, CodingKey {
-		// specify custom column names for some properties
-		case id, name, integer = "int", double = "doub", blob, subTables
-	}
-	// specify a custom table name
-	static let tableName = "test_table_1"
-	
-	let id: Int
-	let name: String?
-	let integer: Int?
-	let double: Double?
-	let blob: [UInt8]?
-	let subTables: [TestTable2]?
-}
-
-struct TestTable2: Codable {
-	let id: UUID
-	let parentId: Int
-	let date: Date
-	let name: String?
-	let int: Int?
-	let doub: Double?
-	let blob: [UInt8]?
-}
-```
-
-Joined types should be an Optional array of Codable objects. Above, the `TestTable1` struct has a joined type on its `subTables` property: `let subTables: [TestTable2]?`. Joined types will only be populated when the corresponding table is joined using the `join` operation.
-
-### Identity
-
-All SwORM Codable types should have an `id` column. When SwORM creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key can not be found an error will be thrown.
-
-Note that a custom primary key name can be specified when creating tables "shallow" but not when recursively creating them. See the "Create" operation for more details.
-
 ## Operations
 
 Activity in SwORM is accomplished by obtaining a database connection object and then chaining a series of operations on that database. Some operations execute immediately while others (select) are executed lazily. Each operation that is chained will return an object which can be further chained or executed.
@@ -523,8 +469,107 @@ assert(count == values.count)
 
 **Select** supports: iteration.
 
+## Codable Types
+
+Most `Codable` types can be used with SwORM, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
+
+By default, the type name will be used as the table name. To customize the name used for a type's table, have the type implement the `TableNameProvider` protocol. This requires a `static let tableName: String` property.
+
+SwORM supports the following property types:
+
+* All Ints, Double, Float, Bool, String
+* [UInt8], [Int8], Data
+* Date, UUID
+
+The actual storage in the database for each of these types will depend on the client library in use. For example, Postgres will have an actual "date" and "uuid" column types while in SQLite these will be stored as strings.
+
+A type used with SwORM can also have one or more arrays of child, or joined types. These arrays can be populated by using a `join` operation in a query. Note that a table column will not be created for joined type properties.
+
+The following example types illustrate valid SwORM `Codables` using `CodingKeys`, `TableNameProvider` and joined types.
+
+```swift
+struct TestTable1: Codable, TableNameProvider {
+	enum CodingKeys: String, CodingKey {
+		// specify custom column names for some properties
+		case id, name, integer = "int", double = "doub", blob, subTables
+	}
+	// specify a custom table name
+	static let tableName = "test_table_1"
+	
+	let id: Int
+	let name: String?
+	let integer: Int?
+	let double: Double?
+	let blob: [UInt8]?
+	let subTables: [TestTable2]?
+}
+
+struct TestTable2: Codable {
+	let id: UUID
+	let parentId: Int
+	let date: Date
+	let name: String?
+	let int: Int?
+	let doub: Double?
+	let blob: [UInt8]?
+}
+```
+
+Joined types should be an Optional array of Codable objects. Above, the `TestTable1` struct has a joined type on its `subTables` property: `let subTables: [TestTable2]?`. Joined types will only be populated when the corresponding table is joined using the `join` operation.
+
+### Identity
+
+All SwORM Codable types should have an `id` column. When SwORM creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key can not be found an error will be thrown.
+
+Note that a custom primary key name can be specified when creating tables "shallow" but not when recursively creating them. See the "Create" operation for more details.
+
 ## Error Handling
 
+Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object. 
+
+SwORM will throw `SwORMDecoderError` or `SwORMEncoderError` for errors occurring during type encoding and decoding, respectively.
+
+SwORM will throw `SwORMSQLGenError` for errors occurring during SQL statement generation.
+
+SwORM will throw `SwORMSQLExeError` for errors occurring during SQL statement execution.
+
+All of the SwORM errors are tied into the logging system. When they are thrown the error messages will appear in the log. Individual database client libraries may throw other errors when they occur.
+
 ## Logging
+
+SwORM contains a built-in logging system which is designed to record errors which occur. It can also record individual SQL statements which are generated. SwORM logging is done asynchronously. You can flush all pending log messages by calling `SwORMLogging.flush()`.
+
+Messages can be added to the log by calling `SwORMLogging.log(_ type: SwORMLogEventType, _ msg: String)`.
+
+Example usage:
+
+```swift
+// log an informative message.
+SwORMLogging.log(.info, "This is my message.")
+```
+
+`SwORMLogEventType` is one of: `.info`, `.warning`, `.error`, or `.query`.
+
+You can control where log messages go by setting the `SwORMLogging.queryLogDestinations` and `SwORMLogging.errorLogDestinations` static properties. Handling for errors and queries can be set seperately as SQL statement logging may be desirable during development but not in production.
+
+```swift
+public extension SwORMLogging {
+	public static var queryLogDestinations: [SwORMLogDestination]
+	public static var errorLogDestinations: [SwORMLogDestination]
+}
+```
+
+Log destinations are defined as:
+
+```swift
+public enum SwORMLogDestination {
+	case none
+	case console
+	case file(String)
+	case custom((SwORMLogEvent) -> ())
+}
+```
+
+Each message can go to multiple destinations. By default, both errors and queries are logged to the console.
 
 
