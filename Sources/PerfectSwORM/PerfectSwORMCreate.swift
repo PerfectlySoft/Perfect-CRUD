@@ -173,14 +173,3 @@ public extension Table {
 	}
 }
 
-//public extension Index {
-//	@discardableResult
-//	func index<V: Equatable>(_ key: KeyPath<OverAllForm, V>) throws -> Index<OverAllForm, Index> {
-//		return try .init(fromTable: self, keys: [key])
-//	}
-//	@discardableResult
-//	func index(keys: PartialKeyPath<OverAllForm>...) throws -> Index<OverAllForm, Index> {
-//		return try .init(fromTable: self, keys: keys)
-//	}
-//}
-
