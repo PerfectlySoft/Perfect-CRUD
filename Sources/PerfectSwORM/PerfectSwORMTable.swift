@@ -10,7 +10,7 @@ import Foundation
 public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble, DeleteAble, LimitAble {
 	public typealias OverAllForm = A
 	public typealias Form = A
-	typealias DatabaseType = C
+	public typealias DatabaseType = C
 	public var databaseConfiguration: DatabaseConfigurationProtocol { return database.configuration }
 	let database: DatabaseType
 	public func setState(var state: inout SQLGenState) throws {

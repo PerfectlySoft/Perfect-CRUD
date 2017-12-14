@@ -13,7 +13,7 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 	public init(configuration c: Configuration) {
 		configuration = c
 	}
-	public func table<T: Codable>(_ form: T.Type) -> Table<T, Database<C>> {
+	public func table<T: Codable>(_ form: T.Type) -> Table<T, Database> {
 		return .init(database: self)
 	}
 }

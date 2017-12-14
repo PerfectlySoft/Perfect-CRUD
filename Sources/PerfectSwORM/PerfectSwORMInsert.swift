@@ -81,27 +81,27 @@ public struct Insert<OAF: Codable, A: TableProtocol>: FromTableProtocol, Command
 
 public extension Table {
 	@discardableResult
-	func insert(_ instances: [Form]) throws -> Insert<Form, Table<A,C>> {
+	func insert(_ instances: [Form]) throws -> Insert<Form, Table> {
 		return try .init(fromTable: self, instances: instances, includeKeys: [], excludeKeys: [])
 	}
 	@discardableResult
-	func insert(_ instance: Form) throws -> Insert<Form, Table<A,C>> {
+	func insert(_ instance: Form) throws -> Insert<Form, Table> {
 		return try .init(fromTable: self, instances: [instance], includeKeys: [], excludeKeys: [])
 	}
 	@discardableResult
-	func insert(_ instances: [Form], setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>> {
+	func insert(_ instances: [Form], setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table> {
 		return try .init(fromTable: self, instances: instances, includeKeys: [setKeys] + rest, excludeKeys: [])
 	}
 	@discardableResult
-	func insert(_ instance: Form, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>> {
+	func insert(_ instance: Form, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table> {
 		return try .init(fromTable: self, instances: [instance], includeKeys: [setKeys] + rest, excludeKeys: [])
 	}
 	@discardableResult
-	func insert(_ instances: [Form], ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>> {
+	func insert(_ instances: [Form], ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table> {
 		return try .init(fromTable: self, instances: instances, includeKeys: [], excludeKeys: [ignoreKeys] + rest)
 	}
 	@discardableResult
-	func insert(_ instance: Form, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table<A,C>> {
+	func insert(_ instance: Form, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Insert<Form, Table> {
 		return try .init(fromTable: self, instances: [instance], includeKeys: [], excludeKeys: [ignoreKeys] + rest)
 	}
 }

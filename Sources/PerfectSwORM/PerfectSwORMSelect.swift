@@ -36,7 +36,7 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 }
 
 public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
-	public typealias Iterator = SelectIterator<Select<OAF, A>>
+	public typealias Iterator = SelectIterator<Select>
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
@@ -80,19 +80,19 @@ public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 // this is not an excellent check for Table<OAF, _>
 public extension Where where OverAllForm == FromTableType.Form {
 	@discardableResult
-	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OAF, Where<OAF,A>> {
+	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OAF, Where> {
 		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys] + rest, excludeKeys: [])
 	}
 	@discardableResult
-	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OAF, Where<OAF,A>> {
+	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OAF, Where> {
 		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys] + rest)
 	}
 	@discardableResult
-	func update(_ instance: OverAllForm) throws -> Update<OAF, Where<OAF,A>> {
+	func update(_ instance: OverAllForm) throws -> Update<OAF, Where> {
 		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [])
 	}
 	@discardableResult
-	func delete() throws -> Delete<OAF, Where<OAF,A>> {
+	func delete() throws -> Delete<OAF, Where> {
 		return try .init(fromTable: self)
 	}
 }

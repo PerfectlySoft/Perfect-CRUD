@@ -136,6 +136,40 @@ public extension OrderAble {
 	func order(descending by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self> {
 		return .init(fromTable: self, keys: by, descending: true)
 	}
+	// !FIX! Swift 4.0.2 seems to have a problem with type inference for the above two funcs
+	// would not let \.name type references to be used
+	// this is an ugly work around
+	func order<V1: Equatable>(by: KeyPath<Form, V1>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by], descending: false)
+	}
+	func order<V1: Equatable, V2: Equatable>(by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy], descending: false)
+	}
+	func order<V1: Equatable, V2: Equatable, V3: Equatable>(by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>, _ thenBy2: KeyPath<Form, V3>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy, thenBy2], descending: false)
+	}
+	func order<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable>(by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>, _ thenBy2: KeyPath<Form, V3>, _ thenBy3: KeyPath<Form, V4>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy, thenBy2, thenBy3], descending: false)
+	}
+	func order<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable, V5: Equatable>(by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>, _ thenBy2: KeyPath<Form, V3>, _ thenBy3: KeyPath<Form, V4>, _ thenBy4: KeyPath<Form, V5>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy, thenBy2, thenBy3, thenBy4], descending: false)
+	}
+	// desc
+	func order<V1: Equatable>(descending by: KeyPath<Form, V1>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by], descending: true)
+	}
+	func order<V1: Equatable, V2: Equatable>(descending by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy], descending: true)
+	}
+	func order<V1: Equatable, V2: Equatable, V3: Equatable>(descending by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>, _ thenBy2: KeyPath<Form, V3>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy, thenBy2], descending: true)
+	}
+	func order<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable>(descending by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>, _ thenBy2: KeyPath<Form, V3>, _ thenBy3: KeyPath<Form, V4>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy, thenBy2, thenBy3], descending: true)
+	}
+	func order<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable, V5: Equatable>(descending by: KeyPath<Form, V1>, _ thenBy: KeyPath<Form, V2>, _ thenBy2: KeyPath<Form, V3>, _ thenBy3: KeyPath<Form, V4>, _ thenBy4: KeyPath<Form, V5>) -> Ordering<OverAllForm, Self> {
+		return .init(fromTable: self, keys: [by, thenBy, thenBy2, thenBy3, thenBy4], descending: true)
+	}
 }
 
 public extension LimitAble {

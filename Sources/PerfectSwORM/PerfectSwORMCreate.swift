@@ -104,9 +104,10 @@ public struct Create<OAF: Codable, D: DatabaseProtocol> {
 	}
 }
 
-public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol {
+public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol, TableProtocol {
+	public typealias Form = OAF
 	public typealias FromTableType = A
-	typealias OverAllForm = OAF
+	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
 	init(fromTable ft: FromTableType, keys: [PartialKeyPath<FromTableType.Form>]) throws {
 		fromTable = ft
@@ -127,19 +128,59 @@ public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol {
 			_ = try exeDelegate.hasNext()
 		}
 	}
+	public func setState(state: inout SQLGenState) throws {}
+	public func setSQL(state: inout SQLGenState) throws {}
 }
 
 public extension DatabaseProtocol {
 	@discardableResult
-	func create<A: Codable>(_ type: A.Type, primaryKey: PartialKeyPath<A>? = nil, policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self> {
+	func create<A: Codable>(_ type: A.Type, policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self> {
+		return try .init(fromDatabase: self, primaryKey: nil, policy: policy)
+	}
+	@discardableResult
+	func create<A: Codable, V: Equatable>(_ type: A.Type, primaryKey: KeyPath<A, V>, policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self> {
 		return try .init(fromDatabase: self, primaryKey: primaryKey, policy: policy)
 	}
 }
 
 public extension Table {
 	@discardableResult
-	func index(_ keys: PartialKeyPath<Form>...) throws -> Index<OverAllForm, Table<A, C>> {
+	func index(_ keys: PartialKeyPath<OverAllForm>...) throws -> Index<OverAllForm, Table> {
 		return try .init(fromTable: self, keys: keys)
 	}
+	// !FIX! Swift 4.0.2 seems to have a problem with type inference for the above func
+	// would not let \.name type references to be used
+	// this is an ugly work around
+	@discardableResult
+	func index<V1: Equatable>(_ key: KeyPath<OverAllForm, V1>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key])
+	}
+	@discardableResult
+	func index<V1: Equatable, V2: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2])
+	}
+	@discardableResult
+	func index<V1: Equatable, V2: Equatable, V3: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2, key3])
+	}
+	@discardableResult
+	func index<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2, key3, key4])
+	}
+	@discardableResult
+	func index<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable, V5: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>, _ key5: KeyPath<OverAllForm, V5>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2, key3, key4, key5])
+	}
 }
+
+//public extension Index {
+//	@discardableResult
+//	func index<V: Equatable>(_ key: KeyPath<OverAllForm, V>) throws -> Index<OverAllForm, Index> {
+//		return try .init(fromTable: self, keys: [key])
+//	}
+//	@discardableResult
+//	func index(keys: PartialKeyPath<OverAllForm>...) throws -> Index<OverAllForm, Index> {
+//		return try .init(fromTable: self, keys: keys)
+//	}
+//}
 
