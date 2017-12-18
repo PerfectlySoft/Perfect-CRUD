@@ -31,6 +31,7 @@ public indirect enum SwORMExpression {
 	case lessThanEqual(lhs: SwORMExpression, rhs: SwORMExpression)
 	case greaterThan(lhs: SwORMExpression, rhs: SwORMExpression)
 	case greaterThanEqual(lhs: SwORMExpression, rhs: SwORMExpression)
+	case like(lhs: SwORMExpression, rhs: SwORMExpression)
 	case lazy(ExpressionProducer)
 	case keyPath(AnyKeyPath)
 	
@@ -246,6 +247,8 @@ extension SwORMExpression {
 			return try bin(state, ">", lhs, rhs)
 		case .greaterThanEqual(let lhs, let rhs):
 			return try bin(state, ">=", lhs, rhs)
+		case .like(let lhs, let rhs):
+			return try bin(state, "like", lhs, rhs)
 		case .keyPath(let k):
 			let rootType = type(of: k).rootType
 			guard let tableData = state.getTableData(type: rootType),
@@ -300,6 +303,8 @@ extension SwORMExpression {
 		case .greaterThan(let lhs, let rhs):
 			return lhs.referencedTypes() + rhs.referencedTypes()
 		case .greaterThanEqual(let lhs, let rhs):
+			return lhs.referencedTypes() + rhs.referencedTypes()
+		case .like(let lhs, let rhs):
 			return lhs.referencedTypes() + rhs.referencedTypes()
 		case .keyPath(let k):
 			return [type(of: k).rootType]
