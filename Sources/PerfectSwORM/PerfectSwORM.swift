@@ -45,7 +45,7 @@ public protocol SQLGenDelegate {
 	func getBinding(for: Expression) throws -> String
 	func quote(identifier: String) throws -> String
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String]
-	func getCreateIndexSQL(forTable name: String, on column: String) throws -> [String]
+	func getCreateIndexSQL(forTable name: String, on columns: [String], unique: Bool) throws -> [String]
 }
 
 public protocol SQLExeDelegate {
@@ -121,6 +121,21 @@ public extension SelectAble {
 			throw SwORMSQLGenError("No rows returned in count().")
 		}
 		return try container.decode(Int.self, forKey: ColumnKey(stringValue: "count")!)
+	}
+	func first() throws -> OverAllForm? {
+		for r in try select() {
+			return r
+		}
+		return nil
+	}
+}
+
+public extension SelectAble where Self: LimitAble {
+	func first() throws -> OverAllForm? {
+		for r in try limit(1).select() {
+			return r
+		}
+		return nil
 	}
 }
 
