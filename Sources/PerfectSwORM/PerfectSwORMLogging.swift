@@ -20,17 +20,17 @@
 import Foundation
 import Dispatch
 
-public struct SwORMSQLGenError: Error {
-	public let msg: String
+public struct SwORMSQLGenError: Error, CustomStringConvertible {
+	public let description: String
 	public init(_ msg: String) {
-		self.msg = msg
+		description = msg
 		SwORMLogging.log(.error, msg)
 	}
 }
-public struct SwORMSQLExeError: Error {
-	public let msg: String
+public struct SwORMSQLExeError: Error, CustomStringConvertible {
+	public let description: String
 	public init(_ msg: String) {
-		self.msg = msg
+		description = msg
 		SwORMLogging.log(.error, msg)
 	}
 }
