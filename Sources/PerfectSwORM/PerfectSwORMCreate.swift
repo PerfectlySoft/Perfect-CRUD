@@ -109,7 +109,7 @@ public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol, TablePro
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
-	init(fromTable ft: FromTableType, keys: [PartialKeyPath<FromTableType.Form>]) throws {
+	init(fromTable ft: FromTableType, keys: [PartialKeyPath<FromTableType.Form>], unique: Bool) throws {
 		fromTable = ft
 		let delegate = ft.databaseConfiguration.sqlGenDelegate
 		let tableName = "\(OverAllForm.swormTableName)"
@@ -121,7 +121,7 @@ public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol, TablePro
 			}
 			return pkn
 		}
-		let sql = try keyNames.flatMap { try delegate.getCreateIndexSQL(forTable: tableName, on: $0) }
+		let sql = try delegate.getCreateIndexSQL(forTable: tableName, on: keyNames, unique: unique)
 		for stat in sql {
 			SwORMLogging.log(.query, stat)
 			let exeDelegate = try ft.databaseConfiguration.sqlExeDelegate(forSQL: stat)
@@ -145,31 +145,31 @@ public extension DatabaseProtocol {
 
 public extension Table {
 	@discardableResult
-	func index(_ keys: PartialKeyPath<OverAllForm>...) throws -> Index<OverAllForm, Table> {
-		return try .init(fromTable: self, keys: keys)
+	func index(unique: Bool = false, _ keys: PartialKeyPath<OverAllForm>...) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: keys, unique: unique)
 	}
 	// !FIX! Swift 4.0.2 seems to have a problem with type inference for the above func
 	// would not let \.name type references to be used
 	// this is an ugly work around
 	@discardableResult
-	func index<V1: Equatable>(_ key: KeyPath<OverAllForm, V1>) throws -> Index<OverAllForm, Table> {
-		return try .init(fromTable: self, keys: [key])
+	func index<V1: Equatable>(unique: Bool = false, _ key: KeyPath<OverAllForm, V1>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key], unique: unique)
 	}
 	@discardableResult
-	func index<V1: Equatable, V2: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>) throws -> Index<OverAllForm, Table> {
-		return try .init(fromTable: self, keys: [key, key2])
+	func index<V1: Equatable, V2: Equatable>(unique: Bool = false, _ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2], unique: unique)
 	}
 	@discardableResult
-	func index<V1: Equatable, V2: Equatable, V3: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>) throws -> Index<OverAllForm, Table> {
-		return try .init(fromTable: self, keys: [key, key2, key3])
+	func index<V1: Equatable, V2: Equatable, V3: Equatable>(unique: Bool = false, _ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2, key3], unique: unique)
 	}
 	@discardableResult
-	func index<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>) throws -> Index<OverAllForm, Table> {
-		return try .init(fromTable: self, keys: [key, key2, key3, key4])
+	func index<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable>(unique: Bool = false, _ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2, key3, key4], unique: unique)
 	}
 	@discardableResult
-	func index<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable, V5: Equatable>(_ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>, _ key5: KeyPath<OverAllForm, V5>) throws -> Index<OverAllForm, Table> {
-		return try .init(fromTable: self, keys: [key, key2, key3, key4, key5])
+	func index<V1: Equatable, V2: Equatable, V3: Equatable, V4: Equatable, V5: Equatable>(unique: Bool = false, _ key: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>, _ key5: KeyPath<OverAllForm, V5>) throws -> Index<OverAllForm, Table> {
+		return try .init(fromTable: self, keys: [key, key2, key3, key4, key5], unique: unique)
 	}
 }
 
