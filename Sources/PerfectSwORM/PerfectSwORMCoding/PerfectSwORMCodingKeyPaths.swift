@@ -120,16 +120,16 @@ class SwORMKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func superDecoder() throws -> Decoder {
 		return parent
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 }
 
@@ -208,11 +208,11 @@ class SwORMKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
 	}
 	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	
 	func superDecoder() throws -> Decoder {
@@ -233,7 +233,7 @@ class SwORMKeyPathsDecoder: Decoder {
 		return SwORMKeyPathsUnkeyedReader(self)
 	}
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func getKeyPathName(_ instance: Any, keyPath: AnyKeyPath) throws -> String? {
 		guard let v = instance[keyPath: keyPath] else {

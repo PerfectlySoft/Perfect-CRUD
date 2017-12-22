@@ -98,16 +98,16 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: K) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func nestedUnkeyedContainer(forKey key: K) -> UnkeyedEncodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func superEncoder() -> Encoder {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func superEncoder(forKey key: K) -> Encoder {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 }
 
@@ -148,10 +148,10 @@ class SwORMBindingsEncoder: Encoder {
 		return KeyedEncodingContainer<Key>(SwORMBindingsWriter<Key>(self))
 	}
 	func unkeyedContainer() -> UnkeyedEncodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func singleValueContainer() -> SingleValueEncodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 }
 

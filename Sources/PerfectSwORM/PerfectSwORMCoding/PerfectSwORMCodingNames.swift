@@ -134,16 +134,16 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func superDecoder() throws -> Decoder {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 }
 
@@ -236,10 +236,10 @@ class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodin
 		return try T(from: parent)
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplimented")
+		fatalError("Unimplemented")
 	}
 	func superDecoder() throws -> Decoder {
 		currentIndex += 1

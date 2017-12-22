@@ -34,9 +34,9 @@ public class SwORMRowDecoder<K: CodingKey>: Decoder {
 		return next
 	}
 	public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
-		throw SwORMDecoderError("Unimplimented")
+		throw SwORMDecoderError("Unimplemented")
 	}
 	public func singleValueContainer() throws -> SingleValueDecodingContainer {
-		throw SwORMDecoderError("Unimplimented")
+		throw SwORMDecoderError("Unimplemented")
 	}
 }

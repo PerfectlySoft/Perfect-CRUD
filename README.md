@@ -34,7 +34,7 @@ try db.create(Person.self, policy: .reconcileTable)
 let personTable = db.table(Person.self)
 let numbersTable = db.table(PhoneNumber.self)
 // Add an index for personId, if it does not already exist.
-try numbersTable.index(\PhoneNumber.personId)
+try numbersTable.index(\.personId)
 do {
 	// Insert some sample data.
 	let personId1 = UUID()
@@ -50,9 +50,9 @@ do {
 }
 // Let's find all people with the last name of Lars which have a phone number on planet 12.
 let query = try personTable
-		.order(by: \Person.lastName)
+		.order(by: \.lastName)
 	.join(\.phoneNumbers, on: \.id, equals: \.personId)
-		.order(by: \PhoneNumber.planetCode)
+		.order(descending: \.planetCode)
 	.where(\Person.lastName == .string("Lars") && \PhoneNumber.planetCode == .integer(12))
 	.select()
 // Loop through them and print the names.
@@ -109,6 +109,14 @@ The operations available on a Database object include `transaction`, `create`, a
 The `transaction` operation will execute the body between a set of "BEGIN" and "COMMIT" or "ROLLBACK" statements. If the body completes execution without throwing an error then the transaction will be committed, otherwise it is rolled-back.
 
 ```swift
+public extension Database {
+	func transaction<T>(_ body: () throws -> T) throws -> T
+}
+```
+
+Example usage:
+
+```swift
 try db.transaction {
 	... further operations
 }
@@ -130,7 +138,7 @@ public extension DatabaseProtocol {
 Example usage:
 
 ```swift
-try db.create(TestTable1.self, primaryKey: \TestTable1.id, policy: .reconcileTable)
+try db.create(TestTable1.self, primaryKey: \.id, policy: .reconcileTable)
 ```
 
 `TableCreatePolicy` consists of the following options:
@@ -244,7 +252,7 @@ guard let foundNewOne = try query.select().first else {
 
 The parameter given to the `where` operation is an `Expression` object. `Expression` is an enum defining the valid expression types. `Expression` is designed to let you use regular Swift syntax when specifying the expression given to SwORM. This expression object is eventually converted to SQL. SwORM uses statement parameter binding when generating SQL statement, so users need not worry about string quoting or binary data encoding.
 
-Many of these expression types represent simple integral values such as `.string(String)` or `.null`. Others are binary or unary operators such as "AND", or "==". These would be expressed by using the regular Swift operators `&&` and `==`, respectively.
+Many of these expression types represent simple integral values such as `.string(String)` or `.null`. Others are binary or unary operators such as `AND`, or `==`. These would be expressed by using the regular Swift operators `&&` and `==`, respectively.
 
 To illustrate, the two lines that follow are equivalent:
 
@@ -306,9 +314,9 @@ Example usage:
 
 ```swift
 let query = try db.table(TestTable1.self)
-				.order(by: \TestTable1.name)
+				.order(by: \.name)
 			.join(\.subTables, on: \.id, equals: \.parentId)
-				.order(by: \TestTable2.id)
+				.order(by: \.id)
 			.where(\TestTable2.name == .string("Me"))
 ```
 
@@ -334,10 +342,10 @@ Example usage:
 
 ```swift
 let query = try db.table(TestTable1.self)
-				.order(by: \TestTable1.name)
+				.order(by: \.name)
 				.limit(10, skip: 20)
 			.join(\.subTables, on: \.id, equals: \.parentId)
-				.order(by: \TestTable2.id)
+				.order(by: \.id)
 				.limit(1000)
 			.where(\TestTable2.name == .string("Me"))
 ```
@@ -370,7 +378,7 @@ try db.transaction {
 	let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41, double: nil, blob: nil, subTables: nil)
 	try table
 		.where(\TestTable1.id == .integer(newOne.id))
-		.update(newOne2, setKeys: \TestTable1.name)
+		.update(newOne2, setKeys: \.name)
 }
 let results = try table
 	.where(\TestTable1.id == .integer(newOne.id))
@@ -407,7 +415,7 @@ Usage example:
 let table = db.table(TestTable1.self)
 let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 let newTwo = TestTable1(id: 2001, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-try table.insert([newOne, newTwo], setKeys: \TestTable1.id, \TestTable1.name)
+try table.insert([newOne, newTwo], setKeys: \.id, \.name)
 ```
 
 **Insert** can follow: `table`.
