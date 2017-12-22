@@ -1,17 +1,17 @@
-# Perfect SwORM
+# Perfect CRUD
 
-SwORM is an object-relational mapping (ORM) system for Swift 4+. SwORM takes Swift 4 `Codable` types and maps them to SQL database tables. SwORM can create tables based on `Codable` types and perform inserts and updates of objects in those tables. SwORM can also perform selects and joins of tables, all in a type-safe manner.
+CRUD is an object-relational mapping (ORM) system for Swift 4+. CRUD takes Swift 4 `Codable` types and maps them to SQL database tables. CRUD can create tables based on `Codable` types and perform inserts and updates of objects in those tables. CRUD can also perform selects and joins of tables, all in a type-safe manner.
 
-SwORM uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to make sure any misusage is caught at compile time.
+CRUD uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to make sure any misusage is caught at compile time.
 
-Database client library packages can add SwORM support by implementing a few protocols. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite) and [Postgres](https://github.com/kjessup/Perfect-PostgreSQL).
+Database client library packages can add CRUD support by implementing a few protocols. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite) and [Postgres](https://github.com/kjessup/Perfect-PostgreSQL).
 
 ## General Usage
 
-This is a simple example to show how SwORM is used.
+This is a simple example to show how CRUD is used.
 
 ```swift
-// SwORM can work with most Codable types.
+// CRUD can work with most Codable types.
 struct PhoneNumber: Codable {
 	let id: UUID
 	let personId: UUID
@@ -24,7 +24,7 @@ struct Person: Codable {
 	let lastName: String
 	let phoneNumbers: [PhoneNumber]?
 }
-// SwORM usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
+// CRUD usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
 // Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
 let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 // Create the table if it hasn't been done already.
@@ -70,7 +70,7 @@ for user in query {
 
 ## Operations
 
-Activity in SwORM is accomplished by obtaining a database connection object and then chaining a series of operations on that database. Some operations execute immediately while others (select) are executed lazily. Each operation that is chained will return an object which can be further chained or executed.
+Activity in CRUD is accomplished by obtaining a database connection object and then chaining a series of operations on that database. Some operations execute immediately while others (select) are executed lazily. Each operation that is chained will return an object which can be further chained or executed.
 
 Operations are grouped here according to the objects which implement them. Note that many of the type definitions shown below have been abbreviated for simplicity and some functions implemented in extensions have been moved in to keep things in a single block.
 
@@ -250,7 +250,7 @@ guard let foundNewOne = try query.select().first else {
 }
 ```
 
-The parameter given to the `where` operation is an `Expression` object. `Expression` is an enum defining the valid expression types. `Expression` is designed to let you use regular Swift syntax when specifying the expression given to SwORM. This expression object is eventually converted to SQL. SwORM uses statement parameter binding when generating SQL statement, so users need not worry about string quoting or binary data encoding.
+The parameter given to the `where` operation is an `Expression` object. `Expression` is an enum defining the valid expression types. `Expression` is designed to let you use regular Swift syntax when specifying the expression given to CRUD. This expression object is eventually converted to SQL. CRUD uses statement parameter binding when generating SQL statement, so users need not worry about string quoting or binary data encoding.
 
 Many of these expression types represent simple integral values such as `.string(String)` or `.null`. Others are binary or unary operators such as `AND`, or `==`. These would be expressed by using the regular Swift operators `&&` and `==`, respectively.
 
@@ -264,7 +264,7 @@ let query2 = table.where(
 
 The first query uses standard Swift syntax for the `where` clause. The second uses a more verbose approach.
 
-SwORM `Expression` provides the following operator overloads:
+CRUD `Expression` provides the following operator overloads:
 
 ```swift
 public extension Expression {
@@ -479,11 +479,11 @@ assert(count == values.count)
 
 ## Codable Types
 
-Most `Codable` types can be used with SwORM, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
+Most `Codable` types can be used with CRUD, often, depending on your needs, with no modifications. All of a type's relevant properties will be mapped to columns in the database table. You can customize the column names by adding a `CodingKeys` property to your type. 
 
 By default, the type name will be used as the table name. To customize the name used for a type's table, have the type implement the `TableNameProvider` protocol. This requires a `static let tableName: String` property.
 
-SwORM supports the following property types:
+CRUD supports the following property types:
 
 * All Ints, Double, Float, Bool, String
 * [UInt8], [Int8], Data
@@ -491,9 +491,9 @@ SwORM supports the following property types:
 
 The actual storage in the database for each of these types will depend on the client library in use. For example, Postgres will have an actual "date" and "uuid" column types while in SQLite these will be stored as strings.
 
-A type used with SwORM can also have one or more arrays of child, or joined types. These arrays can be populated by using a `join` operation in a query. Note that a table column will not be created for joined type properties.
+A type used with CRUD can also have one or more arrays of child, or joined types. These arrays can be populated by using a `join` operation in a query. Note that a table column will not be created for joined type properties.
 
-The following example types illustrate valid SwORM `Codables` using `CodingKeys`, `TableNameProvider` and joined types.
+The following example types illustrate valid CRUD `Codables` using `CodingKeys`, `TableNameProvider` and joined types.
 
 ```swift
 struct TestTable1: Codable, TableNameProvider {
@@ -527,7 +527,7 @@ Joined types should be an Optional array of Codable objects. Above, the `TestTab
 
 ### Identity
 
-All SwORM Codable types should have an `id` column. When SwORM creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key can not be found an error will be thrown.
+All CRUD Codable types should have an `id` column. When CRUD creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key can not be found an error will be thrown.
 
 Note that a custom primary key name can be specified when creating tables "shallow" but not when recursively creating them. See the "Create" operation for more details.
 
@@ -535,46 +535,46 @@ Note that a custom primary key name can be specified when creating tables "shall
 
 Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object. 
 
-SwORM will throw `SwORMDecoderError` or `SwORMEncoderError` for errors occurring during type encoding and decoding, respectively.
+CRUD will throw `CRUDDecoderError` or `CRUDEncoderError` for errors occurring during type encoding and decoding, respectively.
 
-SwORM will throw `SwORMSQLGenError` for errors occurring during SQL statement generation.
+CRUD will throw `CRUDSQLGenError` for errors occurring during SQL statement generation.
 
-SwORM will throw `SwORMSQLExeError` for errors occurring during SQL statement execution.
+CRUD will throw `CRUDSQLExeError` for errors occurring during SQL statement execution.
 
-All of the SwORM errors are tied into the logging system. When they are thrown the error messages will appear in the log. Individual database client libraries may throw other errors when they occur.
+All of the CRUD errors are tied into the logging system. When they are thrown the error messages will appear in the log. Individual database client libraries may throw other errors when they occur.
 
 ## Logging
 
-SwORM contains a built-in logging system which is designed to record errors which occur. It can also record individual SQL statements which are generated. SwORM logging is done asynchronously. You can flush all pending log messages by calling `SwORMLogging.flush()`.
+CRUD contains a built-in logging system which is designed to record errors which occur. It can also record individual SQL statements which are generated. CRUD logging is done asynchronously. You can flush all pending log messages by calling `CRUDLogging.flush()`.
 
-Messages can be added to the log by calling `SwORMLogging.log(_ type: SwORMLogEventType, _ msg: String)`.
+Messages can be added to the log by calling `CRUDLogging.log(_ type: CRUDLogEventType, _ msg: String)`.
 
 Example usage:
 
 ```swift
 // log an informative message.
-SwORMLogging.log(.info, "This is my message.")
+CRUDLogging.log(.info, "This is my message.")
 ```
 
-`SwORMLogEventType` is one of: `.info`, `.warning`, `.error`, or `.query`.
+`CRUDLogEventType` is one of: `.info`, `.warning`, `.error`, or `.query`.
 
-You can control where log messages go by setting the `SwORMLogging.queryLogDestinations` and `SwORMLogging.errorLogDestinations` static properties. Handling for errors and queries can be set seperately as SQL statement logging may be desirable during development but not in production.
+You can control where log messages go by setting the `CRUDLogging.queryLogDestinations` and `CRUDLogging.errorLogDestinations` static properties. Handling for errors and queries can be set seperately as SQL statement logging may be desirable during development but not in production.
 
 ```swift
-public extension SwORMLogging {
-	public static var queryLogDestinations: [SwORMLogDestination]
-	public static var errorLogDestinations: [SwORMLogDestination]
+public extension CRUDLogging {
+	public static var queryLogDestinations: [CRUDLogDestination]
+	public static var errorLogDestinations: [CRUDLogDestination]
 }
 ```
 
 Log destinations are defined as:
 
 ```swift
-public enum SwORMLogDestination {
+public enum CRUDLogDestination {
 	case none
 	case console
 	case file(String)
-	case custom((SwORMLogEvent) -> ())
+	case custom((CRUDLogEvent) -> ())
 }
 ```
 
