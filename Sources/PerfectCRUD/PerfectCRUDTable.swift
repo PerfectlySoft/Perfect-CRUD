@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, UpdateAble, DeleteAble, LimitAble {
+public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, Selectable, Whereable, Orderable, Updatable, Deleteable, Limitable {
 	public typealias OverAllForm = A
 	public typealias Form = A
 	public typealias DatabaseType = C

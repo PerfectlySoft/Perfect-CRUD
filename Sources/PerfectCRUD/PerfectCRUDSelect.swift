@@ -62,7 +62,7 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 	}
 }
 
-public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, SelectAble {
+public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, Selectable {
 	public typealias Form = OAF
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
@@ -142,7 +142,7 @@ public extension Where where OverAllForm == FromTableType.Form {
 	}
 }
 
-public struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
+public struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, Joinable, Selectable, Whereable, Orderable, Limitable {
 	public typealias Form = A.Form
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
@@ -158,7 +158,7 @@ public struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTable
 	}
 }
 
-public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, JoinAble, SelectAble, WhereAble, OrderAble {
+public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, Joinable, Selectable, Whereable, Orderable {
 	public typealias Form = A.Form
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
@@ -174,7 +174,7 @@ public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 	}
 }
 
-public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, JoinProtocol, JoinAble, SelectAble, WhereAble, OrderAble, LimitAble {
+public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, JoinProtocol, Joinable, Selectable, Whereable, Orderable, Limitable {
 	public typealias Form = B
 	public typealias FromTableType = A
 	public typealias ComparisonType = O

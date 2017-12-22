@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol UpdateAble: TableProtocol {
+public protocol Updatable: TableProtocol {
 	@discardableResult
 	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	@discardableResult
@@ -16,7 +16,7 @@ public protocol UpdateAble: TableProtocol {
 	func update(_ instance: OverAllForm) throws -> Update<OverAllForm, Self>
 }
 
-public extension UpdateAble {
+public extension Updatable {
 	@discardableResult
 	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
 		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])

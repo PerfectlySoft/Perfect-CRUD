@@ -69,31 +69,31 @@ public protocol TableNameProvider {
 	static var tableName: String { get }
 }
 
-public protocol JoinAble: TableProtocol {
+public protocol Joinable: TableProtocol {
 	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
 													on: KeyPath<OverAllForm, KeyType>,
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType>
 }
 
-public protocol SelectAble: TableProtocol {
+public protocol Selectable: TableProtocol {
 	func select() throws -> Select<OverAllForm, Self>
 	func count() throws -> Int
 }
 
-public protocol WhereAble: TableProtocol {
+public protocol Whereable: TableProtocol {
 	func `where`(_ expr: Expression) -> Where<OverAllForm, Self>
 }
 
-public protocol OrderAble: TableProtocol {
+public protocol Orderable: TableProtocol {
 	func order(by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self>
 	func order(descending by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self>
 }
 
-public protocol LimitAble: TableProtocol {
+public protocol Limitable: TableProtocol {
 	func limit(_ max: Int, skip: Int) -> Limit<OverAllForm, Self>
 }
 
-public extension JoinAble {
+public extension Joinable {
 	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
 													on: KeyPath<OverAllForm, KeyType>,
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
@@ -101,7 +101,7 @@ public extension JoinAble {
 	}
 }
 
-public extension SelectAble {
+public extension Selectable {
 	func select() throws -> Select<OverAllForm, Self> {
 		return try .init(fromTable: self)
 	}
@@ -130,7 +130,7 @@ public extension SelectAble {
 	}
 }
 
-public extension SelectAble where Self: LimitAble {
+public extension Selectable where Self: Limitable {
 	func first() throws -> OverAllForm? {
 		for r in try limit(1).select() {
 			return r
@@ -139,13 +139,13 @@ public extension SelectAble where Self: LimitAble {
 	}
 }
 
-public extension WhereAble {
+public extension Whereable {
 	func `where`(_ expr: Expression) -> Where<OverAllForm, Self> {
 		return .init(fromTable: self, expression: expr)
 	}
 }
 
-public extension OrderAble {
+public extension Orderable {
 	func order(by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self> {
 		return .init(fromTable: self, keys: by, descending: false)
 	}
@@ -188,7 +188,7 @@ public extension OrderAble {
 	}
 }
 
-public extension LimitAble {
+public extension Limitable {
 	func limit(_ max: Int = 0, skip: Int = 0) -> Limit<OverAllForm, Self> {
 		return .init(fromTable: self, max: max, skip: skip)
 	}

@@ -7,12 +7,12 @@
 
 import Foundation
 
-public protocol DeleteAble: TableProtocol {
+public protocol Deleteable: TableProtocol {
 	@discardableResult
 	func delete() throws -> Delete<OverAllForm, Self>
 }
 
-public extension DeleteAble {
+public extension Deleteable {
 	@discardableResult
 	func delete() throws -> Delete<OverAllForm, Self> {
 		return try .init(fromTable: self)
