@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMCodingJoinings.swift
-//  PerfectSwORM
+//  PerfectCRUDCodingJoinings.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-01.
 //
@@ -131,7 +131,7 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				let keyValue = try subRowReader.decode(i, forKey: columnKey)
 				theseObjs = filteredValues(objects, lhs: keyValue, rhsKey: equalsKey)
 			default:
-				throw SwORMSQLExeError("Invalid join comparison type \(comparisonType).")
+				throw CRUDSQLExeError("Invalid join comparison type \(comparisonType).")
 			}
 			return theseObjs as! T
 		}

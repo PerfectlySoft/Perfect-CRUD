@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMCodingBindings.swift
-//  PerfectSwORM
+//  PerfectCRUDCodingBindings.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-11-25.
 //	Copyright (C) 2017 PerfectlySoft, Inc.
@@ -20,11 +20,11 @@
 import Foundation
 
 // -- generates bindings for an object
-class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
+class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 	typealias Key = K
 	let codingPath: [CodingKey] = []
-	let parent: SwORMBindingsEncoder
-	init(_ p: SwORMBindingsEncoder) {
+	let parent: CRUDBindingsEncoder
+	init(_ p: CRUDBindingsEncoder) {
 		parent = p
 	}
 	func addBinding(_ key: Key, value: Expression) throws {
@@ -34,8 +34,8 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		// !FIX! this is never called
 		// Expect this to change in the future
 		// When nulls are important we have to use the column named decoder first
-		// and pass in the list of optionals to SwORMBindingsEncoder
-		SwORMLogging.log(.info, "SwORMBindingsWriter.encodeNil started being called.")
+		// and pass in the list of optionals to CRUDBindingsEncoder
+		CRUDLogging.log(.info, "CRUDBindingsWriter.encodeNil started being called.")
 		//try addBinding(key, value: .null)
 	}
 	func encode(_ value: Bool, forKey key: K) throws {
@@ -82,7 +82,7 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 	}
 	func encode<T>(_ value: T, forKey key: K) throws where T : Encodable {
 		guard let special = SpecialType(T.self) else {
-			throw SwORMEncoderError("Unsupported encoding type: \(value) for key: \(key.stringValue)")
+			throw CRUDEncoderError("Unsupported encoding type: \(value) for key: \(key.stringValue)")
 		}
 		switch special {
 		case .uint8Array:
@@ -111,7 +111,7 @@ class SwORMBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 	}
 }
 
-class SwORMBindingsEncoder: Encoder {
+class CRUDBindingsEncoder: Encoder {
 	let codingPath: [CodingKey] = []
 	let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
@@ -145,7 +145,7 @@ class SwORMBindingsEncoder: Encoder {
 		collectedBinds.append((key.stringValue, value))
 	}
 	func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
-		return KeyedEncodingContainer<Key>(SwORMBindingsWriter<Key>(self))
+		return KeyedEncodingContainer<Key>(CRUDBindingsWriter<Key>(self))
 	}
 	func unkeyedContainer() -> UnkeyedEncodingContainer {
 		fatalError("Unimplemented")

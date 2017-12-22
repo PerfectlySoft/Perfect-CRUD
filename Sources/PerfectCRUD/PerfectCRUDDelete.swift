@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMDelete.swift
-//  PerfectSwORM
+//  PerfectCRUDDelete.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-03.
 //

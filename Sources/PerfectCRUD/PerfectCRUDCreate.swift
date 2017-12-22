@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMCreate.swift
-//  PerfectSwORM
+//  PerfectCRUDCreate.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-03.
 //
@@ -37,32 +37,32 @@ public struct TableStructure {
 }
 
 extension Decodable {
-	static func swormTableStructure(policy: TableCreatePolicy, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
-		let columnDecoder = SwORMColumnNameDecoder()
-		columnDecoder.tableNamePath.append("\(Self.swormTableName)")
+	static func CRUDTableStructure(policy: TableCreatePolicy, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+		let columnDecoder = CRUDColumnNameDecoder()
+		columnDecoder.tableNamePath.append("\(Self.CRUDTableName)")
 		_ = try Self.init(from: columnDecoder)
-		return try swormTableStructure(policy: policy, columnDecoder: columnDecoder, primaryKey: primaryKey)
+		return try CRUDTableStructure(policy: policy, columnDecoder: columnDecoder, primaryKey: primaryKey)
 	}
 	
-	static func swormTableStructure(policy: TableCreatePolicy, columnDecoder: SwORMColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+	static func CRUDTableStructure(policy: TableCreatePolicy, columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let primaryKeyName: String
 		if let pkpk = primaryKey {
-			let pathDecoder = SwORMKeyPathsDecoder()
+			let pathDecoder = CRUDKeyPathsDecoder()
 			let pathInstance = try Self.init(from: pathDecoder)
 			guard let pkn = try pathDecoder.getKeyPathName(pathInstance, keyPath: pkpk) else {
-				throw SwORMSQLGenError("Could not get column name for primary key \(Self.self).")
+				throw CRUDSQLGenError("Could not get column name for primary key \(Self.self).")
 			}
 			primaryKeyName = pkn
 		} else {
 			primaryKeyName = "id"
 		}
 		guard columnDecoder.collectedKeys.map({$0.0}).contains(primaryKeyName) else {
-			throw SwORMSQLGenError("Primary key was not found in type \(Self.self) \(primaryKeyName).")
+			throw CRUDSQLGenError("Primary key was not found in type \(Self.self) \(primaryKeyName).")
 		}
 		let subTables: [TableStructure]
 		if !policy.contains(.shallow) {
 			subTables = try columnDecoder.subTables.map {
-				try swormTableStructure(policy: policy, columnDecoder: $0.2)
+				try CRUDTableStructure(policy: policy, columnDecoder: $0.2)
 			}
 		} else {
 			subTables = []
@@ -93,11 +93,11 @@ public struct Create<OAF: Codable, D: DatabaseProtocol> {
 	init(fromDatabase ft: D, primaryKey: PartialKeyPath<OAF>?, policy p: TableCreatePolicy) throws {
 		fromDatabase = ft
 		policy = p
-		tableStructure = try OverAllForm.swormTableStructure(policy: policy, primaryKey: primaryKey)
+		tableStructure = try OverAllForm.CRUDTableStructure(policy: policy, primaryKey: primaryKey)
 		let delegate = fromDatabase.configuration.sqlGenDelegate
 		let sql = try delegate.getCreateTableSQL(forTable: tableStructure, policy: policy)
 		for stat in sql {
-			SwORMLogging.log(.query, stat)
+			CRUDLogging.log(.query, stat)
 			let exeDelegate = try fromDatabase.configuration.sqlExeDelegate(forSQL: stat)
 			_ = try exeDelegate.hasNext()
 		}
@@ -112,18 +112,18 @@ public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol, TablePro
 	init(fromTable ft: FromTableType, keys: [PartialKeyPath<FromTableType.Form>], unique: Bool) throws {
 		fromTable = ft
 		let delegate = ft.databaseConfiguration.sqlGenDelegate
-		let tableName = "\(OverAllForm.swormTableName)"
-		let pathDecoder = SwORMKeyPathsDecoder()
+		let tableName = "\(OverAllForm.CRUDTableName)"
+		let pathDecoder = CRUDKeyPathsDecoder()
 		let pathInstance = try OverAllForm.init(from: pathDecoder)
 		let keyNames: [String] = try keys.map {
 			guard let pkn = try pathDecoder.getKeyPathName(pathInstance, keyPath: $0) else {
-				throw SwORMSQLGenError("Could not get column name for index \(OverAllForm.self).")
+				throw CRUDSQLGenError("Could not get column name for index \(OverAllForm.self).")
 			}
 			return pkn
 		}
 		let sql = try delegate.getCreateIndexSQL(forTable: tableName, on: keyNames, unique: unique)
 		for stat in sql {
-			SwORMLogging.log(.query, stat)
+			CRUDLogging.log(.query, stat)
 			let exeDelegate = try ft.databaseConfiguration.sqlExeDelegate(forSQL: stat)
 			_ = try exeDelegate.hasNext()
 		}

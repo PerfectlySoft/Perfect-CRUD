@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMCodingNames.swift
-//  PerfectSwORM
+//  PerfectCRUDCodingNames.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-11-25.
 //	Copyright (C) 2017 PerfectlySoft, Inc.
@@ -20,14 +20,14 @@
 import Foundation
 
 // -- reads and records the coding keys for an object
-class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
+class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
 	var codingPath: [CodingKey] = []
 	var allKeys: [Key] = []
-	var parent: SwORMColumnNameDecoder
+	var parent: CRUDColumnNameDecoder
 	var knownKeys = Set<String>()
 	var isOptional = false
-	init(_ p: SwORMColumnNameDecoder) {
+	init(_ p: CRUDColumnNameDecoder) {
 		parent = p
 	}
 	func appendKey(_ key: Key, _ type: Any.Type) {
@@ -121,11 +121,11 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				return Date() as! T
 			}
 		} else {
-			let sub = SwORMColumnNameDecoder()
+			let sub = CRUDColumnNameDecoder()
 			sub.codingPath.append(key)
 			let ret = try T(from: sub)
 			guard let ar = ret as? [Codable] else {
-				throw SwORMSQLGenError("Unsupported sub-table type \(T.self)")
+				throw CRUDSQLGenError("Unsupported sub-table type \(T.self)")
 			}
 			let subType = type(of: ar[0])
 			sub.tableNamePath.append("\(subType)")
@@ -147,15 +147,15 @@ class SwORMColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 }
 
-class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingContainer {
+class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingContainer {
 	let codingPath: [CodingKey] = []
 	var count: Int? = 1
 	var isAtEnd: Bool { return currentIndex != 0 }
 	var currentIndex: Int = 0
-	let parent: SwORMColumnNameDecoder
+	let parent: CRUDColumnNameDecoder
 	var decodedType: Any.Type?
-	var typeDecoder: SwORMColumnNameDecoder?
-	init(parent p: SwORMColumnNameDecoder) {
+	var typeDecoder: CRUDColumnNameDecoder?
+	init(parent p: CRUDColumnNameDecoder) {
 		parent = p
 	}
 	func advance(_ t: Any.Type) {
@@ -247,26 +247,26 @@ class SwORMColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodin
 	}
 }
 
-class SwORMColumnNameDecoder: Decoder {
+class CRUDColumnNameDecoder: Decoder {
 	var codingPath: [CodingKey] = []
 	var tableNamePath: [String] = []
 	var userInfo: [CodingUserInfoKey : Any] = [:]
 	var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
-	var subTables: [(name: String, type: Any.Type, decoder: SwORMColumnNameDecoder)] = []
-	var pendingReader: SwORMColumnNameUnkeyedReader?
-	func addSubTable(_ name: String, type: Any.Type, decoder: SwORMColumnNameDecoder) {
+	var subTables: [(name: String, type: Any.Type, decoder: CRUDColumnNameDecoder)] = []
+	var pendingReader: CRUDColumnNameUnkeyedReader?
+	func addSubTable(_ name: String, type: Any.Type, decoder: CRUDColumnNameDecoder) {
 		subTables.append((name, type, decoder))
 	}
 	func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
-		return KeyedDecodingContainer<Key>(SwORMColumnNamesReader<Key>(self))
+		return KeyedDecodingContainer<Key>(CRUDColumnNamesReader<Key>(self))
 	}
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
-		let r = SwORMColumnNameUnkeyedReader(parent: self)
+		let r = CRUDColumnNameUnkeyedReader(parent: self)
 		pendingReader = r
 		return r
 	}
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
-		let r = SwORMColumnNameUnkeyedReader(parent: self)
+		let r = CRUDColumnNameUnkeyedReader(parent: self)
 		return r
 	}
 }

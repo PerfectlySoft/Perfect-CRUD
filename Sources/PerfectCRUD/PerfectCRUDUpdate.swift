@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMUpdate.swift
-//  PerfectSwORM
+//  PerfectCRUDUpdate.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-02.
 //
@@ -92,28 +92,28 @@ public struct Update<OAF: Codable, A: TableProtocol>: FromTableProtocol, Command
 		let td = state.tableData[0]
 		let kpDecoder = td.keyPathDecoder
 		guard let kpInstance = td.modelInstance else {
-			throw SwORMSQLGenError("Could not get model instance for key path decoder \(OAF.self)")
+			throw CRUDSQLGenError("Could not get model instance for key path decoder \(OAF.self)")
 		}
 		let includeNames: [String]
 		if includeKeys.isEmpty {
-			let columnDecoder = SwORMColumnNameDecoder()
+			let columnDecoder = CRUDColumnNameDecoder()
 			_ = try OverAllForm.init(from: columnDecoder)
 			includeNames = columnDecoder.collectedKeys.map { $0.name }
 		} else {
 			includeNames = try includeKeys.map {
 				guard let n = try kpDecoder.getKeyPathName(kpInstance, keyPath: $0) else {
-					throw SwORMSQLGenError("Could not get key path name for \(OAF.self) \($0)")
+					throw CRUDSQLGenError("Could not get key path name for \(OAF.self) \($0)")
 				}
 				return n
 			}
 		}
 		let excludeNames: [String] = try excludeKeys.map {
 			guard let n = try kpDecoder.getKeyPathName(kpInstance, keyPath: $0) else {
-				throw SwORMSQLGenError("Could not get key path name for \(OAF.self) \($0)")
+				throw CRUDSQLGenError("Could not get key path name for \(OAF.self) \($0)")
 			}
 			return n
 		}
-		let encoder = try SwORMBindingsEncoder(delegate: delegate)
+		let encoder = try CRUDBindingsEncoder(delegate: delegate)
 		try instance.encode(to: encoder)
 		state.bindingsEncoder = encoder
 		state.columnFilters = (include: includeNames, exclude: excludeNames)

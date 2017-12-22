@@ -1,13 +1,13 @@
 //
 //  TestDeleteMe.swift
-//  PerfectSwORM
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-11-26.
 //
 
 import Foundation
 
-public typealias Expression = SwORMExpression
+public typealias Expression = CRUDExpression
 public typealias Bindings = [(String, Expression)]
 
 public protocol QueryItem {
@@ -111,14 +111,14 @@ public extension SelectAble {
 		try setState(state: &state)
 		try setSQL(state: &state)
 		guard state.statements.count == 1 else {
-			throw SwORMSQLGenError("Too many statements for count().")
+			throw CRUDSQLGenError("Too many statements for count().")
 		}
 		let stat = state.statements[0]
 		let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: stat.sql)
 		try exeDelegate.bind(stat.bindings)
 		guard try exeDelegate.hasNext(),
 			let container: KeyedDecodingContainer<ColumnKey> = try exeDelegate.next() else {
-			throw SwORMSQLGenError("No rows returned in count().")
+			throw CRUDSQLGenError("No rows returned in count().")
 		}
 		return try container.decode(Int.self, forKey: ColumnKey(stringValue: "count")!)
 	}
@@ -208,7 +208,7 @@ extension SQLExeDelegate {
 }
 
 public extension Decodable {
-	static var swormTableName: String {
+	static var CRUDTableName: String {
 		if let p = self as? TableNameProvider.Type {
 			return p.tableName
 		}
@@ -228,11 +228,11 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 			return ($0.0, sd)
 		}
 		guard !delegates.isEmpty else {
-			throw SwORMSQLExeError("No tables in query.")
+			throw CRUDSQLExeError("No tables in query.")
 		}
 		master = delegates[0]
 		guard let modelInstance = master.table.modelInstance else {
-			throw SwORMSQLExeError("No model instance for type \(master.table.type).")
+			throw CRUDSQLExeError("No model instance for type \(master.table.type).")
 		}
 		let joins = delegates[1...]
 		let keyPathDecoder = master.table.keyPathDecoder
@@ -241,12 +241,12 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 			guard let joinData = joinTable.joinData,
 				let keyStr = try keyPathDecoder.getKeyPathName(modelInstance, keyPath: joinData.to),
 				let onKeyStr = try keyPathDecoder.getKeyPathName(modelInstance, keyPath: joinData.on) else {
-					throw SwORMSQLExeError("No join data on \(joinTable.type)")
+					throw CRUDSQLExeError("No join data on \(joinTable.type)")
 			}
 			var ary: [Codable] = []
 			let type = joinTable.type
 			while try joinDelegate.hasNext() {
-				let decoder = SwORMRowDecoder<ColumnKey>(delegate: joinDelegate)
+				let decoder = CRUDRowDecoder<ColumnKey>(delegate: joinDelegate)
 				ary.append(try type.init(from: decoder))
 			}
 			return (keyStr, (onKeyStr, joinData.on, joinData.equals, ary))
@@ -275,7 +275,7 @@ public struct SQLGenState {
 		let type: Codable.Type
 		let alias: String
 		let modelInstance: Codable?
-		let keyPathDecoder: SwORMKeyPathsDecoder
+		let keyPathDecoder: CRUDKeyPathsDecoder
 		let joinData: PropertyJoinData?
 	}
 	struct PropertyJoinData {
@@ -296,7 +296,7 @@ public struct SQLGenState {
 	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
-	var bindingsEncoder: SwORMBindingsEncoder?
+	var bindingsEncoder: CRUDBindingsEncoder?
 	var columnFilters: (include: [String], exclude: [String]) = ([], [])
 	init(delegate d: SQLGenDelegate) {
 		delegate = d
@@ -309,7 +309,7 @@ public struct SQLGenState {
 		return (accumulatedOrderings, currentLimit)
 	}
 	mutating func addTable<A: Codable>(type: A.Type, joinData: PropertyJoinData? = nil) throws {
-		let decoder = SwORMKeyPathsDecoder()
+		let decoder = CRUDKeyPathsDecoder()
 		let model = try A(from: decoder)
 		tableData.append(.init(type: type,
 							   alias: nextAlias(),
@@ -328,7 +328,7 @@ public struct SQLGenState {
 		return "t\(aliasCounter)"
 	}
 	func getTableName<A: Codable>(type: A.Type) -> String {
-		return type.swormTableName // this is where table name mapping might go
+		return type.CRUDTableName // this is where table name mapping might go
 	}
 	mutating func getKeyName<A: Codable>(type: A.Type, key: PartialKeyPath<A>) throws -> String? {
 		guard let td = getTableData(type: type),

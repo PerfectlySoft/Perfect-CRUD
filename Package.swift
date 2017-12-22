@@ -4,15 +4,15 @@
 import PackageDescription
 
 let package = Package(
-	name: "PerfectSwORM",
+	name: "PerfectCRUD",
 	products: [
-		.library(name: "PerfectSwORM", targets: ["PerfectSwORM"])
+		.library(name: "PerfectCRUD", targets: ["PerfectCRUD"])
 	],
 	dependencies: [
 		
 	],
 	targets: [
-		.target(name: "PerfectSwORM", dependencies: []),
-		.testTarget(name: "PerfectSwORMTests", dependencies: ["PerfectSwORM"])
+		.target(name: "PerfectCRUD", dependencies: []),
+		.testTarget(name: "PerfectCRUDTests", dependencies: ["PerfectCRUD"])
 	]
 )

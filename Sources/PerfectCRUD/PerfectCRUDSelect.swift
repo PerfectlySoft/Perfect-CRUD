@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMSelect.swift
-//  PerfectSwORM
+//  PerfectCRUDSelect.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-02.
 //
@@ -25,11 +25,11 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 		}
 		do {
 			if try delegate.hasNext() {
-				let rowDecoder: SwORMRowDecoder<ColumnKey> = SwORMRowDecoder(delegate: delegate)
+				let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
 				return try Element(from: rowDecoder)
 			}
 		} catch {
-			SwORMLogging.log(.error, "Error thrown in SelectIterator.next(). Caught: \(error)")
+			CRUDLogging.log(.error, "Error thrown in SelectIterator.next(). Caught: \(error)")
 		}
 		return nil
 	}
@@ -48,7 +48,7 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		try ft.setState(state: &state)
 		try ft.setSQL(state: &state)
 		guard state.accumulatedOrderings.isEmpty else {
-			throw SwORMSQLGenError("Orderings were not consumed: \(state.accumulatedOrderings)")
+			throw CRUDSQLGenError("Orderings were not consumed: \(state.accumulatedOrderings)")
 		}
 		sqlGenState = state
 	}
@@ -56,7 +56,7 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		do {
 			return try SelectIterator(select: self)
 		} catch {
-			SwORMLogging.log(.error, "Error thrown in Select.makeIterator() Caught: \(error)")
+			CRUDLogging.log(.error, "Error thrown in Select.makeIterator() Caught: \(error)")
 		}
 		return SelectIterator()
 	}
@@ -195,13 +195,13 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 		let delegate = state.delegate
 		guard let firstTable = tableData.first,
 			let myTableIndex = tableData.index(where: { Form.self == $0.type }) else {
-				throw SwORMSQLGenError("No tables specified.")
+				throw CRUDSQLGenError("No tables specified.")
 		}
 		let joinTables = Array(tableData[1..<myTableIndex]) + Array(tableData[(myTableIndex+1)...])
 		let myTable = tableData[myTableIndex]
-		let nameQ = try delegate.quote(identifier: Form.swormTableName)
+		let nameQ = try delegate.quote(identifier: Form.CRUDTableName)
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
-		let fNameQ = try delegate.quote(identifier: firstTable.type.swormTableName)
+		let fNameQ = try delegate.quote(identifier: firstTable.type.CRUDTableName)
 		let fAliasQ = try delegate.quote(identifier: firstTable.alias)
 		let lhsStr = try Expression.keyPath(on).sqlSnippet(state: state)
 		let rhsStr = try Expression.keyPath(equals).sqlSnippet(state: state)
@@ -223,12 +223,12 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 						continue
 					}
 					guard let joinTable = joinTables.first(where: { type == $0.type }) else {
-						throw SwORMSQLGenError("Unknown type included in where clause \(type).")
+						throw CRUDSQLGenError("Unknown type included in where clause \(type).")
 					}
 					guard let joinData = joinTable.joinData else {
-						throw SwORMSQLGenError("Join without a clause \(type).")
+						throw CRUDSQLGenError("Join without a clause \(type).")
 					}
-					let nameQ = try delegate.quote(identifier: joinTable.type.swormTableName)
+					let nameQ = try delegate.quote(identifier: joinTable.type.CRUDTableName)
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
 					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
 					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
@@ -250,12 +250,12 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
-			SwORMLogging.log(.query, sqlStr)
+			CRUDLogging.log(.query, sqlStr)
 		// ordering
 		case .insert, .update, .delete:()
 		//			state.fromStr.append("\(myTable)")
 		case .unknown:
-			throw SwORMSQLGenError("SQL command was not set.")
+			throw CRUDSQLGenError("SQL command was not set.")
 		}
 	}
 }

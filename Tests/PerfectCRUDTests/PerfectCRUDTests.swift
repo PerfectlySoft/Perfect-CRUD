@@ -1,5 +1,5 @@
 import XCTest
-@testable import PerfectSwORM
+@testable import PerfectCRUD
 
 struct TestTable1: Codable, TableNameProvider {
 	enum CodingKeys: String, CodingKey {
@@ -26,9 +26,9 @@ struct TestTable2: Codable {
 
 // NOTE - full tests are in Perfect-SQLite
 
-class PerfectSwORMTests: XCTestCase {
+class PerfectCRUDTests: XCTestCase {
 	override func tearDown() {
-		SwORMLogging.flush()
+		CRUDLogging.flush()
 		super.tearDown()
 	}
 	
@@ -39,7 +39,7 @@ class PerfectSwORMTests: XCTestCase {
 														  ("doub", \TestTable1.double),
 														  ("blob", \TestTable1.blob)]
 		do {
-			let decoder = SwORMKeyPathsDecoder()
+			let decoder = CRUDKeyPathsDecoder()
 			let inst = try TestTable1(from: decoder)
 			for path in fs {
 				let name = try decoder.getKeyPathName(inst, keyPath: path.1)

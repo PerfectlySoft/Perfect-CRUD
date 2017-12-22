@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMTable.swift
-//  PerfectSwORM
+//  PerfectCRUDTable.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-02.
 //
@@ -21,9 +21,9 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 		let tableData = state.tableData
 		let delegate = state.delegate
 		guard let myTable = tableData.first else {
-			throw SwORMSQLGenError("No tables specified.")
+			throw CRUDSQLGenError("No tables specified.")
 		}
-		let nameQ = try delegate.quote(identifier: "\(Form.swormTableName)")
+		let nameQ = try delegate.quote(identifier: "\(Form.CRUDTableName)")
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		switch state.command {
 		case .select, .count:
@@ -41,10 +41,10 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 						continue
 					}
 					guard let joinTable = joinTables.first(where: { type == $0.type }) else {
-						throw SwORMSQLGenError("Unknown type included in where clause \(type).")
+						throw CRUDSQLGenError("Unknown type included in where clause \(type).")
 					}
 					guard let joinData = joinTable.joinData else {
-						throw SwORMSQLGenError("Join without a clause \(type).")
+						throw CRUDSQLGenError("Join without a clause \(type).")
 					}
 					let nameQ = try delegate.quote(identifier: "\(joinTable.type)")
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
@@ -70,10 +70,10 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
-			SwORMLogging.log(.query, sqlStr)
+			CRUDLogging.log(.query, sqlStr)
 		case .update:
 			guard let encoder = state.bindingsEncoder else {
-				throw SwORMSQLGenError("No bindings encoder for update.")
+				throw CRUDSQLGenError("No bindings encoder for update.")
 			}
 			let (allKeys, ignoreKeys) = state.columnFilters
 			let bindings = try encoder.completedBindings(allKeys: allKeys, ignoreKeys: Set(ignoreKeys))
@@ -86,7 +86,7 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
-			SwORMLogging.log(.query, sqlStr)
+			CRUDLogging.log(.query, sqlStr)
 		case .delete:
 			var sqlStr = "DELETE FROM \(nameQ)\n"
 			if let whereExpr = state.whereExpr {
@@ -94,11 +94,11 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, JoinAble, S
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
-			SwORMLogging.log(.query, sqlStr)
+			CRUDLogging.log(.query, sqlStr)
 		case .insert:()
 		//			state.fromStr.append("\(myTable)")
 		case .unknown:
-			throw SwORMSQLGenError("SQL command was not set.")
+			throw CRUDSQLGenError("SQL command was not set.")
 		}
 	}
 }

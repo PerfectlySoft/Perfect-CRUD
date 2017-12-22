@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMLogging.swift
-//  PerfectSwORM
+//  PerfectCRUDLogging.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-11-24.
 //	Copyright (C) 2017 PerfectlySoft, Inc.
@@ -20,28 +20,28 @@
 import Foundation
 import Dispatch
 
-public struct SwORMSQLGenError: Error, CustomStringConvertible {
+public struct CRUDSQLGenError: Error, CustomStringConvertible {
 	public let description: String
 	public init(_ msg: String) {
 		description = msg
-		SwORMLogging.log(.error, msg)
+		CRUDLogging.log(.error, msg)
 	}
 }
-public struct SwORMSQLExeError: Error, CustomStringConvertible {
+public struct CRUDSQLExeError: Error, CustomStringConvertible {
 	public let description: String
 	public init(_ msg: String) {
 		description = msg
-		SwORMLogging.log(.error, msg)
+		CRUDLogging.log(.error, msg)
 	}
 }
 
-public enum SwORMLogDestination {
+public enum CRUDLogDestination {
 	case none
 	case console
 	case file(String)
-	case custom((SwORMLogEvent) -> ())
+	case custom((CRUDLogEvent) -> ())
 	
-	func handleEvent(_ event: SwORMLogEvent) {
+	func handleEvent(_ event: CRUDLogEvent) {
 		switch self {
 		case .none:
 			()
@@ -66,7 +66,7 @@ public enum SwORMLogDestination {
 	}
 }
 
-public enum SwORMLogEventType: CustomStringConvertible {
+public enum CRUDLogEventType: CustomStringConvertible {
 	case info, warning, error, query
 	public var description: String {
 		switch self {
@@ -82,9 +82,9 @@ public enum SwORMLogEventType: CustomStringConvertible {
 	}
 }
 
-public struct SwORMLogEvent: CustomStringConvertible {
+public struct CRUDLogEvent: CustomStringConvertible {
 	public let time: Date
-	public let type: SwORMLogEventType
+	public let type: CRUDLogEventType
 	public let msg: String
 	public var description: String {
 		let formatter = DateFormatter()
@@ -93,12 +93,12 @@ public struct SwORMLogEvent: CustomStringConvertible {
 	}
 }
 
-public struct SwORMLogging {
-	private static var _queryLogDestinations: [SwORMLogDestination] = [.console]
-	private static var _errorLogDestinations: [SwORMLogDestination] = [.console]
-	private static var pendingEvents: [SwORMLogEvent] = []
+public struct CRUDLogging {
+	private static var _queryLogDestinations: [CRUDLogDestination] = [.console]
+	private static var _errorLogDestinations: [CRUDLogDestination] = [.console]
+	private static var pendingEvents: [CRUDLogEvent] = []
 	private static var loggingQueue: DispatchQueue = {
-		let q = DispatchQueue(label: "SwORMLoggingQueue", qos: .background)
+		let q = DispatchQueue(label: "CRUDLoggingQueue", qos: .background)
 		scheduleLogCheck(q)
 		return q
 	}()
@@ -116,7 +116,7 @@ public struct SwORMLogging {
 			logEventInSerialQueue($0)
 		}
 	}
-	private static func logEventInSerialQueue(_ event: SwORMLogEvent) {
+	private static func logEventInSerialQueue(_ event: CRUDLogEvent) {
 		if case .query = event.type {
 			_queryLogDestinations.forEach { $0.handleEvent(event) }
 		} else {
@@ -128,13 +128,13 @@ public struct SwORMLogging {
 	}
 }
 
-public extension SwORMLogging {
+public extension CRUDLogging {
 	public static func flush() {
 		loggingQueue.sync {
 			logCheckInSerialQueue()
 		}
 	}
-	public static var queryLogDestinations: [SwORMLogDestination] {
+	public static var queryLogDestinations: [CRUDLogDestination] {
 		set {
 			loggingQueue.async { _queryLogDestinations = newValue }
 		}
@@ -142,7 +142,7 @@ public extension SwORMLogging {
 			return loggingQueue.sync { return _queryLogDestinations }
 		}
 	}
-	public static var errorLogDestinations: [SwORMLogDestination] {
+	public static var errorLogDestinations: [CRUDLogDestination] {
 		set {
 			loggingQueue.async { _errorLogDestinations = newValue }
 		}
@@ -150,7 +150,7 @@ public extension SwORMLogging {
 			return loggingQueue.sync { return _errorLogDestinations }
 		}
 	}
-	public static func log(_ type: SwORMLogEventType, _ msg: String) {
+	public static func log(_ type: CRUDLogEventType, _ msg: String) {
 		let now = Date()
 		loggingQueue.async {
 			pendingEvents.append(.init(time: now, type: type, msg: msg))

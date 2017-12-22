@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMCoding.swift
-//  PerfectSwORM
+//  PerfectCRUDCoding.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-11-22.
 //	Copyright (C) 2017 PerfectlySoft, Inc.
@@ -19,19 +19,19 @@
 
 import Foundation
 
-public struct SwORMDecoderError: Error {
+public struct CRUDDecoderError: Error {
 	public let msg: String
 	public init(_ m: String) {
 		msg = m
-		SwORMLogging.log(.error, m)
+		CRUDLogging.log(.error, m)
 	}
 }
 
-public struct SwORMEncoderError: Error {
+public struct CRUDEncoderError: Error {
 	public let msg: String
 	public init(_ m: String) {
 		msg = m
-		SwORMLogging.log(.error, m)
+		CRUDLogging.log(.error, m)
 	}
 }
 

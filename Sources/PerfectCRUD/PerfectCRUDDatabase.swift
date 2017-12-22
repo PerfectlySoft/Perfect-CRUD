@@ -1,6 +1,6 @@
 //
-//  PerfectSwORMDatabase.swift
-//  PerfectSwORM
+//  PerfectCRUDDatabase.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-12-02.
 //

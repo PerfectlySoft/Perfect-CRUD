@@ -1,20 +1,20 @@
 //
-//  PerfectSwORMCodingKeyPaths.swift
-//  PerfectSwORM
+//  PerfectCRUDCodingKeyPaths.swift
+//  PerfectCRUD
 //
 //  Created by Kyle Jessup on 2017-11-27.
 //
 
 import Foundation
 
-class SwORMKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
+class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
 	let codingPath: [CodingKey] = []
 	let allKeys: [Key] = []
-	let parent: SwORMKeyPathsDecoder
+	let parent: CRUDKeyPathsDecoder
 	var counter: Int8 = 1
 	var boolCounter: Int8 = 0
-	init(_ p: SwORMKeyPathsDecoder) {
+	init(_ p: CRUDKeyPathsDecoder) {
 		parent = p
 	}
 	func contains(_ key: Key) -> Bool {
@@ -25,7 +25,7 @@ class SwORMKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
 		guard boolCounter < 2 else {
-			throw SwORMDecoderError("This is lame, but your type has too many Bool properties.")
+			throw CRUDDecoderError("This is lame, but your type has too many Bool properties.")
 		}
 		parent.typeMap[boolCounter] = key.stringValue
 		boolCounter += 1
@@ -113,7 +113,7 @@ class SwORMKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				return Date(timeIntervalSinceReferenceDate: TimeInterval(counter)) as! T
 			}
 		} else {
-			let decoder = SwORMKeyPathsDecoder()
+			let decoder = CRUDKeyPathsDecoder()
 			let decoded = try T(from: decoder)
 			parent.subTypeMap.append((key.stringValue, type, decoder))
 			return decoded
@@ -133,13 +133,13 @@ class SwORMKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 }
 
-class SwORMKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
+class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
 	let codingPath: [CodingKey] = []
 	var count: Int? = 1
 	var isAtEnd: Bool { return currentIndex == 1 }
 	var currentIndex: Int = 0
-	let parent: SwORMKeyPathsDecoder
-	init(_ p: SwORMKeyPathsDecoder) {
+	let parent: CRUDKeyPathsDecoder
+	init(_ p: CRUDKeyPathsDecoder) {
 		parent = p
 	}
 	func decodeNil() throws -> Bool {
@@ -221,16 +221,16 @@ class SwORMKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
 	}
 }
 
-class SwORMKeyPathsDecoder: Decoder {
+class CRUDKeyPathsDecoder: Decoder {
 	var codingPath: [CodingKey] = []
 	var userInfo: [CodingUserInfoKey : Any] = [:]
 	var typeMap: [Int8:String] = [:]
-	var subTypeMap: [(String, Decodable.Type, SwORMKeyPathsDecoder)] = []
+	var subTypeMap: [(String, Decodable.Type, CRUDKeyPathsDecoder)] = []
 	func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
-		return KeyedDecodingContainer<Key>(SwORMKeyPathsReader<Key>(self))
+		return KeyedDecodingContainer<Key>(CRUDKeyPathsReader<Key>(self))
 	}
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
-		return SwORMKeyPathsUnkeyedReader(self)
+		return CRUDKeyPathsUnkeyedReader(self)
 	}
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
 		fatalError("Unimplemented")
