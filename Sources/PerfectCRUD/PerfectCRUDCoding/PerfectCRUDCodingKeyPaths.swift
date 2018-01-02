@@ -133,7 +133,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 }
 
-class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
+class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingContainer {
 	let codingPath: [CodingKey] = []
 	var count: Int? = 1
 	var isAtEnd: Bool { return currentIndex == 1 }
@@ -142,7 +142,7 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer {
 	init(_ p: CRUDKeyPathsDecoder) {
 		parent = p
 	}
-	func decodeNil() throws -> Bool {
+	func decodeNil() -> Bool {
 		return false
 	}
 	
@@ -233,7 +233,7 @@ class CRUDKeyPathsDecoder: Decoder {
 		return CRUDKeyPathsUnkeyedReader(self)
 	}
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
-		fatalError("Unimplemented")
+		return CRUDKeyPathsUnkeyedReader(self)
 	}
 	func getKeyPathName(_ instance: Any, keyPath: AnyKeyPath) throws -> String? {
 		guard let v = instance[keyPath: keyPath] else {

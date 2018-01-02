@@ -23,6 +23,7 @@ import Foundation
 class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
 	var codingPath: [CodingKey] = []
+	
 	var allKeys: [Key] = []
 	var parent: CRUDColumnNameDecoder
 	var knownKeys = Set<String>()
@@ -101,7 +102,7 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		appendKey(key, type)
 		return ""
 	}
-	func decode<T>(_ t: T.Type, forKey key: Key) throws -> T where T : Decodable {
+	func decode<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
 		if let special = SpecialType(t) {
 			switch special {
 			case .uint8Array:
@@ -121,19 +122,24 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				return Date() as! T
 			}
 		} else {
-			let sub = CRUDColumnNameDecoder()
-			sub.codingPath.append(key)
-			let ret = try T(from: sub)
-			guard let ar = ret as? [Codable] else {
-				throw CRUDSQLGenError("Unsupported sub-table type \(T.self)")
-			}
+			return try decodeInner(t, forKey: key)
+		}
+	}
+	
+	func decodeInner<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
+		let sub = CRUDColumnNameDecoder()
+		let ret = try T(from: sub)
+		if let ar = ret as? [Codable] {
 			let subType = type(of: ar[0])
+			sub.codingPath.append(key)
 			sub.tableNamePath.append("\(subType)")
 			parent.addSubTable(key.stringValue, type: subType, decoder: sub)
 			return ret
-		}
+		} //...
+		throw CRUDSQLGenError("Unsupported sub-table type \(T.self)")
 	}
-	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
+	
+	func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> {
 		fatalError("Unimplemented")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
@@ -235,7 +241,7 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 		advance(type)
 		return try T(from: parent)
 	}
-	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
+	func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> {
 		fatalError("Unimplemented")
 	}
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
@@ -249,15 +255,18 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 
 class CRUDColumnNameDecoder: Decoder {
 	var codingPath: [CodingKey] = []
-	var tableNamePath: [String] = []
 	var userInfo: [CodingUserInfoKey : Any] = [:]
+	
+	var tableNamePath: [String] = []
 	var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
 	var subTables: [(name: String, type: Any.Type, decoder: CRUDColumnNameDecoder)] = []
 	var pendingReader: CRUDColumnNameUnkeyedReader?
+	
 	func addSubTable(_ name: String, type: Any.Type, decoder: CRUDColumnNameDecoder) {
 		subTables.append((name, type, decoder))
 	}
-	func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
+	
+	func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
 		return KeyedDecodingContainer<Key>(CRUDColumnNamesReader<Key>(self))
 	}
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
