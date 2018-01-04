@@ -134,12 +134,14 @@ public struct Index<OAF: Codable, A: TableProtocol>: FromTableProtocol, TablePro
 
 public extension DatabaseProtocol {
 	@discardableResult
-	func create<A: Codable>(_ type: A.Type, policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self> {
-		return try .init(fromDatabase: self, primaryKey: nil, policy: policy)
+	func create<A: Codable>(_ type: A.Type, policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self> {
+		let _: Create<A, Self> = try Create(fromDatabase: self, primaryKey: nil, policy: policy)
+		return Table(database: self)
 	}
 	@discardableResult
-	func create<A: Codable, V: Equatable>(_ type: A.Type, primaryKey: KeyPath<A, V>, policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self> {
-		return try .init(fromDatabase: self, primaryKey: primaryKey, policy: policy)
+	func create<A: Codable, V: Equatable>(_ type: A.Type, primaryKey: KeyPath<A, V>, policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self> {
+		let _: Create<A, Self> = try Create(fromDatabase: self, primaryKey: primaryKey, policy: policy)
+		return Table(database: self)
 	}
 }
 

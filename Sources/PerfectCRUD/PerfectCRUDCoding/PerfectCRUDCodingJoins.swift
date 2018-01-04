@@ -72,9 +72,9 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	// !FIX! to put cached sub objects in foreign key dictionary
 	func decode<T>(_ intype: T.Type, forKey key: Key) throws -> T where T : Decodable {
 		if let (onKeyName, onKey, equalsKey, objects) = exeDelegate.subObjects[key.stringValue],
-			objects is T,
 			let columnKey = Key(stringValue: onKeyName),
 			let comparisonType = type(of: onKey).valueType as? Decodable.Type {
+			
 			// I could not get this to compile. because comparisonType isn't known at compile time?
 			//let keyValue = try subRowReader.decode(comparisonType, forKey: columnKey)
 			let theseObjs: [Any]
@@ -139,6 +139,13 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	private func filteredValues<ComparisonType: Equatable>(_ values: [Any], lhs: ComparisonType, rhsKey: AnyKeyPath) -> [Any] {
 		return values.flatMap {
+			if let p = $0 as? PivotContainer {
+				guard let rhs = p.keys.first as? ComparisonType,
+					lhs == rhs else {
+						return nil
+				}
+				return p.instance
+			}
 			guard let rhs = $0[keyPath: rhsKey] as? ComparisonType,
 				lhs == rhs else {
 					return nil

@@ -26,11 +26,11 @@ public protocol FromTableProtocol {
 	var fromTable: FromTableType { get }
 }
 
-public protocol JoinProtocol: TableProtocol, FromTableProtocol {
-	associatedtype ComparisonType: Equatable
-	var on: KeyPath<OverAllForm, ComparisonType> { get }
-	var equals: KeyPath<Form, ComparisonType> { get }
-}
+//public protocol JoinProtocol: TableProtocol, FromTableProtocol {
+//	associatedtype ComparisonType: Equatable
+//	var on: KeyPath<OverAllForm, ComparisonType> { get }
+//	var equals: KeyPath<Form, ComparisonType> { get }
+//}
 
 public protocol CommandProtocol: QueryItem {
 	var sqlGenState: SQLGenState { get }
@@ -98,6 +98,17 @@ public extension Joinable {
 													on: KeyPath<OverAllForm, KeyType>,
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
 		return .init(fromTable: self, to: to, on: on, equals: equals)
+	}
+	
+	func join<NewType: Codable, Pivot: Codable, FirstKeyType: Equatable, SecondKeyType: Equatable>(
+			_ to: KeyPath<OverAllForm, [NewType]?>,
+			with: Pivot.Type,
+			on: KeyPath<OverAllForm, FirstKeyType>,
+			equals: KeyPath<Pivot, FirstKeyType>,
+			and: KeyPath<NewType, SecondKeyType>,
+			is: KeyPath<Pivot, SecondKeyType>) throws -> JoinPivot<OverAllForm, Self, NewType, Pivot, FirstKeyType, SecondKeyType> {
+		
+		return .init(fromTable: self, to: to, on: on, equals: equals, and: and, alsoEquals: `is`)
 	}
 }
 
@@ -216,6 +227,11 @@ public extension Decodable {
 	}
 }
 
+struct PivotContainer {
+	let instance: Codable
+	let keys: [Codable]
+}
+
 struct SQLTopExeDelegate: SQLExeDelegate {
 	let genState: SQLGenState
 	let master: (table: SQLGenState.TableData, delegate: SQLExeDelegate)
@@ -243,11 +259,23 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 				let onKeyStr = try keyPathDecoder.getKeyPathName(modelInstance, keyPath: joinData.on) else {
 					throw CRUDSQLExeError("No join data on \(joinTable.type)")
 			}
-			var ary: [Codable] = []
-			let type = joinTable.type
-			while try joinDelegate.hasNext() {
-				let decoder = CRUDRowDecoder<ColumnKey>(delegate: joinDelegate)
-				ary.append(try type.init(from: decoder))
+			var ary: [Any] = []
+			let joinTableType = joinTable.type
+			if nil != joinData.pivot {
+				guard let onType = type(of: joinData.on).valueType as? Codable.Type else {
+					throw CRUDSQLExeError("Invalid join comparison type \(joinData.on).")
+				}
+				while try joinDelegate.hasNext() {
+					let decoder = CRUDPivotRowDecoder<ColumnKey>(delegate: joinDelegate, pivotOn: onType)
+					let instance = try joinTableType.init(from: decoder)
+					let keys = decoder.orderedKeys
+					ary.append(PivotContainer(instance: instance, keys: keys))
+				}
+			} else {
+				while try joinDelegate.hasNext() {
+					let decoder = CRUDRowDecoder<ColumnKey>(delegate: joinDelegate)
+					ary.append(try joinTableType.init(from: decoder))
+				}
 			}
 			return (keyStr, (onKeyStr, joinData.on, joinData.equals, ary))
 		})
@@ -282,6 +310,7 @@ public struct SQLGenState {
 		let to: AnyKeyPath
 		let on: AnyKeyPath
 		let equals: AnyKeyPath
+		let pivot: Codable.Type?
 	}
 	struct Statement {
 		let sql: String

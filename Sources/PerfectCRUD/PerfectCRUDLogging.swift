@@ -152,9 +152,16 @@ public extension CRUDLogging {
 	}
 	public static func log(_ type: CRUDLogEventType, _ msg: String) {
 		let now = Date()
+	#if DEBUG || Xcode
+		loggingQueue.sync {
+			pendingEvents.append(.init(time: now, type: type, msg: msg))
+			logCheckInSerialQueue()
+		}
+	#else
 		loggingQueue.async {
 			pendingEvents.append(.init(time: now, type: type, msg: msg))
 		}
+	#endif
 	}
 }
 
