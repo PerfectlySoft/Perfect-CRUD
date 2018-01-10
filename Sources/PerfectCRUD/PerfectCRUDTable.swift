@@ -50,7 +50,7 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
 					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
 					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "JOIN \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
+					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
