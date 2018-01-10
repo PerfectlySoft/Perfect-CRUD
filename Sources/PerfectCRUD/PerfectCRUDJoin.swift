@@ -9,6 +9,8 @@ import Foundation
 
 let joinPivotIdColumnName = "_crud_pivot_id_"
 
+let joinWord = "LEFT JOIN"
+
 public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: TableProtocol, FromTableProtocol, Joinable, Selectable, Whereable, Orderable, Limitable {
 	public typealias Form = B
 	public typealias FromTableType = A
@@ -48,7 +50,7 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 			"""
 			SELECT DISTINCT \(aliasQ).*
 			FROM \(nameQ) AS \(aliasQ)
-			JOIN \(fNameQ) AS \(fAliasQ) ON \(lhsStr) = \(rhsStr)
+			\(joinWord) \(fNameQ) AS \(fAliasQ) ON \(lhsStr) = \(rhsStr)
 			
 			"""
 			if let whereExpr = state.whereExpr {
@@ -67,7 +69,7 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
 					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
 					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "JOIN \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
+					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
@@ -155,8 +157,8 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 			"""
 			SELECT DISTINCT \(myAliasQ).*, \(lhsStr) AS \(tempColumnNameQ)
 			FROM \(myNameQ) AS \(myAliasQ)
-			JOIN \(pivotNameQ) AS \(pivotAliasQ) ON \(lhsStr2) = \(rhsStr2)
-			JOIN \(firstNameQ) AS \(firstAliasQ) ON \(lhsStr) = \(rhsStr)
+			\(joinWord) \(pivotNameQ) AS \(pivotAliasQ) ON \(lhsStr2) = \(rhsStr2)
+			\(joinWord) \(firstNameQ) AS \(firstAliasQ) ON \(lhsStr) = \(rhsStr)
 			
 			"""
 			if let whereExpr = state.whereExpr {
@@ -177,7 +179,7 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
 					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
 					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "JOIN \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
+					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
