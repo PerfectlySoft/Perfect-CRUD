@@ -30,7 +30,7 @@ public struct TableStructure {
 		public let properties: Property
 	}
 	public let tableName: String
-	public let primaryKeyName: String
+	public let primaryKeyName: String?
 	public let columns: [Column]
 	public let subTables: [TableStructure]
 	public let indexes: [String]
@@ -43,9 +43,8 @@ extension Decodable {
 		_ = try Self.init(from: columnDecoder)
 		return try CRUDTableStructure(policy: policy, columnDecoder: columnDecoder, primaryKey: primaryKey)
 	}
-	
 	static func CRUDTableStructure(policy: TableCreatePolicy, columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
-		let primaryKeyName: String
+		let primaryKeyName: String?
 		if let pkpk = primaryKey {
 			let pathDecoder = CRUDKeyPathsDecoder()
 			let pathInstance = try Self.init(from: pathDecoder)
@@ -53,11 +52,10 @@ extension Decodable {
 				throw CRUDSQLGenError("Could not get column name for primary key \(Self.self).")
 			}
 			primaryKeyName = pkn
-		} else {
+		} else if columnDecoder.collectedKeys.map({$0.0}).contains("id") {
 			primaryKeyName = "id"
-		}
-		guard columnDecoder.collectedKeys.map({$0.0}).contains(primaryKeyName) else {
-			throw CRUDSQLGenError("Primary key was not found in type \(Self.self) \(primaryKeyName).")
+		} else {
+			primaryKeyName = nil
 		}
 		let subTables: [TableStructure]
 		if !policy.contains(.shallow) {
@@ -139,7 +137,7 @@ public extension DatabaseProtocol {
 		return Table(database: self)
 	}
 	@discardableResult
-	func create<A: Codable, V: Equatable>(_ type: A.Type, primaryKey: KeyPath<A, V>, policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self> {
+	func create<A: Codable, V: Equatable>(_ type: A.Type, primaryKey: KeyPath<A, V>? = nil, policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self> {
 		let _: Create<A, Self> = try Create(fromDatabase: self, primaryKey: primaryKey, policy: policy)
 		return Table(database: self)
 	}
