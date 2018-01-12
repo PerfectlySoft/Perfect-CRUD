@@ -143,7 +143,7 @@ try db.create(TestTable1.self, primaryKey: \.id, policy: .reconcileTable)
 
 `TableCreatePolicy` consists of the following options:
 
-* .shallow - If indicated, then joined type tables will not be automatically created. If not indicated, then any joined type tables will be automatically created. They will use the default primary key of "id". An error will be thrown if the primary key can not be determined.
+* .shallow - If indicated, then joined type tables will not be automatically created. If not indicated, then any joined type tables will be automatically created.
 * .dropTable - The database table will be dropped before it is created. This can be useful during development and testing, or for tables which contain ephemeral data which can be reset after a restart.
 * .reconcileTable - If the database table already exists then any columns which differ between the type and the table will be either removed or added.
 
@@ -190,22 +190,47 @@ In the example above, TestTable1 is the OverAllForm. Any destructive operations 
 
 A `join` operation brings in a collection of additional objects which will be set on the resulting OverAllForm objects. The joined objects will be set as a property of the parent OverAllForm object. Joins are only useful when eventually performing a `select`. Joins are not currently supported in updates, inserts, or deletes (cascade deletes/recursive updates are not supported).
 
+CRUD supports one-to-many as well as many-to-many joins using a pivot table.
+
 ```swift
 public protocol JoinAble: TableProtocol {
+	// standard join
 	func join<NewType: Codable, KeyType: Equatable>(
 		_ to: KeyPath<OverAllForm, [NewType]?>,
 		on: KeyPath<OverAllForm, KeyType>,
 		equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType>
+	// pivot join
+	func join<NewType: Codable, Pivot: Codable, FirstKeyType: Equatable, SecondKeyType: Equatable>(
+		_ to: KeyPath<OverAllForm, [NewType]?>,
+		with: Pivot.Type,
+		on: KeyPath<OverAllForm, FirstKeyType>,
+		equals: KeyPath<Pivot, FirstKeyType>,
+		and: KeyPath<NewType, SecondKeyType>,
+		is: KeyPath<Pivot, SecondKeyType>) throws -> JoinPivot<OverAllForm, Self, NewType, Pivot, FirstKeyType, SecondKeyType>
 }
 ```
 
-Joins require three parameters: 
+A standard join requires three parameters: 
 
 `to` - keypath to a property of the OverAllForm. This keypath should point to an Optional array of non-integral Codable types. This property will be set with the resulting objects.
 
 `on` - keypath to a property of the OverAllForm which should be used as the primary key for the join (typically one would use the actual table primary key column).
 
 `equals` - keypath to a property of the joined type which should be equal to the OverAllForm's `on` property. This would be the foreign key.
+
+A pivot join requires six parameters: 
+
+`to` - keypath to a property of the OverAllForm. This keypath should point to an Optional array of non-integral Codable types. This property will be set with the resulting objects.
+
+`with` - The type of the pivot table.
+
+`on` - keypath to a property of the OverAllForm which should be used as the primary key for the join (typically one would use the actual table primary key column).
+
+`equals` - keypath to a property of the pivot type which should be equal to the OverAllForm's `on` property. This would be the foreign key.
+
+`and` - keypath to a property of the child table type which should be used as the key for the join (typically one would use the actual table primary key column).
+
+`is` - keypath to a property of the pivot type which should be equal to the child table's `and` property.
 
 Example usage:
 
@@ -527,8 +552,7 @@ Joined types should be an Optional array of Codable objects. Above, the `TestTab
 
 ### Identity
 
-All CRUD Codable types should have an `id` column. When CRUD creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key cannot be found an error will be thrown.
-
+When CRUD creates the table corresponding to a type it attempts to determine what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If there is no "id" property then the table will be created without a primary key.
 Note that a custom primary key name can be specified when creating tables "shallow" but not when recursively creating them. See the "Create" operation for more details.
 
 ## Error Handling
