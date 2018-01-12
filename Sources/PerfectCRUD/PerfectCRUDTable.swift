@@ -31,7 +31,6 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			"""
 			SELECT DISTINCT \(aliasQ).*
 			FROM \(nameQ) AS \(aliasQ)
-			
 			"""
 			if let whereExpr = state.whereExpr {
 				let joinTables = tableData[1...].map { $0 }
@@ -50,24 +49,24 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
 					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
 					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
+					sqlStr += "\n\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)"
 				}
-				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
+				sqlStr += "\nWHERE \(try whereExpr.sqlSnippet(state: state))"
 			}
 			var limitStr = ""
 			if let (max, skip) = limit {
 				if max > 0 {
-					limitStr += "LIMIT \(max)\n"
+					limitStr += "\nLIMIT \(max)"
 				}
 				if skip > 0 {
-					limitStr += "OFFSET \(skip)\n"
+					limitStr += "\nOFFSET \(skip)"
 				}
 			}
 			if state.command == .count {
-				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr + limitStr)) AS s1\n"
+				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr + limitStr)) AS s1"
 			} else if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
-				sqlStr += limitStr + "ORDER BY \(m.joined(separator: ", "))\n"
+				sqlStr += limitStr + "\nORDER BY \(m.joined(separator: ", "))"
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
@@ -81,17 +80,17 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			let columnNames = try bindings.map { try delegate.quote(identifier: $0.column) }
 			let bindIdentifiers = bindings.map { $0.identifier }
 			
-			var sqlStr = "UPDATE \(nameQ)\nSET \(zip(columnNames, bindIdentifiers).map { "\($0.0)=\($0.1)" }.joined(separator: ", "))\n"
+			var sqlStr = "UPDATE \(nameQ)\nSET \(zip(columnNames, bindIdentifiers).map { "\($0.0)=\($0.1)" }.joined(separator: ", "))"
 			if let whereExpr = state.whereExpr {
-				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))"
+				sqlStr += "\nWHERE \(try whereExpr.sqlSnippet(state: state))"
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
 			CRUDLogging.log(.query, sqlStr)
 		case .delete:
-			var sqlStr = "DELETE FROM \(nameQ)\n"
+			var sqlStr = "DELETE FROM \(nameQ)"
 			if let whereExpr = state.whereExpr {
-				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))"
+				sqlStr += "\nWHERE \(try whereExpr.sqlSnippet(state: state))"
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
