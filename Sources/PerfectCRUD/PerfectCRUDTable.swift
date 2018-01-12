@@ -54,19 +54,20 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
-			if state.command == .count {
-				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr)) AS s1\n"
-			} else if !orderings.isEmpty {
-				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
-				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
-			}
+			var limitStr = ""
 			if let (max, skip) = limit {
 				if max > 0 {
-					sqlStr += "LIMIT \(max)\n"
+					limitStr += "LIMIT \(max)\n"
 				}
 				if skip > 0 {
-					sqlStr += "OFFSET \(skip)\n"
+					limitStr += "OFFSET \(skip)\n"
 				}
+			}
+			if state.command == .count {
+				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr + limitStr)) AS s1\n"
+			} else if !orderings.isEmpty {
+				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
+				sqlStr += limitStr + "ORDER BY \(m.joined(separator: ", "))\n"
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
