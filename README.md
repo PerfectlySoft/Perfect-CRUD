@@ -1,4 +1,4 @@
-# Perfect CRUD
+# Perfect CRUD [简体中文](README.zh_CN.md)
 
 CRUD is an object-relational mapping (ORM) system for Swift 4+. CRUD takes Swift 4 `Codable` types and maps them to SQL database tables. CRUD can create tables based on `Codable` types and perform inserts and updates of objects in those tables. CRUD can also perform selects and joins of tables, all in a type-safe manner.
 
@@ -144,7 +144,7 @@ try db.create(TestTable1.self, primaryKey: \.id, policy: .reconcileTable)
 `TableCreatePolicy` consists of the following options:
 
 * .shallow - If indicated, then joined type tables will not be automatically created. If not indicated, then any joined type tables will be automatically created. They will use the default primary key of "id". An error will be thrown if the primary key can not be determined.
-* .dropTable - The database table will be dropped before it is created. This can be useful during development and testing, or for tables which contain ephimeral data which can be reset after a restart.
+* .dropTable - The database table will be dropped before it is created. This can be useful during development and testing, or for tables which contain ephemeral data which can be reset after a restart.
 * .reconcileTable - If the database table already exists then any columns which differ between the type and the table will be either removed or added.
 
 Calling create on a table which already exists is a harmless operation resulting in no changes unless the `.reconcileTable` or `.dropTable` policies are indicated. Existing tables will not be modified to match changes in the corresponding Codable type unless `.reconcileTable` is indicated.
@@ -366,7 +366,7 @@ public protocol UpdateAble: TableProtocol {
 }
 ```
 
-An update requires an instance of the OverAllForm. This instance provides the values which will be set in any records which match the query. The update can be performed with either a `setKeys` or `ignoreKeys` parameter, or with no additonal parameter to indicate that all columns should be included in the update.
+An update requires an instance of the OverAllForm. This instance provides the values which will be set in any records which match the query. The update can be performed with either a `setKeys` or `ignoreKeys` parameter, or with no additional parameter to indicate that all columns should be included in the update.
 
 Example usage:
 
@@ -424,7 +424,7 @@ try table.insert([newOne, newTwo], setKeys: \.id, \.name)
 
 ### Delete
 
-A `delete` operation is used to remove records from the table which match the query. An delete will almost always have a `where` operation in the chain, but it is not required. Providing no `where` operation in the chain will delete all records.
+A `delete` operation is used to remove records from the table which match the query. A delete will almost always have a `where` operation in the chain, but it is not required. Providing no `where` operation in the chain will delete all records.
 
 ```swift
 public protocol DeleteAble: TableProtocol {
@@ -527,7 +527,7 @@ Joined types should be an Optional array of Codable objects. Above, the `TestTab
 
 ### Identity
 
-All CRUD Codable types should have an `id` column. When CRUD creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key can not be found an error will be thrown.
+All CRUD Codable types should have an `id` column. When CRUD creates the table corresponding to a type it needs to know what the primary key for the table will be. You can explicitly indicate which property is the primary key when you call the `create` operation. If you do not indicate the key then a property named "id" will be sought. If the key cannot be found an error will be thrown.
 
 Note that a custom primary key name can be specified when creating tables "shallow" but not when recursively creating them. See the "Create" operation for more details.
 
@@ -558,7 +558,7 @@ CRUDLogging.log(.info, "This is my message.")
 
 `CRUDLogEventType` is one of: `.info`, `.warning`, `.error`, or `.query`.
 
-You can control where log messages go by setting the `CRUDLogging.queryLogDestinations` and `CRUDLogging.errorLogDestinations` static properties. Handling for errors and queries can be set seperately as SQL statement logging may be desirable during development but not in production.
+You can control where log messages go by setting the `CRUDLogging.queryLogDestinations` and `CRUDLogging.errorLogDestinations` static properties. Handling for errors and queries can be set separately as SQL statement logging may be desirable during development but not in production.
 
 ```swift
 public extension CRUDLogging {
