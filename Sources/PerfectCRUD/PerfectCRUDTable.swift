@@ -66,7 +66,7 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr + limitStr)) AS s1"
 			} else if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
-				sqlStr += limitStr + "\nORDER BY \(m.joined(separator: ", "))"
+				sqlStr += "\nORDER BY \(m.joined(separator: ", "))" + limitStr
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
