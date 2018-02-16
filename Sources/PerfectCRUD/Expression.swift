@@ -48,171 +48,216 @@ public indirect enum CRUDExpression {
 	// .integer of varying width
 }
 
-public extension CRUDExpression {
-	static func &&(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .and(lhs: lhs, rhs: rhs)
-	}
-	static func ||(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .or(lhs: lhs, rhs: rhs)
-	}
-	static func ==(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .equality(lhs: lhs, rhs: rhs)
-	}
-	static func !=(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .inequality(lhs: lhs, rhs: rhs)
-	}
-	static func <(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThan(lhs: lhs, rhs: rhs)
-	}
-	static func <=(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThanEqual(lhs: lhs, rhs: rhs)
-	}
-	static func >(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThan(lhs: lhs, rhs: rhs)
-	}
-	static func >=(lhs: CRUDExpression, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThanEqual(lhs: lhs, rhs: rhs)
-	}
-	static prefix func !(rhs: CRUDExpression) -> CRUDExpression {
-		return .not(rhs: rhs)
+public protocol CRUDBooleanExpression {
+	var crudExpression: CRUDExpression { get }
+}
+
+struct RealBooleanExpression: CRUDBooleanExpression {
+	let crudExpression: CRUDExpression
+	init(_ e: CRUDExpression) {
+		crudExpression = e
 	}
 }
 
-public extension CRUDExpression {
-	static func ==(lhs: Int, rhs: CRUDExpression) -> CRUDExpression {
-		return .equality(lhs: .integer(lhs), rhs: rhs)
-	}
-	static func ==(lhs: CRUDExpression, rhs: Int) -> CRUDExpression {
-		return .equality(lhs: lhs, rhs: .integer(rhs))
-	}
-	static func ==(lhs: Double, rhs: CRUDExpression) -> CRUDExpression {
-		return .equality(lhs: .decimal(lhs), rhs: rhs)
-	}
-	static func ==(lhs: CRUDExpression, rhs: Double) -> CRUDExpression {
-		return .equality(lhs: lhs, rhs: .decimal(rhs))
-	}
-	static func ==(lhs: String, rhs: CRUDExpression) -> CRUDExpression {
-		return .equality(lhs: .string(lhs), rhs: rhs)
-	}
-	static func ==(lhs: CRUDExpression, rhs: String) -> CRUDExpression {
-		return .equality(lhs: lhs, rhs: .string(rhs))
-	}
-	
-	static func !=(lhs: Int, rhs: CRUDExpression) -> CRUDExpression {
-		return .inequality(lhs: .integer(lhs), rhs: rhs)
-	}
-	static func !=(lhs: CRUDExpression, rhs: Int) -> CRUDExpression {
-		return .inequality(lhs: lhs, rhs: .integer(rhs))
-	}
-	static func !=(lhs: Double, rhs: CRUDExpression) -> CRUDExpression {
-		return .inequality(lhs: .decimal(lhs), rhs: rhs)
-	}
-	static func !=(lhs: CRUDExpression, rhs: Double) -> CRUDExpression {
-		return .inequality(lhs: lhs, rhs: .decimal(rhs))
-	}
-	static func !=(lhs: String, rhs: CRUDExpression) -> CRUDExpression {
-		return .inequality(lhs: .string(lhs), rhs: rhs)
-	}
-	static func !=(lhs: CRUDExpression, rhs: String) -> CRUDExpression {
-		return .inequality(lhs: lhs, rhs: .string(rhs))
-	}
-	
-	static func <(lhs: Int, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThan(lhs: .integer(lhs), rhs: rhs)
-	}
-	static func <(lhs: CRUDExpression, rhs: Int) -> CRUDExpression {
-		return .lessThan(lhs: lhs, rhs: .integer(rhs))
-	}
-	static func <(lhs: Double, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThan(lhs: .decimal(lhs), rhs: rhs)
-	}
-	static func <(lhs: CRUDExpression, rhs: Double) -> CRUDExpression {
-		return .lessThan(lhs: lhs, rhs: .decimal(rhs))
-	}
-	static func <(lhs: String, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThan(lhs: .string(lhs), rhs: rhs)
-	}
-	static func <(lhs: CRUDExpression, rhs: String) -> CRUDExpression {
-		return .lessThan(lhs: lhs, rhs: .string(rhs))
-	}
-	
-	static func <=(lhs: Int, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThanEqual(lhs: .integer(lhs), rhs: rhs)
-	}
-	static func <=(lhs: CRUDExpression, rhs: Int) -> CRUDExpression {
-		return .lessThanEqual(lhs: lhs, rhs: .integer(rhs))
-	}
-	static func <=(lhs: Double, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThanEqual(lhs: .decimal(lhs), rhs: rhs)
-	}
-	static func <=(lhs: CRUDExpression, rhs: Double) -> CRUDExpression {
-		return .lessThanEqual(lhs: lhs, rhs: .decimal(rhs))
-	}
-	static func <=(lhs: String, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThanEqual(lhs: .string(lhs), rhs: rhs)
-	}
-	static func <=(lhs: CRUDExpression, rhs: String) -> CRUDExpression {
-		return .lessThanEqual(lhs: lhs, rhs: .string(rhs))
-	}
-	
-	static func >(lhs: Int, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThan(lhs: .integer(lhs), rhs: rhs)
-	}
-	static func >(lhs: CRUDExpression, rhs: Int) -> CRUDExpression {
-		return .greaterThan(lhs: lhs, rhs: .integer(rhs))
-	}
-	static func >(lhs: Double, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThan(lhs: .decimal(lhs), rhs: rhs)
-	}
-	static func >(lhs: CRUDExpression, rhs: Double) -> CRUDExpression {
-		return .greaterThan(lhs: lhs, rhs: .decimal(rhs))
-	}
-	static func >(lhs: String, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThan(lhs: .string(lhs), rhs: rhs)
-	}
-	static func >(lhs: CRUDExpression, rhs: String) -> CRUDExpression {
-		return .greaterThan(lhs: lhs, rhs: .string(rhs))
-	}
-	
-	static func >=(lhs: Int, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThanEqual(lhs: .integer(lhs), rhs: rhs)
-	}
-	static func >=(lhs: CRUDExpression, rhs: Int) -> CRUDExpression {
-		return .greaterThanEqual(lhs: lhs, rhs: .integer(rhs))
-	}
-	static func >=(lhs: Double, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThanEqual(lhs: .decimal(lhs), rhs: rhs)
-	}
-	static func >=(lhs: CRUDExpression, rhs: Double) -> CRUDExpression {
-		return .greaterThanEqual(lhs: lhs, rhs: .decimal(rhs))
-	}
-	static func >=(lhs: String, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThanEqual(lhs: .string(lhs), rhs: rhs)
-	}
-	static func >=(lhs: CRUDExpression, rhs: String) -> CRUDExpression {
-		return .greaterThanEqual(lhs: lhs, rhs: .string(rhs))
-	}
+// ==
+public func == <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .integer(rhs)))
 }
-
-public extension CRUDExpression {
-	static func == <T: Codable>(lhs: PartialKeyPath<T>, rhs: CRUDExpression) -> CRUDExpression {
-		return .equality(lhs: .keyPath(lhs), rhs: rhs)
+public func == <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .string(rhs)))
+}
+public func == <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func == <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func == <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+}
+public func == <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+// == ?
+public func == <A: Codable>(lhs: KeyPath<A, Int?>, rhs: Int?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .integer(rhs)))
 	}
-	static func != <T: Codable>(lhs: PartialKeyPath<T>, rhs: CRUDExpression) -> CRUDExpression {
-		return .inequality(lhs: .keyPath(lhs), rhs: rhs)
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func == <A: Codable>(lhs: KeyPath<A, String?>, rhs: String?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .string(rhs)))
 	}
-	static func > <T: Codable>(lhs: PartialKeyPath<T>, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThan(lhs: .keyPath(lhs), rhs: rhs)
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func == <A: Codable>(lhs: KeyPath<A, Double?>, rhs: Double?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
 	}
-	static func >= <T: Codable>(lhs: PartialKeyPath<T>, rhs: CRUDExpression) -> CRUDExpression {
-		return .greaterThanEqual(lhs: .keyPath(lhs), rhs: rhs)
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func == <A: Codable>(lhs: KeyPath<A, [UInt8]?>, rhs: [UInt8]?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .blob(rhs)))
 	}
-	static func < <T: Codable>(lhs: PartialKeyPath<T>, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThan(lhs: .keyPath(lhs), rhs: rhs)
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func == <A: Codable>(lhs: KeyPath<A, Bool?>, rhs: Bool?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .bool(rhs)))
 	}
-	static func <= <T: Codable>(lhs: PartialKeyPath<T>, rhs: CRUDExpression) -> CRUDExpression {
-		return .lessThanEqual(lhs: .keyPath(lhs), rhs: rhs)
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func == <A: Codable>(lhs: KeyPath<A, UUID?>, rhs: UUID?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
 	}
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
+// !=
+public func != <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .integer(rhs)))
+}
+public func != <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .string(rhs)))
+}
+public func != <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func != <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func != <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+}
+public func != <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+// != ?
+public func != <A: Codable>(lhs: KeyPath<A, Int?>, rhs: Int?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .integer(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func != <A: Codable>(lhs: KeyPath<A, String?>, rhs: String?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .string(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func != <A: Codable>(lhs: KeyPath<A, Double?>, rhs: Double?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func != <A: Codable>(lhs: KeyPath<A, [UInt8]?>, rhs: [UInt8]?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func != <A: Codable>(lhs: KeyPath<A, Bool?>, rhs: Bool?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
+public func != <A: Codable>(lhs: KeyPath<A, UUID?>, rhs: UUID?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
+// <
+public func < <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .integer(rhs)))
+}
+public func < <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .string(rhs)))
+}
+public func < <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func < <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func < <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+}
+public func < <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+// >
+public func > <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .integer(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .string(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+// <=
+public func <= <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .integer(rhs)))
+}
+public func <= <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .string(rhs)))
+}
+public func <= <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func <= <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func <= <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+}
+public func <= <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+// >=
+public func >= <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .integer(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .string(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .bool(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+// &&
+public func && (lhs: CRUDBooleanExpression, rhs: CRUDBooleanExpression) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.and(lhs: lhs.crudExpression, rhs: rhs.crudExpression))
+}
+// ||
+public func || (lhs: CRUDBooleanExpression, rhs: CRUDBooleanExpression) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.or(lhs: lhs.crudExpression, rhs: rhs.crudExpression))
+}
+// !
+public prefix func ! (rhs: CRUDBooleanExpression) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.not(rhs: rhs.crudExpression))
 }
 
 extension CRUDExpression {
