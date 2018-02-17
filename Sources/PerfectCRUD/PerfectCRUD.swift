@@ -26,12 +26,6 @@ public protocol FromTableProtocol {
 	var fromTable: FromTableType { get }
 }
 
-//public protocol JoinProtocol: TableProtocol, FromTableProtocol {
-//	associatedtype ComparisonType: Equatable
-//	var on: KeyPath<OverAllForm, ComparisonType> { get }
-//	var equals: KeyPath<Form, ComparisonType> { get }
-//}
-
 public protocol CommandProtocol: QueryItem {
 	var sqlGenState: SQLGenState { get }
 }
@@ -81,7 +75,6 @@ public protocol Selectable: TableProtocol {
 }
 
 public protocol Whereable: TableProtocol {
-//	func `where`(_ expr: Expression) -> Where<OverAllForm, Self>
 	func `where`(_ expr: CRUDBooleanExpression) -> Where<OverAllForm, Self>
 }
 
@@ -152,9 +145,6 @@ public extension Selectable where Self: Limitable {
 }
 
 public extension Whereable {
-//	func `where`(_ expr: Expression) -> Where<OverAllForm, Self> {
-//		return .init(fromTable: self, expression: expr)
-//	}
 	func `where`(_ expr: CRUDBooleanExpression) -> Where<OverAllForm, Self> {
 		return .init(fromTable: self, expression: expr.crudExpression)
 	}
@@ -361,7 +351,7 @@ public struct SQLGenState {
 		return "t\(aliasCounter)"
 	}
 	func getTableName<A: Codable>(type: A.Type) -> String {
-		return type.CRUDTableName // this is where table name mapping might go
+		return type.CRUDTableName
 	}
 	mutating func getKeyName<A: Codable>(type: A.Type, key: PartialKeyPath<A>) throws -> String? {
 		guard let td = getTableData(type: type),
