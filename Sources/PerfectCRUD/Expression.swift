@@ -52,7 +52,7 @@ public protocol CRUDBooleanExpression {
 	var crudExpression: CRUDExpression { get }
 }
 
-struct RealBooleanExpression: CRUDBooleanExpression {
+private struct RealBooleanExpression: CRUDBooleanExpression {
 	let crudExpression: CRUDExpression
 	init(_ e: CRUDExpression) {
 		crudExpression = e
@@ -77,6 +77,9 @@ public func == <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpr
 }
 public func == <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+public func == <A: Codable>(lhs: KeyPath<A, UUID>, rhs: Date) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .date(rhs)))
 }
 // == ?
 public func == <A: Codable>(lhs: KeyPath<A, Int?>, rhs: Int?) -> CRUDBooleanExpression {
@@ -115,6 +118,12 @@ public func == <A: Codable>(lhs: KeyPath<A, UUID?>, rhs: UUID?) -> CRUDBooleanEx
 	}
 	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
 }
+public func == <A: Codable>(lhs: KeyPath<A, UUID?>, rhs: Date?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .date(rhs)))
+	}
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .null))
+}
 // !=
 public func != <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .integer(rhs)))
@@ -133,6 +142,9 @@ public func != <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpr
 }
 public func != <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+public func != <A: Codable>(lhs: KeyPath<A, UUID>, rhs: Date) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .date(rhs)))
 }
 // != ?
 public func != <A: Codable>(lhs: KeyPath<A, Int?>, rhs: Int?) -> CRUDBooleanExpression {
@@ -171,6 +183,12 @@ public func != <A: Codable>(lhs: KeyPath<A, UUID?>, rhs: UUID?) -> CRUDBooleanEx
 	}
 	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
 }
+public func != <A: Codable>(lhs: KeyPath<A, UUID?>, rhs: Date?) -> CRUDBooleanExpression {
+	if let rhs = rhs {
+		return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .date(rhs)))
+	}
+	return RealBooleanExpression(.inequality(lhs: .keyPath(lhs), rhs: .null))
+}
 // <
 public func < <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .integer(rhs)))
@@ -189,6 +207,9 @@ public func < <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpre
 }
 public func < <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+public func < <A: Codable>(lhs: KeyPath<A, UUID>, rhs: Date) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .date(rhs)))
 }
 // >
 public func > <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
@@ -209,6 +230,9 @@ public func > <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpre
 public func > <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
 }
+public func > <A: Codable>(lhs: KeyPath<A, UUID>, rhs: Date) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .date(rhs)))
+}
 // <=
 public func <= <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .integer(rhs)))
@@ -228,6 +252,9 @@ public func <= <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpr
 public func <= <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
 }
+public func <= <A: Codable>(lhs: KeyPath<A, UUID>, rhs: Date) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .date(rhs)))
+}
 // >=
 public func >= <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .integer(rhs)))
@@ -246,6 +273,9 @@ public func >= <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpr
 }
 public func >= <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .uuid(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, UUID>, rhs: Date) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .date(rhs)))
 }
 // &&
 public func && (lhs: CRUDBooleanExpression, rhs: CRUDBooleanExpression) -> CRUDBooleanExpression {
