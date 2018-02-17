@@ -312,7 +312,7 @@ extension CRUDExpression {
 			return try bin(state, "!=", lhs, rhs)
 		case .not(let rhs):
 			let rhsStr = try rhs.sqlSnippet(state: state)
-			return "NOT \(rhsStr)"
+			return "NOT (\(rhsStr))"
 		case .lessThan(let lhs, let rhs):
 			return try bin(state, "<", lhs, rhs)
 		case .lessThanEqual(let lhs, let rhs):
