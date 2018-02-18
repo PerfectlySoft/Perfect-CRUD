@@ -2,7 +2,7 @@
 
 CRUD is an object-relational mapping (ORM) system for Swift 4+. CRUD takes Swift 4 `Codable` types and maps them to SQL database tables. CRUD can create tables based on `Codable` types and perform inserts and updates of objects in those tables. CRUD can also perform selects and joins of tables, all in a type-safe manner.
 
-CRUD uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to make sure any misusage is caught at compile time.
+CRUD uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to make ensure as much misuse as possible is caught at compile time.
 
 Database client library packages can add CRUD support by implementing a few protocols. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite) and [Postgres](https://github.com/kjessup/Perfect-PostgreSQL).
 
@@ -53,7 +53,7 @@ let query = try personTable
 		.order(by: \.lastName)
 	.join(\.phoneNumbers, on: \.id, equals: \.personId)
 		.order(descending: \.planetCode)
-	.where(\Person.lastName == .string("Lars") && \PhoneNumber.planetCode == .integer(12))
+	.where(\Person.lastName == "Lars" && \PhoneNumber.planetCode == 12)
 	.select()
 // Loop through them and print the names.
 for user in query {
@@ -167,6 +167,10 @@ let table1 = db.table(TestTable1.self)
 
 ### Table
 
+**Table** can follow: `Database`.
+
+**Table** supports: `update`, `insert`, `delete`, `join`, `order`, `limit`, `where`, `select`, and `count`.
+
 A Table object can be used to perform updates, inserts, deletes or selects. Tables can only be accessed through a database object by providing the Codable type which is to be mapped. A table object can only appear in an operation chain once, and it must be the first item.
 
 Table objects are parameterized based on the Swift object type you provide when you retrieve the table. Tables indicate the over-all resulting type of any operation. This will be referred to as the *OverAllForm*.
@@ -182,11 +186,11 @@ let table1 = db.table(TestTable1.self)
 
 In the example above, TestTable1 is the OverAllForm. Any destructive operations will effect the corresponding database table. Any selects will produce a collection of TestTable1 objects.
 
-**Table** can follow: `Database`.
-
-**Table** supports: `update`, `insert`, `delete`, `join`, `order`, `limit`, `where`, `select`, and `count`.
-
 ### Join
+
+**Join** can follow: `table`, `order`, `limit`, or another `join`.
+
+**Join** supports: `join`, `where`, `order`, `limit`, `select`, `count`.
 
 A `join` operation brings in a collection of additional objects which will be set on the resulting OverAllForm objects. The joined objects will be set as a property of the parent OverAllForm object. Joins are only useful when eventually performing a `select`. Joins are not currently supported in updates, inserts, or deletes (cascade deletes/recursive updates are not supported).
 
@@ -245,21 +249,21 @@ Any joined type tables which are not explicitly included in a join will be set t
 
 If a joined table is included in a join but there are no resulting joined objects, the OverAllForm's property will be set to an empty array.
 
-**Join** can follow: `table`, `order`, `limit`, or another `join`.
-
-**Join** supports: `join`, `where`, `order`, `limit`, `select`, `count`.
-
 ### Where
+
+**Where** can follow: `table`, `join`, `order`.
+
+**Where** supports: `select`, `count`, `update` (when following `table`), `delete` (when following `table`).
 
 A `where` operation introduces a criteria which will be used to filter exactly which objects should be selected, updated, or deleted from the database. Where can only be used when performing a select/count, update, or delete. 
 
 ```swift
 public protocol WhereAble: TableProtocol {
-	func `where`(_ expr: Expression) -> Where<OverAllForm, Self>
+	func `where`(_ expr: CRUDBooleanExpression) -> Where<OverAllForm, Self>
 }
 ```
 
-Where operations are optional, but only one `where` can be included in an operation chain and it must be the penultimate operation in the chain.
+`Where` operations are optional, but only one `where` can be included in an operation chain and it must be the penultimate operation in the chain.
 
 Example usage:
 
@@ -269,62 +273,46 @@ let table = db.table(TestTable1.self)
 let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 try table.insert(newOne)
 // search for this one object by id
-let query = table.where(\TestTable1.id == .integer(newOne.id))
+let query = table.where(\TestTable1.id == newOne.id)
 guard let foundNewOne = try query.select().first else {
 	...
 }
 ```
 
-The parameter given to the `where` operation is an `Expression` object. `Expression` is an enum defining the valid expression types. `Expression` is designed to let you use regular Swift syntax when specifying the expression given to CRUD. This expression object is eventually converted to SQL. CRUD uses statement parameter binding when generating SQL statement, so users need not worry about string quoting or binary data encoding.
+The parameter given to the `where` operation is a `CRUDBooleanExpression` object. These are produced by using any of the supported expression operators.
 
-Many of these expression types represent simple integral values such as `.string(String)` or `.null`. Others are binary or unary operators such as `AND`, or `==`. These would be expressed by using the regular Swift operators `&&` and `==`, respectively.
+Equality: `==`, `!=`
 
-To illustrate, the two lines that follow are equivalent:
+Comparison: `<`, `<=`, `>`, `>=`
 
-```swift
-let query1 = table.where(\TestTable1.id == .integer(newOne.id))
-let query2 = table.where(
-	.equality(.keyPath(\TestTable1.id), .integer(newOne.id)))
-```
+Logical: `!`, `&&`, `||`
 
-The first query uses standard Swift syntax for the `where` clause. The second uses a more verbose approach.
+For the equality and comparison operators, the left-hand operand must be a KeyPath indicating a Codable property of a Codable type. The right-hand operand can be Int, Double, String, [UInt8], Bool, UUID, or Date. The KeyPath can indicate an Optional property value, in which case the right-hand operand may be `nil` to indicate an "IS NULL", "IS NOT NULL" type of query.
 
-CRUD `Expression` provides the following operator overloads:
+The equality and comparison operators are type-safe, meaning you can not make a comparison between, for example, an Int and a String. The type of the right-hand operand must match the KeyPath property type. This is how Swift normally works, so it should not come with any surprises.
+
+In this snippet:
 
 ```swift
-public extension Expression {
-	static func &&(lhs: Expression, rhs: Expression) -> Expression
-	static func ||(lhs: Expression, rhs: Expression) -> Expression
-	static func ==(lhs: Expression, rhs: Expression) -> Expression
-	static func !=(lhs: Expression, rhs: Expression) -> Expression
-	static func <(lhs: Expression, rhs: Expression) -> Expression
-	static func <=(lhs: Expression, rhs: Expression) -> Expression
-	static func >(lhs: Expression, rhs: Expression) -> Expression
-	static func >=(lhs: Expression, rhs: Expression) -> Expression
-	static prefix func !(rhs: Expression) -> Expression
-}
+table.where(\TestTable1.id > 20)
 ```
 
-It also provides versions of the above operators which accept an `Expression` parameter on either the left-hand or right-hand side of the operation, combined with a String, Int, or Double as the other argument.
+`\TestTable1.id` is the KeyPath, pointing to the Int id for the object. 20 is the literal operand value. The `>` operator between them produces a `CRUDBooleanExpression` which can be given directly to `where` or used with other operators to make more complex expressions.
 
-Additional overloads accept keypaths as the left-hand parameter for the operation:
+The logical operators permit `and`, `or`, and `not` operations given two `CRUDBooleanExpression` objects. These use the standard Swift `&&`, `||`, and `!` operators.
 
 ```swift
-public extension Expression {
-	static func == <T: Codable>(lhs: PartialKeyPath<T>, rhs: Expression) -> Expression
-	static func != <T: Codable>(lhs: PartialKeyPath<T>, rhs: Expression) -> Expression
-	static func > <T: Codable>(lhs: PartialKeyPath<T>, rhs: Expression) -> Expression
-	static func >= <T: Codable>(lhs: PartialKeyPath<T>, rhs: Expression) -> Expression
-	static func < <T: Codable>(lhs: PartialKeyPath<T>, rhs: Expression) -> Expression
-	static func <= <T: Codable>(lhs: PartialKeyPath<T>, rhs: Expression) -> Expression
-}
+table.where(\TestTable1.id > 20 && 
+	!(\TestTable1.name == "Me" || \TestTable1.name == "You"))
 ```
 
-**Where** can follow: `table`, `join`, `order`.
-
-**Where** supports: `select`, `count`, `update` (when following `table`), `delete` (when following `table`).
+Any type which has been introduced to the query through a `table` or `join` operation can be used in an expression. Using KeyPaths for types not used elsewhere in the query is a runtime error. 
 
 ### Order
+
+**Order** can follow: `table`, `join`.
+
+**Order** supports: `join`, `where`, `order`, `limit` `select`, `count`.
 
 An `order` operation introduces an ordering of the over-all resulting objects and/or of the objects selected for a particular join. An order operation should immediately follow either a `table` or a `join`.
 
@@ -342,16 +330,16 @@ let query = try db.table(TestTable1.self)
 				.order(by: \.name)
 			.join(\.subTables, on: \.id, equals: \.parentId)
 				.order(by: \.id)
-			.where(\TestTable2.name == .string("Me"))
+			.where(\TestTable2.name == "Me")
 ```
 
 When the above query is executed it will apply orderings to both the main list of returned objects and to their individual "subTables" collections.
 
-**Order** can follow: `table`, `join`.
-
-**Order** supports: `join`, `where`, `order`, `limit` `select`, `count`.
-
 ### Limit
+
+**Limit** can follow: `order`, `join`, `table`.
+
+**Limit** supports: `join`, `where`, `order`, `select`, `count`.
 
 A `limit` operation can follow a `table`, `join`, or `order` operation. Limit can both apply an upper bound on the number of resulting objects and impose a skip value. For example the first five found records may be skipped and the result set will begin at the sixth row.
 
@@ -372,14 +360,14 @@ let query = try db.table(TestTable1.self)
 			.join(\.subTables, on: \.id, equals: \.parentId)
 				.order(by: \.id)
 				.limit(1000)
-			.where(\TestTable2.name == .string("Me"))
+			.where(\TestTable2.name == "Me")
 ```
 
-**Limit** can follow: `order`, `join`, `table`.
-
-**Limit** supports: `join`, `where`, `order`, `select`, `count`.
-
 ### Update
+
+**Update** can follow: `table`, `where` (when `where` follows `table`).
+
+**Update** supports: immediate execution.
 
 An `update` operation can be used to replace values in the existing records which match the query. An update will almost always have a `where` operation in the chain, but it is not required. Providing no `where` operation in the chain will match all records. 
 
@@ -402,11 +390,11 @@ try db.transaction {
 	try table.insert(newOne)
 	let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41, double: nil, blob: nil, subTables: nil)
 	try table
-		.where(\TestTable1.id == .integer(newOne.id))
+		.where(\TestTable1.id == newOne.id)
 		.update(newOne2, setKeys: \.name)
 }
 let results = try table
-	.where(\TestTable1.id == .integer(newOne.id))
+	.where(\TestTable1.id == newOne.id)
 	.select().map { $0 }
 
 assert(results.count == 1)
@@ -415,11 +403,11 @@ assert(results[0].name == "New One Updated")
 assert(results[0].integer == 40)
 ```
 
-**Update** can follow: `table`, `where` (when `where` follows `table`).
-
-**Update** supports: immediate execution.
-
 ### Insert
+
+**Insert** can follow: `table`.
+
+**Insert** supports: immediate execution.
 
 Insert is used to add new records to the database. One or more objects can be inserted at a time. Particular keys/columns can be added or excluded. An insert must immediately follow a `table`.
 
@@ -443,11 +431,11 @@ let newTwo = TestTable1(id: 2001, name: "New One", integer: 40, double: nil, blo
 try table.insert([newOne, newTwo], setKeys: \.id, \.name)
 ```
 
-**Insert** can follow: `table`.
-
-**Insert** supports: immediate execution.
-
 ### Delete
+
+**Delete** can follow: `table`, `where` (when `where` follows `table`).
+
+**Delete** supports: immediate execution.
 
 A `delete` operation is used to remove records from the table which match the query. A delete will almost always have a `where` operation in the chain, but it is not required. Providing no `where` operation in the chain will delete all records.
 
@@ -463,7 +451,7 @@ Example usage:
 let table = db.table(TestTable1.self)
 let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
 try table.insert(newOne)
-let query = table.where(\TestTable1.id == .integer(newOne.id))
+let query = table.where(\TestTable1.id == newOne.id)
 let j1 = try query.select().map { $0 }
 assert(j1.count == 1)
 try query.delete()
@@ -471,11 +459,11 @@ let j2 = try query.select().map { $0 }
 assert(j2.count == 0)
 ```
 
-**Delete** can follow: `table`, `where` (when `where` follows `table`).
-
-**Delete** supports: immediate execution.
-
 ### Select & Count
+
+**Select** can follow: `where`, `order`, `limit`, `join`, `table`.
+
+**Select** supports: iteration.
 
 Select returns an object which can be used to iterate over the resulting values.
 
@@ -492,15 +480,11 @@ Usage example:
 
 ```swift
 let table = db.table(TestTable1.self)
-let query = table.where(\TestTable1.blob == .null)
+let query = table.where(\TestTable1.blob == nil)
 let values = try query.select().map { $0 }
 let count = try query.count()
 assert(count == values.count)
 ```
-
-**Select** can follow: `where`, `order`, `limit`, `join`, `table`.
-
-**Select** supports: iteration.
 
 ## Codable Types
 
