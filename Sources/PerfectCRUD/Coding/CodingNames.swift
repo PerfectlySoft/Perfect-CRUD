@@ -127,13 +127,15 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	
 	func decodeInner<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
-		let sub = CRUDColumnNameDecoder()
+		let sub = CRUDColumnNameDecoder(depth: 1 + parent.depth)
 		let ret = try T(from: sub)
 		if let ar = ret as? [Codable] {
-			let subType = type(of: ar[0])
-			sub.codingPath.append(key)
-			sub.tableNamePath.append("\(subType)")
-			parent.addSubTable(key.stringValue, type: subType, decoder: sub)
+			if !ar.isEmpty {
+				let subType = type(of: ar[0])
+				sub.codingPath.append(key)
+				sub.tableNamePath.append(subType.CRUDTableName)
+				parent.addSubTable(key.stringValue, type: subType, decoder: sub)
+			}
 			return ret
 		} //...
 		throw CRUDSQLGenError("Unsupported sub-table type \(T.self)")
@@ -156,7 +158,7 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingContainer {
 	let codingPath: [CodingKey] = []
 	var count: Int? = 1
-	var isAtEnd: Bool { return currentIndex != 0 }
+	var isAtEnd: Bool { return !(currentIndex < count ?? 0) }
 	var currentIndex: Int = 0
 	let parent: CRUDColumnNameDecoder
 	var decodedType: Any.Type?
@@ -261,7 +263,10 @@ class CRUDColumnNameDecoder: Decoder {
 	var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
 	var subTables: [(name: String, type: Any.Type, decoder: CRUDColumnNameDecoder)] = []
 	var pendingReader: CRUDColumnNameUnkeyedReader?
-	
+	let depth: Int
+	init(depth d: Int = 0) {
+		depth = d
+	}
 	func addSubTable(_ name: String, type: Any.Type, decoder: CRUDColumnNameDecoder) {
 		subTables.append((name, type, decoder))
 	}
@@ -271,6 +276,9 @@ class CRUDColumnNameDecoder: Decoder {
 	}
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
 		let r = CRUDColumnNameUnkeyedReader(parent: self)
+		if depth > 1 {
+			r.count = 0
+		}
 		pendingReader = r
 		return r
 	}
