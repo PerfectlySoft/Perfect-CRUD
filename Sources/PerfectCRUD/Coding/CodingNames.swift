@@ -103,7 +103,6 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return ""
 	}
 	func decode<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
-		print("key \(key.stringValue)")
 		if let special = SpecialType(t) {
 			switch special {
 			case .uint8Array:
