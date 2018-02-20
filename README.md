@@ -600,6 +600,7 @@ Select returns an object which can be used to iterate over the resulting values.
 public protocol SelectAble: TableProtocol {
 	func select() throws -> Select<OverAllForm, Self>
 	func count() throws -> Int
+	func first() throws -> OverAllForm?
 }
 ```
 
