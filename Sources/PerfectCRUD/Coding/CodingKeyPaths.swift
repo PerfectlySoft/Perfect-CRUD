@@ -113,7 +113,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				return Date(timeIntervalSinceReferenceDate: TimeInterval(counter)) as! T
 			}
 		} else {
-			let decoder = CRUDKeyPathsDecoder()
+			let decoder = CRUDKeyPathsDecoder(depth: 1 + parent.depth)
 			let decoded = try T(from: decoder)
 			parent.subTypeMap.append((key.stringValue, type, decoder))
 			return decoded
@@ -136,7 +136,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingContainer {
 	let codingPath: [CodingKey] = []
 	var count: Int? = 1
-	var isAtEnd: Bool { return currentIndex == 1 }
+	var isAtEnd: Bool { return !(currentIndex < count ?? 0) }
 	var currentIndex: Int = 0
 	let parent: CRUDKeyPathsDecoder
 	init(_ p: CRUDKeyPathsDecoder) {
@@ -226,11 +226,19 @@ class CRUDKeyPathsDecoder: Decoder {
 	var userInfo: [CodingUserInfoKey : Any] = [:]
 	var typeMap: [Int8:String] = [:]
 	var subTypeMap: [(String, Decodable.Type, CRUDKeyPathsDecoder)] = []
+	let depth: Int
+	init(depth d: Int = 0) {
+		depth = d
+	}
 	func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
 		return KeyedDecodingContainer<Key>(CRUDKeyPathsReader<Key>(self))
 	}
 	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
-		return CRUDKeyPathsUnkeyedReader(self)
+		let r = CRUDKeyPathsUnkeyedReader(self)
+		if depth > 0 {
+			r.count = 0
+		}
+		return r
 	}
 	func singleValueContainer() throws -> SingleValueDecodingContainer {
 		return CRUDKeyPathsUnkeyedReader(self)
