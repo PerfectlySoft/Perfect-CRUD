@@ -372,26 +372,36 @@ Example usage:
 ```swift
 let table = db.table(TestTable1.self)
 // insert a new object and then find it
-let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
+let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
 try table.insert(newOne)
 // search for this one object by id
 let query = table.where(\TestTable1.id == newOne.id)
-guard let foundNewOne = try query.select().first else {
+guard let foundNewOne = try query.first() else {
 	...
 }
 ```
 
 The parameter given to the `where` operation is a `CRUDBooleanExpression` object. These are produced by using any of the supported expression operators.
 
-Equality: `==`, `!=`
+Standard Swift Operators:
 
-Comparison: `<`, `<=`, `>`, `>=`
+• Equality: `==`, `!=`
 
-Logical: `!`, `&&`, `||`
+• Comparison: `<`, `<=`, `>`, `>=`
+
+• Logical: `!`, `&&`, `||`
+
+Custom Comparison Operators:
+
+• Contained/In: `~`, `!~`
+
+• Like: `%=%`, `=%`, `%=`, `%!=%`, `!=%`, `%!=` 
 
 For the equality and comparison operators, the left-hand operand must be a KeyPath indicating a Codable property of a Codable type. The right-hand operand can be Int, Double, String, [UInt8], Bool, UUID, or Date. The KeyPath can indicate an Optional property value, in which case the right-hand operand may be `nil` to indicate an "IS NULL", "IS NOT NULL" type of query.
 
 The equality and comparison operators are type-safe, meaning you can not make a comparison between, for example, an Int and a String. The type of the right-hand operand must match the KeyPath property type. This is how Swift normally works, so it should not come with any surprises.
+
+Any type which has been introduced to the query through a `table` or `join` operation can be used in an expression. Using KeyPaths for types not used elsewhere in the query is a runtime error. 
 
 In this snippet:
 
@@ -408,7 +418,25 @@ table.where(\TestTable1.id > 20 &&
 	!(\TestTable1.name == "Me" || \TestTable1.name == "You"))
 ```
 
-Any type which has been introduced to the query through a `table` or `join` operation can be used in an expression. Using KeyPaths for types not used elsewhere in the query is a runtime error. 
+The contained/in operators take a KeyPath in the right-hand side and an array of objects on the left. 
+
+```swift
+table.where(\TestTable1.id ~ [2, 4])
+table.where(\TestTable1.id !~ [2, 4])
+```
+
+The above will select all TestTable1 objects whose `id` is in the array, or not in the array, respectively.
+
+The Like operators are used only with String values. These permit begins with, ends with, and contains searches on String based columns.
+
+```swift
+try table.where(\TestTable2.name %=% "me") // contains
+try table.where(\TestTable2.name =% "me") // begins with
+try table.where(\TestTable2.name %= "me") // ends with
+try table.where(\TestTable2.name %!=% "me") // not contains
+try table.where(\TestTable2.name !=% "me") // not begins with
+try table.where(\TestTable2.name %!= "me") // not ends with
+```
 
 ### Order
 
