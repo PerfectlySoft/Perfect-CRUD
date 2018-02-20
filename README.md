@@ -122,6 +122,15 @@ try db.transaction {
 }
 ```
 
+The body of a transaction may optionally return a value.
+
+```swift
+let value = try db.transaction {
+	... further operations
+	return 42
+}
+```
+
 #### create
 
 The `create` operation is given a Codable type. It will create a table corresponding to the type's structure. The table's primary key can be indicated as well as a "create policy" which determines some aspects of the operation. 
@@ -179,12 +188,12 @@ Example usage:
 
 ```swift
 // get a table object representing the TestTable1 struct
-// any inserts, updates, or deletes will effect "TestTable1"
+// any inserts, updates, or deletes will affect "TestTable1"
 // any selects will produce a collection of TestTable1 objects.
 let table1 = db.table(TestTable1.self)
 ```
 
-In the example above, TestTable1 is the OverAllForm. Any destructive operations will effect the corresponding database table. Any selects will produce a collection of TestTable1 objects.
+In the example above, TestTable1 is the OverAllForm. Any destructive operations will affect the corresponding database table. Any selects will produce a collection of TestTable1 objects.
 
 ### Join
 
@@ -192,9 +201,111 @@ In the example above, TestTable1 is the OverAllForm. Any destructive operations 
 
 **Join** supports: `join`, `where`, `order`, `limit`, `select`, `count`.
 
-A `join` operation brings in a collection of additional objects which will be set on the resulting OverAllForm objects. The joined objects will be set as a property of the parent OverAllForm object. Joins are only useful when eventually performing a `select`. Joins are not currently supported in updates, inserts, or deletes (cascade deletes/recursive updates are not supported).
+A `join` brings in objects from another table in either a parent-child or many-to-many relationship scheme.
 
-CRUD supports one-to-many as well as many-to-many joins using a pivot table.
+Parent-child example usage:
+
+```swift
+struct Parent: Codable {
+	let id: Int
+	let children: [Child]?
+}
+struct Child: Codable {
+	let id: Int
+	let parentId: Int
+}
+try db.transaction {
+	try db.create(Parent.self, policy: [.shallow, .dropTable]).insert(
+		Parent(id: 1, children: nil))
+	try db.create(Child.self, policy: [.shallow, .dropTable]).insert(
+		[Child(id: 1, parentId: 1),
+		 Child(id: 2, parentId: 1),
+		 Child(id: 3, parentId: 1)])
+}
+let join = try db.table(Parent.self)
+	.join(\.children,
+		  on: \.id,
+		  equals: \.parentId)
+	.where(\Parent.id == 1)
+guard let parent = try join.first() else {
+	return XCTFail("Failed to find parent id: 1")
+}
+guard let children = parent.children else {
+	return XCTFail("Parent had no children")
+}
+XCTAssertEqual(3, children.count)
+for child in children {
+	XCTAssertEqual(child.parentId, parent.id)
+}
+```
+
+The example above joins Child objects on the Parent.children property, which is of type `[Child]?`. When the query is executed, all objects from the Child table that have a parentId which matches the Parent id 1 will be included in the results. This is a typical parent-child relationship.
+
+Many-to-many example usage:
+
+```swift
+struct Student: Codable {
+	let id: Int
+	let classes: [Class]?
+}
+struct Class: Codable {
+	let id: Int
+	let students: [Student]?
+}
+struct StudentClasses: Codable {
+	let studentId: Int
+	let classId: Int
+}
+try db.transaction {
+	try db.create(Student.self, policy: [.dropTable, .shallow]).insert(
+		Student(id: 1, classes: nil))
+	try db.create(Class.self, policy: [.dropTable, .shallow]).insert([
+		Class(id: 1, students: nil),
+		Class(id: 2, students: nil),
+		Class(id: 3, students: nil)])
+	try db.create(StudentClasses.self, policy: [.dropTable, .shallow]).insert([
+		StudentClasses(studentId: 1, classId: 1),
+		StudentClasses(studentId: 1, classId: 2),
+		StudentClasses(studentId: 1, classId: 3)])
+}
+let join = try db.table(Student.self)
+	.join(\.classes,
+		  with: StudentClasses.self,
+		  on: \.id,
+		  equals: \.studentId,
+		  and: \.id,
+		  is: \.classId)
+	.where(\Student.id == 1)
+guard let student = try join.first() else {
+	return XCTFail("Failed to find student id: 1")
+}
+guard let classes = student.classes else {
+	return XCTFail("Student had no classes")
+}
+XCTAssertEqual(3, classes.count)
+for aClass in classes {
+	let join = try db.table(Class.self)
+		.join(\.students,
+			  with: StudentClasses.self,
+			  on: \.id,
+			  equals: \.classId,
+			  and: \.id,
+			  is: \.studentId)
+		.where(\Class.id == aClass.id)
+	guard let found = try join.first() else {
+		XCTFail("Class with no students")
+		continue
+	}
+	guard nil != found.students?.first(where: { $0.id == student.id }) else {
+		XCTFail("Student not found in class")
+		continue
+	}
+}
+```
+
+Joins are not currently supported in updates, inserts, or deletes (cascade deletes/recursive updates are not supported).
+
+The Join protocol has two functions:
 
 ```swift
 public protocol JoinAble: TableProtocol {
@@ -203,7 +314,7 @@ public protocol JoinAble: TableProtocol {
 		_ to: KeyPath<OverAllForm, [NewType]?>,
 		on: KeyPath<OverAllForm, KeyType>,
 		equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType>
-	// pivot join
+	// junction join
 	func join<NewType: Codable, Pivot: Codable, FirstKeyType: Equatable, SecondKeyType: Equatable>(
 		_ to: KeyPath<OverAllForm, [NewType]?>,
 		with: Pivot.Type,
@@ -222,28 +333,19 @@ A standard join requires three parameters:
 
 `equals` - keypath to a property of the joined type which should be equal to the OverAllForm's `on` property. This would be the foreign key.
 
-A pivot join requires six parameters: 
+A junction join requires six parameters: 
 
 `to` - keypath to a property of the OverAllForm. This keypath should point to an Optional array of non-integral Codable types. This property will be set with the resulting objects.
 
-`with` - The type of the pivot table.
+`with` - The type of the junction table.
 
 `on` - keypath to a property of the OverAllForm which should be used as the primary key for the join (typically one would use the actual table primary key column).
 
-`equals` - keypath to a property of the pivot type which should be equal to the OverAllForm's `on` property. This would be the foreign key.
+`equals` - keypath to a property of the junction type which should be equal to the OverAllForm's `on` property. This would be the foreign key.
 
 `and` - keypath to a property of the child table type which should be used as the key for the join (typically one would use the actual table primary key column).
 
-`is` - keypath to a property of the pivot type which should be equal to the child table's `and` property.
-
-Example usage:
-
-```swift
-let table = db.table(TestTable1.self)
-let join = try table.join(\.subTables, on: \.id, equals: \.parentId)
-```
-
-The example above joins TestTable2 on the TestTable1.subTables property, which is of type `[TestTable2]?`. When the query is executed, all objects from TestTable2 that have a TestTable2.parentId that matches a TestTable1.id will be included in the results.
+`is` - keypath to a property of the junction type which should be equal to the child table's `and` property.
 
 Any joined type tables which are not explicitly included in a join will be set to nil for any resulting OverAllForm objects.
 
@@ -384,23 +486,22 @@ An update requires an instance of the OverAllForm. This instance provides the va
 Example usage:
 
 ```swift
-let table = db.table(TestTable1.self)
-let newOne = TestTable1(id: 2000, name: "New One", integer: 40, double: nil, blob: nil, subTables: nil)
-try db.transaction {
-	try table.insert(newOne)
-	let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41, double: nil, blob: nil, subTables: nil)
-	try table
+let newOne = TestTable1(id: 2000, name: "New One", integer: 40)
+let newId: Int = try db.transaction {
+	try db.table(TestTable1.self).insert(newOne)
+	let newOne2 = TestTable1(id: 2000, name: "New One Updated", integer: 41)
+	try db.table(TestTable1.self)
 		.where(\TestTable1.id == newOne.id)
 		.update(newOne2, setKeys: \.name)
+	return newOne2.id
 }
-let results = try table
-	.where(\TestTable1.id == newOne.id)
+let j2 = try db.table(TestTable1.self)
+	.where(\TestTable1.id == newId)
 	.select().map { $0 }
-
-assert(results.count == 1)
-assert(results[0].id == 2000)
-assert(results[0].name == "New One Updated")
-assert(results[0].integer == 40)
+XCTAssertEqual(1, j2.count)
+XCTAssertEqual(2000, j2[0].id)
+XCTAssertEqual("New One Updated", j2[0].name)
+XCTAssertEqual(40, j2[0].integer)
 ```
 
 ### Insert
