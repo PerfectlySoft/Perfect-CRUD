@@ -310,10 +310,16 @@ public struct SQLGenState {
 		let sql: String
 		let bindings: Bindings
 	}
+	struct MyTableData {
+		let firstTable: TableData
+		let myTable: TableData
+		let remainingTables: [TableData]
+	}
 	typealias Ordering = (key: AnyKeyPath, desc: Bool)
 	var delegate: SQLGenDelegate
 	var aliasCounter = 0
 	var tableData: [TableData] = []
+	var tablePopCount = 0
 	var command: Command = .unknown
 	var whereExpr: Expression?
 	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
@@ -360,6 +366,16 @@ public struct SQLGenState {
 				return nil
 		}
 		return name
+	}
+	mutating func popTableData() -> MyTableData? {
+		guard !tableData.isEmpty else {
+			return nil
+		}
+		let myTableIndex = tablePopCount
+		tablePopCount += 1
+		return MyTableData(firstTable: tableData[0],
+						   myTable: tableData[myTableIndex],
+						   remainingTables: myTableIndex == 0 ? Array(tableData[1...]) : Array(tableData[1..<myTableIndex]) + Array(tableData[(myTableIndex+1)...]))
 	}
 }
 

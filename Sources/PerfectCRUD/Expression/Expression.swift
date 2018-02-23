@@ -84,6 +84,26 @@ infix operator !=%: ComparisonPrecedence // NOT LIKE v% . string
 
 
 extension CRUDExpression {
+	static func sqlSnippet(keyPath: AnyKeyPath, tableData: SQLGenState.TableData, state: SQLGenState) throws -> String {
+		let delegate = state.delegate
+		let rootType = type(of: keyPath).rootType
+		guard let modelInstance = tableData.modelInstance else {
+				throw CRUDSQLGenError("Unable to get table for KeyPath root \(rootType).")
+		}
+		guard let keyName = try tableData.keyPathDecoder.getKeyPathName(modelInstance, keyPath: keyPath) else {
+			throw CRUDSQLGenError("Unable to get KeyPath name for table \(rootType).")
+		}
+		let nameQ = try delegate.quote(identifier: keyName)
+		switch state.command {
+		case .select, .count:
+			let aliasQ = try delegate.quote(identifier: tableData.alias)
+			return "\(aliasQ).\(nameQ)"
+		case .insert, .update, .delete:
+			return nameQ
+		case .unknown:
+			throw CRUDSQLGenError("Can not process unknown command.")
+		}
+	}
 	func sqlSnippet(state: SQLGenState) throws -> String {
 		let delegate = state.delegate
 		switch self {
@@ -116,23 +136,10 @@ extension CRUDExpression {
 			return try bin(state, ">=", lhs, rhs)
 		case .keyPath(let k):
 			let rootType = type(of: k).rootType
-			guard let tableData = state.getTableData(type: rootType),
-				let modelInstance = tableData.modelInstance else {
+			guard let tableData = state.getTableData(type: rootType) else {
 				throw CRUDSQLGenError("Unable to get table for KeyPath root \(rootType).")
 			}
-			guard let keyName = try tableData.keyPathDecoder.getKeyPathName(modelInstance, keyPath: k) else {
-				throw CRUDSQLGenError("Unable to get KeyPath name for table \(rootType).")
-			}
-			let nameQ = try delegate.quote(identifier: keyName)
-			switch state.command {
-			case .select, .count:
-				let aliasQ = try delegate.quote(identifier: tableData.alias)
-				return "\(aliasQ).\(nameQ)"
-			case .insert, .update, .delete:
-				return nameQ
-			case .unknown:
-				throw CRUDSQLGenError("Can not process unknown command.")
-			}
+			return try CRUDExpression.sqlSnippet(keyPath: k, tableData: tableData, state: state)
 		case .null:
 			return "NULL"
 		case .lazy(let e):

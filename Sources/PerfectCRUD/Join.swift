@@ -27,21 +27,19 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 	public func setSQL(var state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
-		
-		let tableData = state.tableData
 		let delegate = state.delegate
-		guard let firstTable = tableData.first,
-			let myTableIndex = tableData.index(where: { Form.self == $0.type }) else {
-				throw CRUDSQLGenError("No tables specified.")
+		guard let poppedTableData = state.popTableData() else {
+			throw CRUDSQLGenError("No tables specified.")
 		}
-		let joinTables = Array(tableData[1..<myTableIndex]) + Array(tableData[(myTableIndex+1)...])
-		let myTable = tableData[myTableIndex]
+		let myTable = poppedTableData.myTable
+		let firstTable = poppedTableData.firstTable
+		let joinTables = poppedTableData.remainingTables
 		let nameQ = try delegate.quote(identifier: Form.CRUDTableName)
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		let fNameQ = try delegate.quote(identifier: firstTable.type.CRUDTableName)
 		let fAliasQ = try delegate.quote(identifier: firstTable.alias)
-		let lhsStr = try Expression.keyPath(on).sqlSnippet(state: state)
-		let rhsStr = try Expression.keyPath(equals).sqlSnippet(state: state)
+		let lhsStr = try Expression.sqlSnippet(keyPath: on, tableData: firstTable, state: state)
+		let rhsStr = try Expression.sqlSnippet(keyPath: equals, tableData: myTable, state: state)
 		switch state.command {
 		case .count:
 			() // joins do nothing on .count except limit master #
@@ -120,17 +118,16 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 	public func setSQL(var state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
-		
-		let tableData = state.tableData
 		let delegate = state.delegate
-		guard let firstTable = tableData.first,
-			let myTableIndex = tableData.index(where: { Form.self == $0.type }),
-			let pivotTableIndex = tableData.index(where: { PivotTableType.self == $0.type }) else {
+		
+		guard let poppedTableData1 = state.popTableData(),
+			let poppedTableData2 = state.popTableData() else {
 				throw CRUDSQLGenError("No tables specified.")
 		}
-		let joinTables = Array(tableData[1..<myTableIndex]) + Array(tableData[(myTableIndex+1)...])
-		let myTable = tableData[myTableIndex]
-		let pivotTable = tableData[pivotTableIndex]
+		let myTable = poppedTableData1.myTable
+		let firstTable = poppedTableData1.firstTable
+		let joinTables = poppedTableData1.remainingTables
+		let pivotTable = poppedTableData2.myTable
 		
 		let myNameQ = try delegate.quote(identifier: myTable.type.CRUDTableName)
 		let myAliasQ = try delegate.quote(identifier: myTable.alias)
@@ -138,14 +135,14 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 		let firstNameQ = try delegate.quote(identifier: firstTable.type.CRUDTableName)
 		let firstAliasQ = try delegate.quote(identifier: firstTable.alias)
 		
-		let lhsStr = try Expression.keyPath(on).sqlSnippet(state: state)
-		let rhsStr = try Expression.keyPath(equals).sqlSnippet(state: state)
+		let lhsStr = try Expression.sqlSnippet(keyPath: on, tableData: firstTable, state: state)
+		let rhsStr = try Expression.sqlSnippet(keyPath: equals, tableData: pivotTable, state: state)
 		
 		let pivotNameQ = try delegate.quote(identifier: pivotTable.type.CRUDTableName)
 		let pivotAliasQ = try delegate.quote(identifier: pivotTable.alias)
 		
-		let lhsStr2 = try Expression.keyPath(and).sqlSnippet(state: state)
-		let rhsStr2 = try Expression.keyPath(alsoEquals).sqlSnippet(state: state)
+		let lhsStr2 = try Expression.sqlSnippet(keyPath: and, tableData: myTable, state: state)
+		let rhsStr2 = try Expression.sqlSnippet(keyPath: alsoEquals, tableData: pivotTable, state: state)
 		
 		let tempColumnNameQ = try delegate.quote(identifier: joinPivotIdColumnName)
 		
