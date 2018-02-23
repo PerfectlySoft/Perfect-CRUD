@@ -18,22 +18,22 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 	}
 	public func setSQL(var state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
-		let tableData = state.tableData
 		let delegate = state.delegate
-		guard let myTable = tableData.first else {
-			throw CRUDSQLGenError("No tables specified.")
-		}
 		let nameQ = try delegate.quote(identifier: "\(Form.CRUDTableName)")
-		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		switch state.command {
 		case .select, .count:
+			guard let poppedTableData = state.popTableData() else {
+				throw CRUDSQLGenError("No tables specified.")
+			}
+			let myTable = poppedTableData.myTable
+			let aliasQ = try delegate.quote(identifier: myTable.alias)
 			var sqlStr =
 			"""
 			SELECT DISTINCT \(aliasQ).*
 			FROM \(nameQ) AS \(aliasQ)
 			"""
 			if let whereExpr = state.whereExpr {
-				let joinTables = tableData[1...].map { $0 }
+				let joinTables = poppedTableData.remainingTables
 				let referencedTypes = whereExpr.referencedTypes()
 				for type in referencedTypes {
 					guard type != Form.self else {
