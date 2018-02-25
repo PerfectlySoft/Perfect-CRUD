@@ -120,10 +120,11 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case .date:
 				appendKey(key, t)
 				return Date() as! T
+			case .codable:
+				()
 			}
-		} else {
-			return try decodeInner(t, forKey: key)
 		}
+		return try decodeInner(t, forKey: key)
 	}
 	
 	func decodeInner<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
@@ -137,7 +138,10 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				parent.addSubTable(key.stringValue, type: subType, decoder: sub)
 			}
 			return ret
-		} //...
+		} else if let _ = ret as? Codable { //...
+			appendKey(key, type(of: ret))
+			return ret
+		}
 		throw CRUDSQLGenError("Unsupported sub-table type \(T.self)")
 	}
 	
