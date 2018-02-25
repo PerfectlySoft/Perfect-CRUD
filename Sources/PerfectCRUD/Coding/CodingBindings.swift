@@ -95,6 +95,11 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 			try addBinding(key, value: .uuid(value as! UUID))
 		case .date:
 			try addBinding(key, value: .date(value as! Date))
+		case .codable:
+			let data = try JSONEncoder().encode(value)
+			if let str = String(data: data, encoding: .utf8) {
+				try addBinding(key, value: .string(str))
+			}
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: K) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
