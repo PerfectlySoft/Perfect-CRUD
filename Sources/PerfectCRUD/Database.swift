@@ -20,6 +20,7 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 
 public extension Database {
 	func sql(_ sql: String, bindings: Bindings = []) throws {
+		CRUDLogging.log(.query, sql)
 		let delegate = try configuration.sqlExeDelegate(forSQL: sql)
 		try delegate.bind(bindings, skip: 0)
 		_ = try delegate.hasNext()
