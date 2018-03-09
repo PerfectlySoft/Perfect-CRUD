@@ -104,7 +104,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case .uint8Array:
 				return [UInt8(counter)] as! T
 			case .int8Array:
-				return [UInt8(counter)] as! T
+				return [Int8(counter)] as! T
 			case .data:
 				return Data(bytes: [UInt8(counter)]) as! T
 			case .uuid:
