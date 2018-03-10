@@ -33,6 +33,16 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 		}
 		return nil
 	}
+	public mutating func nextElement() throws -> Element? {
+		guard let delegate = exeDelegate else {
+			return nil
+		}
+		if try delegate.hasNext() {
+			let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
+			return try Element(from: rowDecoder)
+		}
+		return nil
+	}
 }
 
 public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
