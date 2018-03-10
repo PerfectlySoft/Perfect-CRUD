@@ -146,16 +146,16 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	
 	func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	func superDecoder() throws -> Decoder {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented superDecoder")
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented superDecoder")
 	}
 }
 
@@ -248,10 +248,10 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 		return try T(from: parent)
 	}
 	func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	func superDecoder() throws -> Decoder {
 		currentIndex += 1

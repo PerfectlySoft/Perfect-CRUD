@@ -125,16 +125,16 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	func superDecoder() throws -> Decoder {
 		return parent
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented superDecoder")
 	}
 }
 
@@ -213,11 +213,11 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 	}
 	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	
 	func superDecoder() throws -> Decoder {
@@ -307,7 +307,7 @@ class CRUDKeyPathsDecoder: Decoder {
 				case .date:
 					return typeMap[Int8((v as! Date).timeIntervalSinceReferenceDate)]
 				case .codable:
-					fatalError("now what")
+					throw CRUDDecoderError("Unsupported operation on codable column.")
 				}
 			}
 			return nil
