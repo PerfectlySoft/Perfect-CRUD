@@ -128,19 +128,15 @@ public extension Selectable {
 		return try container.decode(Int.self, forKey: ColumnKey(stringValue: "count")!)
 	}
 	func first() throws -> OverAllForm? {
-		for r in try select() {
-			return r
-		}
-		return nil
+		var i = try select().makeIterator()
+		return try i.nextElement()
 	}
 }
 
 public extension Selectable where Self: Limitable {
 	func first() throws -> OverAllForm? {
-		for r in try limit(1).select() {
-			return r
-		}
-		return nil
+		var i = try limit(1).select().makeIterator()
+		return try i.nextElement()
 	}
 }
 
