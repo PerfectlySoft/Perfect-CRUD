@@ -41,6 +41,9 @@ public func < <A: Codable>(lhs: KeyPath<A, UInt8>, rhs: UInt8) -> CRUDBooleanExp
 public func < <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .blob(rhs)))
 }
+public func < <A: Codable>(lhs: KeyPath<A, [Int8]>, rhs: [Int8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .sblob(rhs)))
+}
 // >
 public func > <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .integer(rhs)))
@@ -74,6 +77,9 @@ public func > <A: Codable>(lhs: KeyPath<A, UInt8>, rhs: UInt8) -> CRUDBooleanExp
 }
 public func > <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, [Int8]>, rhs: [Int8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .sblob(rhs)))
 }
 // <=
 public func <= <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
@@ -109,6 +115,9 @@ public func <= <A: Codable>(lhs: KeyPath<A, UInt8>, rhs: UInt8) -> CRUDBooleanEx
 public func <= <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .blob(rhs)))
 }
+public func <= <A: Codable>(lhs: KeyPath<A, [Int8]>, rhs: [Int8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThanEqual(lhs: .keyPath(lhs), rhs: .sblob(rhs)))
+}
 // >=
 public func >= <A: Codable>(lhs: KeyPath<A, Int>, rhs: Int) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .integer(rhs)))
@@ -142,4 +151,7 @@ public func >= <A: Codable>(lhs: KeyPath<A, UInt8>, rhs: UInt8) -> CRUDBooleanEx
 }
 public func >= <A: Codable>(lhs: KeyPath<A, [UInt8]>, rhs: [UInt8]) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .blob(rhs)))
+}
+public func >= <A: Codable>(lhs: KeyPath<A, [Int8]>, rhs: [Int8]) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThanEqual(lhs: .keyPath(lhs), rhs: .sblob(rhs)))
 }
