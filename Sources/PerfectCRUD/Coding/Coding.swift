@@ -37,23 +37,17 @@ public struct CRUDEncoderError: Error {
 
 public struct ColumnKey : CodingKey {
 	public var stringValue: String
-	public var intValue: Int?
-	public init?(stringValue: String) {
-		self.stringValue = stringValue
-		self.intValue = nil
+	public var intValue: Int? = nil
+	public init?(stringValue s: String) {
+		stringValue = s
 	}
 	public init?(intValue: Int) {
-		self.stringValue = "\(intValue)"
-		self.intValue = intValue
-	}
-	init(index: Int) {
-		self.stringValue = "Index \(index)"
-		self.intValue = index
+		return nil
 	}
 }
 
 public enum SpecialType {
-	case uint8Array, int8Array, data, uuid, date
+	case uint8Array, int8Array, data, uuid, date, codable
 	public init?(_ type: Any.Type) {
 		switch type {
 		case is [Int8].Type:
@@ -66,6 +60,8 @@ public enum SpecialType {
 			self = .uuid
 		case is Date.Type:
 			self = .date
+		case is Codable.Type:
+			self = .codable
 		default:
 			return nil
 		}

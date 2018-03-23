@@ -37,9 +37,21 @@ public indirect enum CRUDExpression {
 	case keyPath(AnyKeyPath)
 	
 	case integer(Int)
+	case uinteger(UInt)
+	case integer64(Int64)
+	case uinteger64(UInt64)
+	case integer32(Int32)
+	case uinteger32(UInt32)
+	case integer16(Int16)
+	case uinteger16(UInt16)
+	case integer8(Int8)
+	case uinteger8(UInt8)
+	
 	case decimal(Double)
+	case float(Float)
 	case string(String)
 	case blob([UInt8])
+	case sblob([Int8])
 	case bool(Bool)
 	case uuid(UUID)
 	case date(Date)
@@ -61,29 +73,35 @@ struct RealBooleanExpression: CRUDBooleanExpression {
 	}
 }
 
-/*
-~		IN, LIKE. rhs operand determines specifics
-*~
-~*
-!~
-!*~
-!~*
-
-%=%
-=%
-%=
-
-*/
 infix operator ~: ComparisonPrecedence // IN, matches
-infix operator !~: ComparisonPrecedence // IN, matches
+infix operator !~: ComparisonPrecedence // NOT IN, matches
 infix operator %=%: ComparisonPrecedence // LIKE %v% . string or regexp or in array
 infix operator =%: ComparisonPrecedence // LIKE v% . string
 infix operator %!=: ComparisonPrecedence // NOT LIKE %v . string
 infix operator %!=%: ComparisonPrecedence // NOT LIKE %v% . string or regexp or array
 infix operator !=%: ComparisonPrecedence // NOT LIKE v% . string
 
-
 extension CRUDExpression {
+	static func sqlSnippet(keyPath: AnyKeyPath, tableData: SQLGenState.TableData, state: SQLGenState) throws -> String {
+		let delegate = state.delegate
+		let rootType = type(of: keyPath).rootType
+		guard let modelInstance = tableData.modelInstance else {
+				throw CRUDSQLGenError("Unable to get table for KeyPath root \(rootType).")
+		}
+		guard let keyName = try tableData.keyPathDecoder.getKeyPathName(modelInstance, keyPath: keyPath) else {
+			throw CRUDSQLGenError("Unable to get KeyPath name for table \(rootType).")
+		}
+		let nameQ = try delegate.quote(identifier: keyName)
+		switch state.command {
+		case .select, .count:
+			let aliasQ = try delegate.quote(identifier: tableData.alias)
+			return "\(aliasQ).\(nameQ)"
+		case .insert, .update, .delete:
+			return nameQ
+		case .unknown:
+			throw CRUDSQLGenError("Can not process unknown command.")
+		}
+	}
 	func sqlSnippet(state: SQLGenState) throws -> String {
 		let delegate = state.delegate
 		switch self {
@@ -116,28 +134,17 @@ extension CRUDExpression {
 			return try bin(state, ">=", lhs, rhs)
 		case .keyPath(let k):
 			let rootType = type(of: k).rootType
-			guard let tableData = state.getTableData(type: rootType),
-				let modelInstance = tableData.modelInstance else {
+			guard let tableData = state.getTableData(type: rootType) else {
 				throw CRUDSQLGenError("Unable to get table for KeyPath root \(rootType).")
 			}
-			guard let keyName = try tableData.keyPathDecoder.getKeyPathName(modelInstance, keyPath: k) else {
-				throw CRUDSQLGenError("Unable to get KeyPath name for table \(rootType).")
-			}
-			let nameQ = try delegate.quote(identifier: keyName)
-			switch state.command {
-			case .select, .count:
-				let aliasQ = try delegate.quote(identifier: tableData.alias)
-				return "\(aliasQ).\(nameQ)"
-			case .insert, .update, .delete:
-				return nameQ
-			case .unknown:
-				throw CRUDSQLGenError("Can not process unknown command.")
-			}
+			return try CRUDExpression.sqlSnippet(keyPath: k, tableData: tableData, state: state)
 		case .null:
 			return "NULL"
 		case .lazy(let e):
 			return try e().sqlSnippet(state: state)
-		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_), .uuid(_), .date(_):
+		case .integer(_), .uinteger(_), .integer64(_), .uinteger64(_), .integer32(_), .uinteger32(_), .integer16(_), .uinteger16(_), .integer8(_), .uinteger8(_):
+			return try delegate.getBinding(for: self)
+		case .decimal(_), .float(_), .string(_), .blob(_), .sblob(_), .bool(_), .uuid(_), .date(_):
 			return try delegate.getBinding(for: self)
 		case .in(let lhs, let exprs):
 			return "\(try lhs.sqlSnippet(state: state)) IN (\(try exprs.map { try $0.sqlSnippet(state: state) }.joined(separator: ",")))"
@@ -180,7 +187,9 @@ extension CRUDExpression {
 			return []
 		case .lazy(let e):
 			return e().referencedTypes()
-		case .integer(_), .decimal(_), .string(_), .blob(_), .bool(_), .uuid(_), .date(_):
+		case .integer(_), .uinteger(_), .integer64(_), .uinteger64(_), .integer32(_), .uinteger32(_), .integer16(_), .uinteger16(_), .integer8(_), .uinteger8(_):
+			return []
+		case .decimal(_), .float(_), .string(_), .blob(_), .sblob(_), .bool(_), .uuid(_), .date(_):
 			return []
 		case .in(let lhs, let exprs):
 			return lhs.referencedTypes() + exprs.flatMap { $0.referencedTypes() }

@@ -104,13 +104,18 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case .uint8Array:
 				return [UInt8(counter)] as! T
 			case .int8Array:
-				return [UInt8(counter)] as! T
+				return [Int8(counter)] as! T
 			case .data:
 				return Data(bytes: [UInt8(counter)]) as! T
 			case .uuid:
 				return UUID(uuid: uuid_t(UInt8(counter),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)) as! T
 			case .date:
 				return Date(timeIntervalSinceReferenceDate: TimeInterval(counter)) as! T
+			case .codable:
+				let decoder = CRUDKeyPathsDecoder(depth: 1 + parent.depth)
+				let decoded = try T(from: decoder)
+				parent.subTypeMap.append((key.stringValue, type, decoder))
+				return decoded
 			}
 		} else {
 			let decoder = CRUDKeyPathsDecoder(depth: 1 + parent.depth)
@@ -120,16 +125,16 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	func superDecoder() throws -> Decoder {
 		return parent
 	}
 	func superDecoder(forKey key: Key) throws -> Decoder {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented superDecoder")
 	}
 }
 
@@ -208,11 +213,11 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 	}
 	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedContainer")
 	}
 	
 	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
-		fatalError("Unimplemented")
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
 	}
 	
 	func superDecoder() throws -> Decoder {
@@ -301,6 +306,8 @@ class CRUDKeyPathsDecoder: Decoder {
 					return typeMap[Int8((v as! UUID).uuid.0)]
 				case .date:
 					return typeMap[Int8((v as! Date).timeIntervalSinceReferenceDate)]
+				case .codable:
+					throw CRUDDecoderError("Unsupported operation on codable column.")
 				}
 			}
 			return nil
