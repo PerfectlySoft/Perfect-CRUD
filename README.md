@@ -24,7 +24,8 @@ struct Person: Codable {
 	let lastName: String
 	let phoneNumbers: [PhoneNumber]?
 }
-// CRUD usage begins by creating a database connection. The inputs for connecting to a database will differ depending on your client library.
+// CRUD usage begins by creating a database connection. 
+// The inputs for connecting to a database will differ depending on your client library.
 // Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
 let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
 // Create the table if it hasn't been done already.
@@ -153,7 +154,7 @@ try db.create(TestTable1.self, primaryKey: \.id, policy: .reconcileTable)
 `TableCreatePolicy` consists of the following options:
 
 * .shallow - If indicated, then joined type tables will not be automatically created. If not indicated, then any joined type tables will be automatically created.
-* .dropTable - The database table will be dropped before it is created. This can be useful during development and testing, or for tables which contain ephemeral data which can be reset after a restart.
+* .dropTable - The database table will be dropped before it is created. This can be useful during development and testing, or for tables that contain ephemeral data which can be reset after a restart.
 * .reconcileTable - If the database table already exists then any columns which differ between the type and the table will be either removed or added.
 
 Calling create on a table which already exists is a harmless operation resulting in no changes unless the `.reconcileTable` or `.dropTable` policies are indicated. Existing tables will not be modified to match changes in the corresponding Codable type unless `.reconcileTable` is indicated.
