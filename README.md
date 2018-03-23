@@ -12,6 +12,7 @@ Database client library packages can add CRUD support by implementing a few prot
 	* <a href="#database">Database</a>
 		* <a href="#transaction">Transaction</a>
 		* <a href="#create">Create</a>
+			* <a href="#create-policy">Policy</a>
 		* <a href="#table">Table</a>
 	* <a href="#table-1">Table</a>
 	* <a href="#join">Join</a>
@@ -143,7 +144,7 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 
 The operations available on a Database object include `transaction`, `create`, and `table`. 
 
-#### transaction
+#### Transaction
 
 The `transaction` operation will execute the body between a set of "BEGIN" and "COMMIT" or "ROLLBACK" statements. If the body completes execution without throwing an error then the transaction will be committed, otherwise it is rolled-back.
 
@@ -170,7 +171,7 @@ let value = try db.transaction {
 }
 ```
 
-#### create
+#### Create
 
 The `create` operation is given a Codable type. It will create a table corresponding to the type's structure. The table's primary key can be indicated as well as a "create policy" which determines some aspects of the operation. 
 
@@ -189,15 +190,15 @@ Example usage:
 try db.create(TestTable1.self, primaryKey: \.id, policy: .reconcileTable)
 ```
 
-`TableCreatePolicy` consists of the following options:
+<a name="create-policy">`TableCreatePolicy`</a> consists of the following options:
 
+* .reconcileTable - If the database table already exists then any columns which differ between the type and the table will be either removed or added. Note that this policy will not alter columns which exist but have changed their types. For example, if a type's property changes from a String to an Int, this policy will not alter the column changing its type to Int.
 * .shallow - If indicated, then joined type tables will not be automatically created. If not indicated, then any joined type tables will be automatically created.
 * .dropTable - The database table will be dropped before it is created. This can be useful during development and testing, or for tables that contain ephemeral data which can be reset after a restart.
-* .reconcileTable - If the database table already exists then any columns which differ between the type and the table will be either removed or added.
 
 Calling create on a table which already exists is a harmless operation resulting in no changes unless the `.reconcileTable` or `.dropTable` policies are indicated. Existing tables will not be modified to match changes in the corresponding Codable type unless `.reconcileTable` is indicated.
 
-#### table
+#### Table
 
 The `table` operation returns a Table object based on the indicated Codable type. Table objects are used to perform further operations.
 
