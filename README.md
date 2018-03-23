@@ -58,6 +58,7 @@ do {
 		PhoneNumber(personId: beru.id, planetCode: 12, number: "555-555-1212")])
 }
 
+// Perform a query.
 // Let's find all people with the last name of Lars which have a phone number on planet 12.
 let query = try personTable
 		.order(by: \.lastName, \.firstName)
