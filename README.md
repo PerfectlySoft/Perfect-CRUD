@@ -13,7 +13,6 @@ This is a simple example to show how CRUD is used.
 ```swift
 // CRUD can work with most Codable types.
 struct PhoneNumber: Codable {
-	let id: UUID
 	let personId: UUID
 	let planetCode: Int
 	let number: String
@@ -24,41 +23,51 @@ struct Person: Codable {
 	let lastName: String
 	let phoneNumbers: [PhoneNumber]?
 }
-// CRUD usage begins by creating a database connection. 
+
+// CRUD usage begins by creating a database connection.
 // The inputs for connecting to a database will differ depending on your client library.
-// Create a `Database` object by providing a configuration. These examples will use SQLite for demonstration purposes.
+// Create a `Database` object by providing a configuration.
+// These examples will use SQLite for demonstration purposes,
+// 	but all code would be identical regardless of the datasource type.
 let db = Database(configuration: try SQLiteDatabaseConfiguration(testDBName))
+
 // Create the table if it hasn't been done already.
 // Table creates are recursive by default, so "PhoneNumber" is also created here.
 try db.create(Person.self, policy: .reconcileTable)
+
 // Get a reference to the tables we will be inserting data into.
 let personTable = db.table(Person.self)
 let numbersTable = db.table(PhoneNumber.self)
+
 // Add an index for personId, if it does not already exist.
 try numbersTable.index(\.personId)
+
+// Insert some sample data.
 do {
 	// Insert some sample data.
-	let personId1 = UUID()
-	let personId2 = UUID()
-	try personTable.insert([
-		Person(id: personId1, firstName: "Owen", lastName: "Lars", phoneNumbers: nil),
-		Person(id: personId2, firstName: "Beru", lastName: "Lars", phoneNumbers: nil)])
+	let owen = Person(id: UUID(), firstName: "Owen", lastName: "Lars", phoneNumbers: nil)
+	let beru = Person(id: UUID(), firstName: "Beru", lastName: "Lars", phoneNumbers: nil)
+	
+	// Insert the people
+	try personTable.insert([owen, beru])
+	
+	// Give them some phone numbers
 	try numbersTable.insert([
-		PhoneNumber(id: UUID(), personId: personId1, planetCode: 12, number: "555-555-1212"),
-		PhoneNumber(id: UUID(), personId: personId1, planetCode: 15, number: "555-555-2222"),
-		PhoneNumber(id: UUID(), personId: personId2, planetCode: 12, number: "555-555-1212")
-	])
+		PhoneNumber(personId: owen.id, planetCode: 12, number: "555-555-1212"),
+		PhoneNumber(personId: owen.id, planetCode: 15, number: "555-555-2222"),
+		PhoneNumber(personId: beru.id, planetCode: 12, number: "555-555-1212")])
 }
+
 // Let's find all people with the last name of Lars which have a phone number on planet 12.
 let query = try personTable
-		.order(by: \.lastName)
+		.order(by: \.lastName, \.firstName)
 	.join(\.phoneNumbers, on: \.id, equals: \.personId)
 		.order(descending: \.planetCode)
 	.where(\Person.lastName == "Lars" && \PhoneNumber.planetCode == 12)
 	.select()
-// Loop through them and print the names.
+
+// Loop through the results and print the names.
 for user in query {
-	print("\(user.firstName) \(user.lastName)")
 	// We joined PhoneNumbers, so we should have values here.
 	guard let numbers = user.phoneNumbers else {
 		continue
