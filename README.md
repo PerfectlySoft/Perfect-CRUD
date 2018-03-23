@@ -238,7 +238,7 @@ In the example above, TestTable1 is the OverAllForm. Any destructive operations 
 
 A `join` brings in objects from another table in either a parent-child or many-to-many relationship scheme.
 
-<a name="#parent-child">Parent-child</a> example usage:
+<a name="parent-child">Parent-child</a> example usage:
 
 ```swift
 struct Parent: Codable {
@@ -276,7 +276,7 @@ for child in children {
 
 The example above joins Child objects on the Parent.children property, which is of type `[Child]?`. When the query is executed, all objects from the Child table that have a parentId which matches the Parent id 1 will be included in the results. This is a typical parent-child relationship.
 
-<a name="#many-to-many">Many-to-many</a> example usage:
+<a name="many-to-many">Many-to-many</a> example usage:
 
 ```swift
 struct Student: Codable {
