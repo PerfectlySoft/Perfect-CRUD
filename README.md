@@ -2,7 +2,7 @@
 
 CRUD is an object-relational mapping (ORM) system for Swift 4+. CRUD takes Swift 4 `Codable` types and maps them to SQL database tables. CRUD can create tables based on `Codable` types and perform inserts and updates of objects in those tables. CRUD can also perform selects and joins of tables, all in a type-safe manner.
 
-CRUD uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to make ensure as much misuse as possible is caught at compile time.
+CRUD uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to ensure as much misuse as possible is caught at compile time.
 
 Database client library packages can add CRUD support by implementing a few protocols. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite), [Postgres](https://github.com/kjessup/Perfect-PostgreSQL), and [MySQL](https://github.com/kjessup/Perfect-MySQL).
 
