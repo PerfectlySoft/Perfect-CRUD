@@ -6,6 +6,59 @@ CRUD uses a simple, expressive, and type safe methodology for constructing queri
 
 Database client library packages can add CRUD support by implementing a few protocols. Support is available for [SQLite](https://github.com/kjessup/Perfect-SQLite), [Postgres](https://github.com/kjessup/Perfect-PostgreSQL), and [MySQL](https://github.com/kjessup/Perfect-MySQL).
 
+# Contents
+<ul>
+<li><a href="#general-usage">General Usage</a></li>
+<li>
+<a href="#operations">Operations</a>
+<ul>
+<li>
+<a href="#database">Database</a>
+<ul>
+<li><a href="#transaction">transaction</a></li>
+<li><a href="#create">create</a></li>
+<li><a href="#table">table</a></li>
+</ul>
+</li>
+<li>
+<a href="#table-1">Table</a>
+</li>
+<li>
+<a href="#join">Join</a>
+</li>
+<li>
+<a href="#where">Where</a>
+</li>
+<li>
+<a href="#order">Order</a>
+</li>
+<li>
+<a href="#limit">Limit</a>
+</li>
+<li>
+<a href="#update">Update</a>
+</li>
+<li>
+<a href="#insert">Insert</a>
+</li>
+<li>
+<a href="#delete">Delete</a>
+</li>
+<li>
+<a href="#select--count">Select &amp; Count</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#codable-types">Codable Types</a>
+<ul>
+<li><a href="#identity">Identity</a></li>
+</ul>
+</li>
+<li><a href="#error-handling">Error Handling</a></li>
+<li><a href="#logging">Logging</a></li>
+</ul>
+
 ## General Usage
 
 This is a simple example to show how CRUD is used.
