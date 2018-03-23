@@ -23,7 +23,8 @@ Database client library packages can add CRUD support by implementing a few prot
 	* <a href="#update">Update</a>
 	* <a href="#insert">Insert</a>
 	* <a href="#delete">Delete</a>
-	* <a href="#select--count">Select &amp; Count</a>
+	* <a href="#select">Select</a>
+	* <a href="#count">Count</a>
 * <a href="#codable-types">Codable Types</a>
 	* <a href="#identity">Identity</a>
 * <a href="#error-handling">Error Handling</a>
@@ -629,7 +630,7 @@ assert(j2.count == 0)
 
 **Select** supports: iteration.
 
-Select returns an object which can be used to iterate over the resulting values.
+<a name="select">Select</a> returns an object which can be used to iterate over the resulting values.
 
 ```swift
 public protocol SelectAble: TableProtocol {
@@ -639,7 +640,7 @@ public protocol SelectAble: TableProtocol {
 }
 ```
 
-Count works similarly to `select` but it will execute the query immediately and simply return the number of resulting objects. Object data is not actually fetched.
+<a name="count">Count</a> works similarly to `select` but it will execute the query immediately and simply return the number of resulting objects. Object data is not actually fetched.
 
 Usage example:
 
