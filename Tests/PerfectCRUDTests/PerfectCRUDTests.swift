@@ -45,9 +45,8 @@ class PerfectCRUDTests: XCTestCase {
 				let name = try decoder.getKeyPathName(inst, keyPath: path.1)
 				XCTAssertEqual(name, path.0)
 			}
-			print(name)
 		} catch {
-			
+			XCTFail("\(error)")
 		}
 	}
 	
