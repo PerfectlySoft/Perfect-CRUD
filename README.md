@@ -17,7 +17,10 @@ Database client library packages can add CRUD support by implementing a few prot
 	* <a href="#join">Join</a>
 		* <a href="#parent-child">Parent Child</a>
 		* <a href="#many-to-many">Many to Many</a>
+		* <a href="#self-join">Self Join</a>
+		* <a href="#junction-join">Junction Join</a>
 	* <a href="#where">Where</a>
+		* <a href="#expression-operators">Expression Operators</a>
 	* <a href="#order">Order</a>
 	* <a href="#limit">Limit</a>
 	* <a href="#update">Update</a>
@@ -339,9 +342,94 @@ for aClass in classes {
 }
 ```
 
+<a name="self-join">Self Join</a> example usage:
+
+```swift
+struct Me: Codable {
+	let id: Int
+	let parentId: Int
+	let mes: [Me]?
+	init(id i: Int, parentId p: Int) {
+		id = i
+		parentId = p
+		mes = nil
+	}
+}
+try db.transaction {
+	try db.create(Me.self, policy: .dropTable).insert([
+		Me(id: 1, parentId: 0),
+		Me(id: 2, parentId: 1),
+		Me(id: 3, parentId: 1),
+		Me(id: 4, parentId: 1),
+		Me(id: 5, parentId: 1)])
+}
+let join = try db.table(Me.self)
+	.join(\.mes, on: \.id, equals: \.parentId)
+	.where(\Me.id == 1)
+guard let me = try join.first() else {
+	return XCTFail("Unable to find me.")
+}
+guard let mes = me.mes else {
+	return XCTFail("Unable to find meesa.")
+}
+XCTAssertEqual(mes.count, 4)
+```
+
+<a name="junction-join">Junction Join</a> example usage:
+
+```swift
+struct Student: Codable {
+	let id: Int
+	let classes: [Class]?
+	init(id i: Int) {
+		id = i
+		classes = nil
+	}
+}
+struct Class: Codable {
+	let id: Int
+	let students: [Student]?
+	init(id i: Int) {
+		id = i
+		students = nil
+	}
+}
+struct StudentClasses: Codable {
+	let studentId: Int
+	let classId: Int
+}
+try db.transaction {
+	try db.create(Student.self, policy: [.dropTable, .shallow]).insert(
+		Student(id: 1))
+	try db.create(Class.self, policy: [.dropTable, .shallow]).insert([
+		Class(id: 1),
+		Class(id: 2),
+		Class(id: 3)])
+	try db.create(StudentClasses.self, policy: [.dropTable, .shallow]).insert([
+		StudentClasses(studentId: 1, classId: 1),
+		StudentClasses(studentId: 1, classId: 2),
+		StudentClasses(studentId: 1, classId: 3)])
+}
+let join = try db.table(Student.self)
+	.join(\.classes,
+		  with: StudentClasses.self,
+		  on: \.id,
+		  equals: \.studentId,
+		  and: \.id,
+		  is: \.classId)
+	.where(\Student.id == 1)
+guard let student = try join.first() else {
+	return XCTFail("Failed to find student id: 1")
+}
+guard let classes = student.classes else {
+	return XCTFail("Student had no classes")
+}
+XCTAssertEqual(3, classes.count)
+```
+
 Joins are not currently supported in updates, inserts, or deletes (cascade deletes/recursive updates are not supported).
 
-The Join protocol has two functions:
+The Join protocol has two functions. The first handles standard two table joins. The second handles junction (three table) joins.
 
 ```swift
 public protocol JoinAble: TableProtocol {
@@ -417,6 +505,7 @@ guard let foundNewOne = try query.first() else {
 }
 ```
 
+<a name="expression-operators"></a>
 The parameter given to the `where` operation is a `CRUDBooleanExpression` object. These are produced by using any of the supported expression operators.
 
 Standard Swift Operators:
