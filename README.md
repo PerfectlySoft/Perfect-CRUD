@@ -14,6 +14,7 @@ Database client library packages can add CRUD support by implementing a few prot
 		* <a href="#create">Create</a>
 			* <a href="#create-policy">Policy</a>
 		* <a href="#table">Table</a>
+		* <a href="#sql">SQL</a>
 	* <a href="#table-1">Table</a>
 	* <a href="#join">Join</a>
 		* <a href="#parent-child">Parent Child</a>
@@ -212,6 +213,23 @@ Example usage:
 
 ```swift
 let table1 = db.table(TestTable1.self)
+```
+
+#### SQL
+
+CRUD can also execute bespoke SQL statements, mapping the results to an array of any suitable Codable type.
+
+```swift
+public extension Database {
+	func sql(_ sql: String, bindings: Bindings = []) throws
+	func sql<A: Codable>(_ sql: String, bindings: Bindings = [], _ type: A.Type) throws -> [A]
+}
+```
+
+Example Usage:
+
+```swift
+try db.sql("SELECT * FROM mytable WHERE id = 2", TestTable1.self)
 ```
 
 ### Table
@@ -822,7 +840,7 @@ CRUDLogging.log(.info, "This is my message.")
 
 `CRUDLogEventType` is one of: `.info`, `.warning`, `.error`, or `.query`.
 
-You can control where log messages go by setting the `CRUDLogging.queryLogDestinations` and `CRUDLogging.errorLogDestinations` static properties. Handling for errors and queries can be set separately as SQL statement logging may be desirable during development but not in production.
+You can control where log messages go by setting the `CRUDLogging.queryLogDestinations` and `CRUDLogging.errorLogDestinations` static properties. Modifying the log destinations is a thread-safe operation. Handling for errors and queries can be set separately as SQL statement logging may be desirable during development but not in production.
 
 ```swift
 public extension CRUDLogging {
@@ -843,5 +861,3 @@ public enum CRUDLogDestination {
 ```
 
 Each message can go to multiple destinations. By default, both errors and queries are logged to the console.
-
-
