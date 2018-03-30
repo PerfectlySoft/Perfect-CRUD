@@ -79,10 +79,10 @@ public struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTable
 	public let fromTable: FromTableType
 	let keys: [PartialKeyPath<A.Form>]
 	let descending: Bool
-	public func setState(var state: inout SQLGenState) throws {
+	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 	}
-	public func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(state: inout SQLGenState) throws {
 		state.accumulatedOrderings.append(contentsOf: keys.map { (key: $0, desc: descending) })
 		try fromTable.setSQL(state: &state)
 	}
@@ -95,10 +95,10 @@ public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 	public let fromTable: FromTableType
 	let max: Int
 	let skip: Int
-	public func setState(var state: inout SQLGenState) throws {
+	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 	}
-	public func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(state: inout SQLGenState) throws {
 		state.currentLimit = (max, skip)
 		try fromTable.setSQL(state: &state)
 	}

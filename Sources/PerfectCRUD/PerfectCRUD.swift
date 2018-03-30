@@ -12,8 +12,8 @@ public typealias Bindings = [(String, Expression)]
 
 public protocol QueryItem {
 	associatedtype OverAllForm: Codable
-	func setState(var state: inout SQLGenState) throws
-	func setSQL(var state: inout SQLGenState) throws
+	func setState(state: inout SQLGenState) throws
+	func setSQL(state: inout SQLGenState) throws
 }
 
 public protocol TableProtocol: QueryItem {

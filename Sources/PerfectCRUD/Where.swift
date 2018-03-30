@@ -14,11 +14,11 @@ public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
 	let expression: Expression
-	public func setState(var state: inout SQLGenState) throws {
+	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		state.whereExpr = expression
 	}
-	public func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(state: inout SQLGenState) throws {
 		try fromTable.setSQL(state: &state)
 	}
 }

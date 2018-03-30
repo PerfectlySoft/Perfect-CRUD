@@ -13,10 +13,10 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 	public typealias DatabaseType = C
 	public var databaseConfiguration: DatabaseConfigurationProtocol { return database.configuration }
 	let database: DatabaseType
-	public func setState(var state: inout SQLGenState) throws {
+	public func setState(state: inout SQLGenState) throws {
 		try state.addTable(type: Form.self)
 	}
-	public func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		let delegate = state.delegate
 		let nameQ = try delegate.quote(identifier: "\(Form.CRUDTableName)")

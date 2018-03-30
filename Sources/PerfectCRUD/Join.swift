@@ -20,11 +20,11 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 	let to: KeyPath<OverAllForm, [Form]?>
 	let on: KeyPath<OverAllForm, ComparisonType>
 	let equals: KeyPath<Form, ComparisonType>
-	public func setState(var state: inout SQLGenState) throws {
+	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: nil))
 	}
-	public func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL( state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
 		let delegate = state.delegate
@@ -110,12 +110,12 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 	let and: KeyPath<Form, ComparisonType2>
 	let alsoEquals: KeyPath<PivotTableType, ComparisonType2>
 	
-	public func setState(var state: inout SQLGenState) throws {
+	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: PivotTableType.self))
 		try state.addTable(type: PivotTableType.self)
 	}
-	public func setSQL(var state: inout SQLGenState) throws {
+	public func setSQL(state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
 		let delegate = state.delegate
