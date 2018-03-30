@@ -24,7 +24,7 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 		try fromTable.setState(state: &state)
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: nil))
 	}
-	public func setSQL( state: inout SQLGenState) throws {
+	public func setSQL(state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
 		try fromTable.setSQL(state: &state)
 		let delegate = state.delegate
