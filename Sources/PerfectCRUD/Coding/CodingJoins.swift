@@ -138,7 +138,7 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return try subRowReader.decode(intype, forKey: key)
 	}
 	private func filteredValues<ComparisonType: Equatable>(_ values: [Any], lhs: ComparisonType, rhsKey: AnyKeyPath) -> [Any] {
-		return values.flatMap {
+		return values.compactMap {
 			if let p = $0 as? PivotContainer {
 				guard let rhs = p.keys.first as? ComparisonType,
 					lhs == rhs else {
