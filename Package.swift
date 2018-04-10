@@ -12,7 +12,6 @@ let package = Package(
 		
 	],
 	targets: [
-		.target(name: "PerfectCRUD", dependencies: []),
-		.testTarget(name: "PerfectCRUDTests", dependencies: ["PerfectCRUD"])
+		.target(name: "PerfectCRUD", dependencies: [])
 	]
 )
