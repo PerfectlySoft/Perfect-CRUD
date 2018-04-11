@@ -4,7 +4,7 @@ CRUD 是一个基于Swift 4以上版本的关系数据库对象管理系统（OR
 
 CRUD 采用了一种简洁明了但是又表达形式丰富多样、数据类型在编译阶段得到安全检查保障的方法来构造查询操作，其实现目标是轻量化、免依存关系。实现方法采用了类型模板（Generics）、字段路径（KeyPath）和可编码（Codable）以确保编译阶段对上述内容的一致检查。
 
-目前可以使用的实际数据实现可以在这里找到：[SQLite](https://github.com/kjessup/Perfect-SQLite)、[Postgres](https://github.com/kjessup/Perfect-PostgreSQL)和[MySQL](https://github.com/kjessup/Perfect-MySQL)。
+目前可以使用的实际数据实现可以在这里找到：[SQLite](https://github.com/PerfectlySoft/Perfect-SQLite)、[Postgres](https://github.com/PerfectlySoft/Perfect-PostgreSQL)和[MySQL](https://github.com/PerfectlySoft/Perfect-MySQL)。
 
 ## 使用方法
 
