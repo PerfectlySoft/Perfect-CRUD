@@ -51,6 +51,13 @@ public protocol SQLExeDelegate {
 public protocol DatabaseConfigurationProtocol {
 	var sqlGenDelegate: SQLGenDelegate { get }
 	func sqlExeDelegate(forSQL: String) throws -> SQLExeDelegate
+	
+	init(url: String?,
+		 name: String?,
+		 host: String?,
+		 port: Int?,
+		 user: String?,
+		 pass: String?) throws
 }
 
 public protocol DatabaseProtocol {
