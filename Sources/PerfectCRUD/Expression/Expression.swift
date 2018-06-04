@@ -108,9 +108,9 @@ extension CRUDExpression {
 		case .column(let name):
 			return try delegate.quote(identifier: name)
 		case .and(let lhs, let rhs):
-			return try bin(state, "AND", lhs, rhs)
+			return try binparen(state, "AND", lhs, rhs)
 		case .or(let lhs, let rhs):
-			return try bin(state, "OR", lhs, rhs)
+			return try binparen(state, "OR", lhs, rhs)
 		case .equality(let lhs, let rhs):
 			if case .null = rhs {
 				return "\(try lhs.sqlSnippet(state: state)) IS NULL"
@@ -155,6 +155,9 @@ extension CRUDExpression {
 	}
 	private func bin(_ state: SQLGenState, _ op: String, _ lhs: CRUDExpression, _ rhs: CRUDExpression) throws -> String {
 		return "\(try lhs.sqlSnippet(state: state)) \(op) \(try rhs.sqlSnippet(state: state))"
+	}
+	private func binparen(_ state: SQLGenState, _ op: String, _ lhs: CRUDExpression, _ rhs: CRUDExpression) throws -> String {
+		return "(\(try lhs.sqlSnippet(state: state)) \(op) \(try rhs.sqlSnippet(state: state)))"
 	}
 	private func un(_ state: SQLGenState, _ op: String, _ rhs: CRUDExpression) throws -> String {
 		return "\(op) \(try rhs.sqlSnippet(state: state))"
