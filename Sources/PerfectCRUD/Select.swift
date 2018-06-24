@@ -51,6 +51,13 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
 	public let sqlGenState: SQLGenState
+    public var first: Element? {
+        @inline(__always)
+        get {
+            var i = makeIterator()
+            return i.next()
+        }
+    }
 	init(fromTable ft: FromTableType) throws {
 		fromTable = ft
 		var state = SQLGenState(delegate: ft.databaseConfiguration.sqlGenDelegate)
