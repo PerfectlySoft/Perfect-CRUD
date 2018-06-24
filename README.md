@@ -128,6 +128,9 @@ let db = Database(configuration:
 // sqlite sample configuration
 let db = Database(configuration: 
 	try SQLiteDatabaseConfiguration(testDBName))
+// MySQL sample configuration
+let db = Database(configuration:
+    try MySQLDatabaseConfiguration(database: "testDBName", host: "localhost", username: "username", password: "password"))
 ```
 
 Database objects implement this set of logical functions:
