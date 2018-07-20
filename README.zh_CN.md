@@ -82,7 +82,7 @@ do {
 	// 插入人员记录
 	try personTable.insert([owen, beru])
 	
-	// 设置电话好吗
+	// 设置电话号码
 	try numbersTable.insert([
 		PhoneNumber(personId: owen.id, planetCode: 12, number: "555-555-1212"),
 		PhoneNumber(personId: owen.id, planetCode: 15, number: "555-555-2222"),
@@ -130,6 +130,10 @@ let db = Database(configuration:
 // sqlite 配置范例
 let db = Database(configuration: 
 	try SQLiteDatabaseConfiguration(testDBName))
+
+// MySQL 配置范例
+let db = Database(configuration:
+    	try MySQLDatabaseConfiguration(database: testDBName, host: "localhost", username: username, password: password))
 ```
 
 数据库对象实现了以下逻辑函数：
