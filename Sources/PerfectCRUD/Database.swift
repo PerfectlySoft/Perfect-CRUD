@@ -30,7 +30,7 @@ public extension Database {
 		let delegate = try configuration.sqlExeDelegate(forSQL: sql)
 		try delegate.bind(bindings, skip: 0)
 		var ret: [A] = []
-		if try delegate.hasNext() {
+		while try delegate.hasNext() {
 			let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
 			ret.append(try A(from: rowDecoder))
 		}
