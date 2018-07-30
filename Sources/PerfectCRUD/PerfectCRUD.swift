@@ -200,6 +200,21 @@ public extension Limitable {
 	func limit(_ max: Int = 0, skip: Int = 0) -> Limit<OverAllForm, Self> {
 		return .init(fromTable: self, max: max, skip: skip)
 	}
+	func limit(_ range: Range<Int>) -> Limit<OverAllForm, Self> {
+		return limit(range.count, skip: range.lowerBound)
+	}
+	func limit(_ range: ClosedRange<Int>) -> Limit<OverAllForm, Self> {
+		return limit(range.count, skip: range.lowerBound)
+	}
+	func limit(_ range: PartialRangeFrom<Int>) -> Limit<OverAllForm, Self> {
+		return limit(skip: range.lowerBound)
+	}
+	func limit(_ range: PartialRangeThrough<Int>) -> Limit<OverAllForm, Self> {
+		return limit(range.upperBound + 1)
+	}
+	func limit(_ range: PartialRangeUpTo<Int>) -> Limit<OverAllForm, Self> {
+		return limit(range.upperBound)
+	}
 }
 
 extension FromTableProtocol {
