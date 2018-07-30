@@ -676,6 +676,18 @@ public protocol LimitAble: TableProtocol {
 }
 ```
 
+Ranges of Ints can also be passed to the `limit` func. This includes ranges in the form of `a..<b`, `a...b`, `a...`, `...b`, `..<b`.
+
+```swift
+public extension Limitable {
+	func limit(_ range: Range<Int>) -> Limit<OverAllForm, Self>
+	func limit(_ range: ClosedRange<Int>) -> Limit<OverAllForm, Self>
+	func limit(_ range: PartialRangeFrom<Int>) -> Limit<OverAllForm, Self>
+	func limit(_ range: PartialRangeThrough<Int>) -> Limit<OverAllForm, Self>
+	func limit(_ range: PartialRangeUpTo<Int>) -> Limit<OverAllForm, Self>
+}
+```
+
 A limit applies only to the most recent `table` or `join`. A limit placed after a `table` limits the over-all number of results. A limit placed after a `join` limits the number of joined type objects returned.
 
 Example usage:
@@ -683,7 +695,7 @@ Example usage:
 ```swift
 let query = try db.table(TestTable1.self)
 				.order(by: \.name)
-				.limit(10, skip: 20)
+				.limit(20..<30)
 			.join(\.subTables, on: \.id, equals: \.parentId)
 				.order(by: \.id)
 				.limit(1000)
