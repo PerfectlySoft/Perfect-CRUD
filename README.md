@@ -6,6 +6,19 @@ CRUD uses a simple, expressive, and type safe methodology for constructing queri
 
 Database client library packages can add CRUD support by implementing a few protocols. Support is available for [SQLite](https://github.com/PerfectlySoft/Perfect-SQLite), [Postgres](https://github.com/PerfectlySoft/Perfect-PostgreSQL), and [MySQL](https://github.com/PerfectlySoft/Perfect-MySQL).
 
+To use CRUD in your project simply include the database connector of your choice as a dependency in your Package.swift file. For example:
+
+```swift
+// postgres
+.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", from: "3.1.0")
+// mysql
+.package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", from: "3.2.0")
+// sqlite
+.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", from: "3.1.0")
+```
+
+CRUD support is built directly into each of these database connector packages.
+
 # Contents
 * <a href="#general-usage">General Usage</a>
 * <a href="#operations">Operations</a>
