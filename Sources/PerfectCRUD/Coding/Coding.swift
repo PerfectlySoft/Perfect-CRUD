@@ -47,7 +47,7 @@ public struct ColumnKey : CodingKey {
 }
 
 public enum SpecialType {
-	case uint8Array, int8Array, data, uuid, date, codable
+	case uint8Array, int8Array, data, uuid, date, codable, url
 	public init?(_ type: Any.Type) {
 		switch type {
 		case is [Int8].Type:
@@ -60,6 +60,8 @@ public enum SpecialType {
 			self = .uuid
 		case is Date.Type:
 			self = .date
+		case is URL.Type:
+			self = .url
 		case is Codable.Type:
 			self = .codable
 		default:

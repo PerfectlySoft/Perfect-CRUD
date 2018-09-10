@@ -95,6 +95,8 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 			try addBinding(key, value: .uuid(value as! UUID))
 		case .date:
 			try addBinding(key, value: .date(value as! Date))
+		case .url:
+			try addBinding(key, value: .url(value as! URL))
 		case .codable:
 			let data = try JSONEncoder().encode(value)
 			if let str = String(data: data, encoding: .utf8) {

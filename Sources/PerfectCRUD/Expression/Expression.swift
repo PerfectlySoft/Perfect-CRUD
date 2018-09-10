@@ -55,6 +55,7 @@ public indirect enum CRUDExpression {
 	case bool(Bool)
 	case uuid(UUID)
 	case date(Date)
+	case url(URL)
 	case null
 	
 	// todo:
@@ -144,7 +145,7 @@ extension CRUDExpression {
 			return try e().sqlSnippet(state: state)
 		case .integer(_), .uinteger(_), .integer64(_), .uinteger64(_), .integer32(_), .uinteger32(_), .integer16(_), .uinteger16(_), .integer8(_), .uinteger8(_):
 			return try delegate.getBinding(for: self)
-		case .decimal(_), .float(_), .string(_), .blob(_), .sblob(_), .bool(_), .uuid(_), .date(_):
+		case .decimal(_), .float(_), .string(_), .blob(_), .sblob(_), .bool(_), .uuid(_), .date(_), .url(_):
 			return try delegate.getBinding(for: self)
 		case .in(let lhs, let exprs):
 			return "\(try lhs.sqlSnippet(state: state)) IN (\(try exprs.map { try $0.sqlSnippet(state: state) }.joined(separator: ",")))"
@@ -192,7 +193,7 @@ extension CRUDExpression {
 			return e().referencedTypes()
 		case .integer(_), .uinteger(_), .integer64(_), .uinteger64(_), .integer32(_), .uinteger32(_), .integer16(_), .uinteger16(_), .integer8(_), .uinteger8(_):
 			return []
-		case .decimal(_), .float(_), .string(_), .blob(_), .sblob(_), .bool(_), .uuid(_), .date(_):
+		case .decimal(_), .float(_), .string(_), .blob(_), .sblob(_), .bool(_), .uuid(_), .date(_), .url(_):
 			return []
 		case .in(let lhs, let exprs):
 			return lhs.referencedTypes() + exprs.flatMap { $0.referencedTypes() }
