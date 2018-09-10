@@ -120,6 +120,9 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case .date:
 				appendKey(key, t)
 				return Date() as! T
+			case .url:
+				appendKey(key, t)
+				return URL(string: "http://localhost")! as! T
 			case .codable:
 				()
 			}

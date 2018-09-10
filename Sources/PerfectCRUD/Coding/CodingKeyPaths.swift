@@ -111,6 +111,8 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				return UUID(uuid: uuid_t(UInt8(counter),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)) as! T
 			case .date:
 				return Date(timeIntervalSinceReferenceDate: TimeInterval(counter)) as! T
+			case .url:
+				return URL(string: "http://localhost:\(counter)/")! as! T
 			case .codable:
 				let decoder = CRUDKeyPathsDecoder(depth: 1 + parent.depth)
 				let decoded = try T(from: decoder)
@@ -306,6 +308,8 @@ class CRUDKeyPathsDecoder: Decoder {
 					return typeMap[Int8((v as! UUID).uuid.0)]
 				case .date:
 					return typeMap[Int8((v as! Date).timeIntervalSinceReferenceDate)]
+				case .url:
+					return typeMap[Int8((v as! URL).port!)]
 				case .codable:
 					throw CRUDDecoderError("Unsupported operation on codable column.")
 				}
