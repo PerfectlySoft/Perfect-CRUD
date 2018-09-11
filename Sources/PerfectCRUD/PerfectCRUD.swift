@@ -51,7 +51,7 @@ public protocol SQLExeDelegate {
 public protocol DatabaseConfigurationProtocol {
 	var sqlGenDelegate: SQLGenDelegate { get }
 	func sqlExeDelegate(forSQL: String) throws -> SQLExeDelegate
-	
+
 	init(url: String?,
 		 name: String?,
 		 host: String?,
@@ -64,6 +64,7 @@ public protocol DatabaseProtocol {
 	associatedtype Configuration: DatabaseConfigurationProtocol
 	var configuration: Configuration { get }
 	func table<T: Codable>(_ form: T.Type) -> Table<T, Self>
+	func transaction<T>(_ body: () throws -> T) throws -> T
 }
 
 public protocol TableNameProvider {
@@ -100,7 +101,7 @@ public extension Joinable {
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
 		return .init(fromTable: self, to: to, on: on, equals: equals)
 	}
-	
+
 	func join<NewType: Codable, Pivot: Codable, FirstKeyType: Equatable, SecondKeyType: Equatable>(
 			_ to: KeyPath<OverAllForm, [NewType]?>,
 			with: Pivot.Type,
@@ -108,7 +109,7 @@ public extension Joinable {
 			equals: KeyPath<Pivot, FirstKeyType>,
 			and: KeyPath<NewType, SecondKeyType>,
 			is: KeyPath<Pivot, SecondKeyType>) throws -> JoinPivot<OverAllForm, Self, NewType, Pivot, FirstKeyType, SecondKeyType> {
-		
+
 		return .init(fromTable: self, to: to, on: on, equals: equals, and: and, alsoEquals: `is`)
 	}
 }
@@ -406,7 +407,7 @@ public extension Date {
 		let ret = dateFormatter.string(from: self) + "Z"
 		return ret
 	}
-	
+
 	init?(fromISO8601 string: String) {
 		let dateFormatter = DateFormatter()
 		dateFormatter.locale = Locale(identifier: "en_US_POSIX")
