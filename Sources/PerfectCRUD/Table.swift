@@ -67,6 +67,8 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			} else if !orderings.isEmpty {
 				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
 				sqlStr += "\nORDER BY \(m.joined(separator: ", "))" + limitStr
+			} else {
+				sqlStr += limitStr
 			}
 			state.statements.append(.init(sql: sqlStr, bindings: delegate.bindings))
 			state.delegate.bindings = []
@@ -79,7 +81,7 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			let bindings = try encoder.completedBindings(allKeys: allKeys, ignoreKeys: Set(ignoreKeys))
 			let columnNames = try bindings.map { try delegate.quote(identifier: $0.column) }
 			let bindIdentifiers = bindings.map { $0.identifier }
-			
+
 			var sqlStr = "UPDATE \(nameQ)\nSET \(zip(columnNames, bindIdentifiers).map { "\($0.0)=\($0.1)" }.joined(separator: ", "))"
 			if let whereExpr = state.whereExpr {
 				sqlStr += "\nWHERE \(try whereExpr.sqlSnippet(state: state))"
@@ -102,13 +104,3 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
