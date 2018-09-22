@@ -26,6 +26,10 @@ public func == <A: Codable>(lhs: KeyPath<A, UUID>, rhs: UUID) -> CRUDBooleanExpr
 public func == <A: Codable>(lhs: KeyPath<A, Date>, rhs: Date) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: .date(rhs)))
 }
+public func == <K: Codable, V: CRUDPrimitive>(lhs: KeyPath<K, V>, rhs: V) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.equality(lhs: .keyPath(lhs), rhs: rhs.crudExpression))
+}
+
 // == ?
 public func == <A: Codable>(lhs: KeyPath<A, String?>, rhs: String?) -> CRUDBooleanExpression {
 	if let rhs = rhs {
