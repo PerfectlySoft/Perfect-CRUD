@@ -411,15 +411,17 @@ public extension Date {
 		let dateFormatter = DateFormatter()
 		dateFormatter.locale = Locale(identifier: "en_US_POSIX")
 		dateFormatter.timeZone = TimeZone.current
-		dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-		if let d = dateFormatter.date(from: string) {
-			self = d
-			return
-		}
-		dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSx"
-		if let d = dateFormatter.date(from: string) {
-			self = d
-			return
+		let validFormats = [
+			"yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+			"yyyy-MM-dd HH:mm:ss.SSSx",
+			"yyyy-MM-dd'T'HH:mm:ssZ",
+			"yyyy-MM-dd HH:mm:ssx"]
+		for fmt in validFormats {
+			dateFormatter.dateFormat = fmt
+			if let slf = dateFormatter.date(from: string) {
+				self = slf
+				return
+			}
 		}
 		return nil
 	}
