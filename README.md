@@ -29,6 +29,7 @@ CRUD support is built directly into each of these database connector packages.
 		* <a href="#table">Table</a>
 		* <a href="#sql">SQL</a>
 	* <a href="#table-1">Table</a>
+		* <a href="#index">Index</a>
 	* <a href="#join">Join</a>
 		* <a href="#parent-child">Parent Child</a>
 		* <a href="#many-to-many">Many to Many</a>
@@ -275,6 +276,45 @@ let table1 = db.table(TestTable1.self)
 ```
 
 In the example above, TestTable1 is the OverAllForm. Any destructive operations will affect the corresponding database table. Any selects will produce a collection of TestTable1 objects.
+
+<a name="index"></a>
+#### Index
+
+**Index** can follow: `table`.
+
+Database indexes are important for good query performance. Given a table object, a database index can be added by calling the `index` function. Indexes should be added along with the code which creates the table.
+
+The `index` function accepts one or more table keypaths.
+
+Example usage:
+
+```swift
+struct Person: Codable {
+    let id: UUID
+    let firstName: String
+    let lastName: String
+}
+// create the Person table
+try db.create(Person.self)
+// get a table object representing the Person struct
+let table = db.table(Person.self)
+// add index for lastName column
+try table.index(\.lastName)
+// add unique index for firstName & lastName columns
+try table.index(unique: true, \.firstName, \.lastName)
+```
+
+Indexes can be created for individual columns, or for columns as a group. If multiple columns are frequenty used together in queries, then it can often improve performance by adding indexes including those columns.
+
+By including the `unique: true` parameter, a unique index will be created, meaning that only one row can contain any possible column value. This can be applied to multiple columns, as seen in the example above. Consult your specific database's documentation for the exact behaviours of database indexes.
+
+The `index` function is defined as:
+
+```swift
+public extension Table {
+	func index(unique: Bool = false, _ keys: PartialKeyPath<OverAllForm>...) throws -> Index<OverAllForm, Table>
+}
+```
 
 <a name="join"></a>
 ### Join
