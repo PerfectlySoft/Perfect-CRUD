@@ -421,6 +421,11 @@ public extension Date {
 			self = d
 			return
 		}
+		dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ssx"
+		if let d = dateFormatter.date(from: string) {
+			self = d
+			return
+		}
 		return nil
 	}
 }
