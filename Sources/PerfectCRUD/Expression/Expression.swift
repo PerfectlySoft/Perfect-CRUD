@@ -20,7 +20,7 @@ import Foundation
 
 public indirect enum CRUDExpression {
 	public typealias ExpressionProducer = () -> CRUDExpression
-	
+
 	case column(String)
 	case and(lhs: CRUDExpression, rhs: CRUDExpression)
 	case or(lhs: CRUDExpression, rhs: CRUDExpression)
@@ -35,7 +35,7 @@ public indirect enum CRUDExpression {
 	case like(lhs: CRUDExpression, wild1: Bool, String, wild2: Bool)
 	case lazy(ExpressionProducer)
 	case keyPath(AnyKeyPath)
-	
+
 	case integer(Int)
 	case uinteger(UInt)
 	case integer64(Int64)
@@ -46,7 +46,7 @@ public indirect enum CRUDExpression {
 	case uinteger16(UInt16)
 	case integer8(Int8)
 	case uinteger8(UInt8)
-	
+
 	case decimal(Double)
 	case float(Float)
 	case string(String)
@@ -57,7 +57,7 @@ public indirect enum CRUDExpression {
 	case date(Date)
 	case url(URL)
 	case null
-	
+
 	// todo:
 	// .blob with Data
 	// .integer of varying width
@@ -71,6 +71,38 @@ struct RealBooleanExpression: CRUDBooleanExpression {
 	let crudExpression: CRUDExpression
 	init(_ e: CRUDExpression) {
 		crudExpression = e
+	}
+}
+
+public protocol CRUDPrimitive {
+	var crudExpression: CRUDExpression { get }
+}
+
+extension Int : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .integer(self)
+		}
+	}
+}
+
+extension UUID : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .uuid(self)
+		}
+	}
+}
+
+extension Optional : CRUDPrimitive where Wrapped: CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			if let value = self {
+				return value.crudExpression
+			} else {
+				return .null
+			}
+		}
 	}
 }
 
@@ -202,6 +234,3 @@ extension CRUDExpression {
 		}
 	}
 }
-
-
-
