@@ -14,6 +14,9 @@ public func < <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanE
 public func < <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
 }
+public func < <A: Codable>(lhs: KeyPath<A, Double?>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
 public func < <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.lessThan(lhs: .keyPath(lhs), rhs: .bool(rhs)))
 }
@@ -28,6 +31,9 @@ public func > <A: Codable>(lhs: KeyPath<A, String>, rhs: String) -> CRUDBooleanE
 	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .string(rhs)))
 }
 public func > <A: Codable>(lhs: KeyPath<A, Double>, rhs: Double) -> CRUDBooleanExpression {
+	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
+}
+public func > <A: Codable>(lhs: KeyPath<A, Double?>, rhs: Double) -> CRUDBooleanExpression {
 	return RealBooleanExpression(.greaterThan(lhs: .keyPath(lhs), rhs: .decimal(rhs)))
 }
 public func > <A: Codable>(lhs: KeyPath<A, Bool>, rhs: Bool) -> CRUDBooleanExpression {
