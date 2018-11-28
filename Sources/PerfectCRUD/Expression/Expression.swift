@@ -86,6 +86,27 @@ extension Int : CRUDPrimitive {
 	}
 }
 
+extension Bool : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .bool(self)
+		}
+	}
+	public var crudBooleanExpression: CRUDBooleanExpression {
+		get {
+			return RealBooleanExpression(crudExpression)
+		}
+	}
+}
+
+extension Date : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .date(self)
+		}
+	}
+}
+
 extension UUID : CRUDPrimitive {
 	public var crudExpression: CRUDExpression {
 		get {
