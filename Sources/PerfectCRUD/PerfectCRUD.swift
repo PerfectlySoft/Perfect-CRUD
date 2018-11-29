@@ -64,6 +64,7 @@ public protocol DatabaseProtocol {
 	associatedtype Configuration: DatabaseConfigurationProtocol
 	var configuration: Configuration { get }
 	func table<T: Codable>(_ form: T.Type) -> Table<T, Self>
+	func sql(_ sql: String) throws
 	func transaction<T>(_ body: () throws -> T) throws -> T
 }
 

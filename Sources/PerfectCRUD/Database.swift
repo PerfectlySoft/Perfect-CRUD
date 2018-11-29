@@ -16,7 +16,10 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 	public func table<T: Codable>(_ form: T.Type) -> Table<T, Database> {
 		return .init(database: self)
 	}
-	func sql(_ sql: String, bindings: Bindings = []) throws {
+	public func sql(_ sql: String) throws {
+		try self.sql(sql, bindings: [])
+	}
+	func sql(_ sql: String, bindings: Bindings) throws {
 		CRUDLogging.log(.query, sql)
 		let delegate = try configuration.sqlExeDelegate(forSQL: sql)
 		try delegate.bind(bindings, skip: 0)

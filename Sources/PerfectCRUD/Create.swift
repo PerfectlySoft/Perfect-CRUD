@@ -13,7 +13,7 @@ public struct TableCreatePolicy: OptionSet {
 	public static let shallow = TableCreatePolicy(rawValue: 1)
 	public static let dropTable = TableCreatePolicy(rawValue: 2)
 	public static let reconcileTable = TableCreatePolicy(rawValue: 4)
-	
+
 	public static let defaultPolicy: TableCreatePolicy = []
 }
 
@@ -172,4 +172,3 @@ public extension Table {
 		return try .init(fromTable: self, keys: [key, key2, key3, key4, key5], unique: unique)
 	}
 }
-
