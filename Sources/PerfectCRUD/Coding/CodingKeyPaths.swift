@@ -16,7 +16,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	var boolCounter: Int8 = 0
 	init(_ p: CRUDKeyPathsDecoder) {
 		parent = p
-        counter += Int8(p.typeMap.count)
+		counter += Int8(p.typeMap.count)
 	}
 	func contains(_ key: Key) -> Bool {
 		return true
