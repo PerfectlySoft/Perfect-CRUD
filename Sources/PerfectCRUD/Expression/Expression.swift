@@ -86,6 +86,77 @@ extension Int : CRUDPrimitive {
 	}
 }
 
+extension UInt : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .uinteger(self)
+		}
+	}
+}
+
+extension Int64 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .integer64(self)
+		}
+	}
+}
+
+extension UInt64 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .uinteger64(self)
+		}
+	}
+}
+
+extension Int32 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .integer32(self)
+		}
+	}
+}
+
+extension UInt32 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .uinteger32(self)
+		}
+	}
+}
+
+extension Int16 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .integer16(self)
+		}
+	}
+}
+
+extension UInt16 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .uinteger16(self)
+		}
+	}
+}
+
+extension Int8 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .integer8(self)
+		}
+	}
+}
+
+extension UInt8 : CRUDPrimitive {
+	public var crudExpression: CRUDExpression {
+		get {
+			return .uinteger8(self)
+		}
+	}
+}
 extension Bool : CRUDPrimitive {
 	public var crudExpression: CRUDExpression {
 		get {
