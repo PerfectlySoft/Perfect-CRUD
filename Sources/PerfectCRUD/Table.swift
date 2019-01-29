@@ -35,15 +35,15 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			if let whereExpr = state.whereExpr {
 				let joinTables = poppedTableData.remainingTables
 				let referencedTypes = whereExpr.referencedTypes()
-				for type in referencedTypes {
-					guard type != Form.self else {
+				for joinTable in joinTables {
+					guard joinTable.type != Form.self else {
 						continue
 					}
-					guard let joinTable = joinTables.first(where: { type == $0.type }) else {
-						throw CRUDSQLGenError("Unknown type included in where clause \(type).")
+					guard let _ = referencedTypes.first(where: { joinTable.type == $0 }) else {
+						continue
 					}
 					guard let joinData = joinTable.joinData else {
-						throw CRUDSQLGenError("Join without a clause \(type).")
+						throw CRUDSQLGenError("Join without a clause \(joinTable.type).")
 					}
 					let nameQ = try delegate.quote(identifier: "\(joinTable.type)")
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
