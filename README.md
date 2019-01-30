@@ -913,7 +913,7 @@ Example Usage:
 ```swift
 let id = try table
 	.insert(ReturningItem(id: 0, def: 0),
-			ignoreKeys: \ReturningItem.id)//, \ReturningItem.def)
+			ignoreKeys: \ReturningItem.id)
 	.lastInsertId()
 ```
 
