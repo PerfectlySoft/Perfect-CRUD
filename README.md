@@ -10,7 +10,7 @@ To use CRUD in your project simply include the database connector of your choice
 
 ```swift
 // postgres
-.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", from: "3.1.0")
+.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", from: "3.2.0")
 // mysql
 .package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", from: "3.2.0")
 // sqlite
@@ -44,6 +44,9 @@ CRUD support is built directly into each of these database connector packages.
 	* <a href="#delete">Delete</a>
 	* <a href="#select">Select</a>
 	* <a href="#count">Count</a>
+* <a href="#dbspecific">Database Specific Operations</a>
+	* <a href="#postgres-operations">PostgreSQL</a>
+		* <a href="#postgres-operations-returning">Returning</a>
 * <a href="#codable-types">Codable Types</a>
 	* <a href="#identity">Identity</a>
 * <a href="#error-handling">Error Handling</a>
@@ -880,6 +883,162 @@ let query = table.where(\TestTable1.blob == nil)
 let values = try query.select().map { $0 }
 let count = try query.count()
 assert(count == values.count)
+```
+
+<a name="dbspecific"></a>
+## Database Specific Operations
+
+<a name=#postgres-operations"></a>
+### PostgreSQL
+
+<a name="postgres-operations-returning"></a>
+#### Returning
+
+**Returning** can follow: `where`, `table`.
+
+<a name="postgres-operations-returning">Returning</a> executes either an insert or an update and returns values from the inserted/updated row(s). Returning can return either column values or the Codable objects representing the current table.
+
+Insert:
+
+```swift
+public extension Table where C.Configuration == PostgresDatabaseConfiguration {
+	func returning<R: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			insert: Form) throws -> R
+	func returning<R: Decodable, Z: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			insert: Form,
+			setKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> R
+	func returning<R: Decodable, Z: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			insert: Form,
+			ignoreKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> R
+	func returning<R: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			insert: [Form]) throws -> [R]
+	func returning<R: Decodable, Z: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			insert: [Form],
+			setKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [R]
+	func returning<R: Decodable, Z: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			insert: [Form],
+			ignoreKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [R]
+}
+
+public extension Table where C.Configuration == PostgresDatabaseConfiguration {
+	func returning(
+			insert: Form) throws -> OverAllForm
+	func returning<Z: Decodable>(
+			insert: Form,
+			setKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> OverAllForm
+	func returning<Z: Decodable>(
+			insert: Form,
+			ignoreKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> OverAllForm
+	func returning(
+			insert: [Form]) throws -> [OverAllForm]
+	func returning<Z: Decodable>(
+			insert: [Form],
+			setKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [OverAllForm]
+	func returning<Z: Decodable>(
+			insert: [Form],
+			ignoreKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [OverAllForm]
+}
+```
+
+Update:
+
+```swift
+public extension Table where C.Configuration == PostgresDatabaseConfiguration {
+	func returning<R: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			update: Form) throws -> [R]
+	func returning<R: Decodable, Z: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			update: Form,
+			setKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [R]
+	func returning<R: Decodable, Z: Decodable>(
+			_ returning: KeyPath<OverAllForm, R>, 
+			update: Form,
+			ignoreKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [R]
+	func returning(
+			update: Form) throws -> [OverAllForm]
+	func returning<Z: Decodable>(
+			update: Form,
+			setKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [OverAllForm]
+	func returning<Z: Decodable>(
+			update: Form,
+			ignoreKeys: KeyPath<OverAllForm, Z>, 
+			_ rest: PartialKeyPath<OverAllForm>...) throws -> [OverAllForm]
+}
+```
+
+Example Usage:
+
+```swift
+struct ReturningItem: Codable, Equatable {
+	let id: UUID
+	let def: Int?
+	init(id: UUID, def: Int? = nil) {
+		self.id = id
+		self.def = def
+	}
+}
+try db.sql("DROP TABLE IF EXISTS \(ReturningItem.CRUDTableName)")
+try db.sql("CREATE TABLE \(ReturningItem.CRUDTableName) (id UUID PRIMARY KEY, def int DEFAULT 42)")
+let table = db.table(ReturningItem.self)
+// returning inserts
+do {
+	let item = ReturningItem(id: UUID())
+	let def = try table.returning(\.def, insert: item, ignoreKeys: \.def)
+	XCTAssertEqual(def, 42)
+}
+do {
+	let items = [ReturningItem(id: UUID()),
+				 ReturningItem(id: UUID()),
+				 ReturningItem(id: UUID())]
+	let defs = try table.returning(\.def, insert: items, ignoreKeys: \.def)
+	XCTAssertEqual(defs, [42, 42, 42])
+}
+do {
+	let id = UUID()
+	let item = ReturningItem(id: id, def: 42)
+	let id0 = try table.returning(\.id, insert: item)
+	XCTAssertEqual(id0, id)
+}
+do {
+	let items = [ReturningItem(id: UUID()),
+				 ReturningItem(id: UUID()),
+				 ReturningItem(id: UUID())]
+	let defs = try table.returning(insert: items, ignoreKeys: \.def)
+	XCTAssertEqual(defs.map{$0.id}, items.map{$0.id})
+	XCTAssertEqual(defs.compactMap{$0.def}.count, defs.count)
+}
+
+// returning update
+do {
+	let id = UUID()
+	var item = ReturningItem(id: id)
+	try table.insert(item, ignoreKeys: \.def)
+	item.def = 300
+	let item0 = try table
+		.where(\ReturningItem.id == id)
+		.returning(\.def, update: item, ignoreKeys: \.id)
+	XCTAssertEqual(item0.count, 1)
+	XCTAssertEqual(item.def, item0.first)
+}
+
 ```
 
 <a name="codable-types"></a>
