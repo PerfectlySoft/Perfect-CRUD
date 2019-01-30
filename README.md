@@ -892,7 +892,7 @@ assert(count == values.count)
 <a name="dbspecific"></a>
 ## Database Specific Operations
 
-<a name="#mysql-operations"></a>
+<a name="mysql-operations"></a>
 ### MySQL
 
 <a name="mysql-operations-lastinsertid"></a>
@@ -917,7 +917,7 @@ let id = try table
 	.lastInsertId()
 ```
 
-<a name="#sqlite-operations"></a>
+<a name="sqlite-operations"></a>
 ### SQLite
 
 <a name="sqlite-operations-lastinsertid"></a>
@@ -933,7 +933,7 @@ public extension Insert {
 }
 ```
 
-<a name="#postgres-operations"></a>
+<a name="postgres-operations"></a>
 ### PostgreSQL
 
 <a name="postgres-operations-returning"></a>
