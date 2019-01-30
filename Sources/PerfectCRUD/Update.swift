@@ -9,69 +9,25 @@ import Foundation
 
 public protocol Updatable: TableProtocol {
 	@discardableResult
-	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
+	func update<Z: Encodable>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, Z>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	@discardableResult
-	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
+	func update<Z: Encodable>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, Z>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	@discardableResult
 	func update(_ instance: OverAllForm) throws -> Update<OverAllForm, Self>
 }
 
 public extension Updatable {
 	@discardableResult
-	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: setKeys, excludeKeys: [])
-	}
-	@discardableResult
-	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: ignoreKeys)
-	}
-	@discardableResult
 	func update(_ instance: OverAllForm) throws -> Update<OverAllForm, Self> {
 		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [])
 	}
-	// !FIX! Swift 4.0.2 seems to have a problem with type inference for the above funcs
-	// would not let \.name type references to be used
-	// this is an ugly work around
 	@discardableResult
-	func update<V1>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, V1>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys], excludeKeys: [])
+	func update<Z: Encodable>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, Z>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys] + rest, excludeKeys: [])
 	}
 	@discardableResult
-	func update<V1, V2>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys, key2], excludeKeys: [])
-	}
-	@discardableResult
-	func update<V1, V2, V3>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys, key2, key3], excludeKeys: [])
-	}
-	@discardableResult
-	func update<V1, V2, V3, V4>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys, key2, key3, key4], excludeKeys: [])
-	}
-	@discardableResult
-	func update<V1, V2, V3, V4, V5>(_ instance: OverAllForm, setKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>, _ key5: KeyPath<OverAllForm, V5>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [setKeys, key2, key3, key4, key5], excludeKeys: [])
-	}
-	//--
-	@discardableResult
-	func update<V1>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, V1>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys])
-	}
-	@discardableResult
-	func update<V1, V2>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys, key2])
-	}
-	@discardableResult
-	func update<V1, V2, V3>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys, key2, key3])
-	}
-	@discardableResult
-	func update<V1, V2, V3, V4>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys, key2, key3, key4])
-	}
-	@discardableResult
-	func update<V1, V2, V3, V4, V5>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, V1>, _ key2: KeyPath<OverAllForm, V2>, _ key3: KeyPath<OverAllForm, V3>, _ key4: KeyPath<OverAllForm, V4>, _ key5: KeyPath<OverAllForm, V5>) throws -> Update<OverAllForm, Self> {
-		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys, key2, key3, key4, key5])
+	func update<Z: Encodable>(_ instance: OverAllForm, ignoreKeys: KeyPath<OverAllForm, Z>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self> {
+		return try .init(fromTable: self, instance: instance, includeKeys: [], excludeKeys: [ignoreKeys] + rest)
 	}
 }
 
