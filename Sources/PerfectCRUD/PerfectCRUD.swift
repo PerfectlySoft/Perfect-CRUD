@@ -226,7 +226,7 @@ extension CommandProtocol {
 	public func setSQL(state: inout SQLGenState) throws {}
 }
 
-extension SQLExeDelegate {
+public extension SQLExeDelegate {
 	func bind(_ bindings: Bindings) throws { return try bind(bindings, skip: 0) }
 }
 
@@ -307,22 +307,22 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 }
 
 public struct SQLGenState {
-	enum Command {
+	public enum Command {
 		case select, insert, update, delete, unknown
 		case count
 	}
-	struct TableData {
-		let type: Codable.Type
-		let alias: String
-		let modelInstance: Codable?
-		let keyPathDecoder: CRUDKeyPathsDecoder
-		let joinData: PropertyJoinData?
+	public struct TableData {
+		public let type: Codable.Type
+		public let alias: String
+		public let modelInstance: Codable?
+		public let keyPathDecoder: CRUDKeyPathsDecoder
+		public let joinData: PropertyJoinData?
 	}
-	struct PropertyJoinData {
-		let to: AnyKeyPath
-		let on: AnyKeyPath
-		let equals: AnyKeyPath
-		let pivot: Codable.Type?
+	public struct PropertyJoinData {
+		public let to: AnyKeyPath
+		public let on: AnyKeyPath
+		public let equals: AnyKeyPath
+		public let pivot: Codable.Type?
 	}
 	struct Statement {
 		let sql: String
@@ -336,16 +336,16 @@ public struct SQLGenState {
 	typealias Ordering = (key: AnyKeyPath, desc: Bool)
 	var delegate: SQLGenDelegate
 	var aliasCounter = 0
-	var tableData: [TableData] = []
+	public var tableData: [TableData] = []
 	var tablePopCount = 0
-	var command: Command = .unknown
+	public var command: Command = .unknown
 	var whereExpr: Expression?
 	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
 	var bindingsEncoder: CRUDBindingsEncoder?
 	var columnFilters: (include: [String], exclude: [String]) = ([], [])
-	init(delegate d: SQLGenDelegate) {
+	public init(delegate d: SQLGenDelegate) {
 		delegate = d
 	}
 	mutating func consumeState() -> ([Ordering], (max: Int, skip: Int)?) {

@@ -118,17 +118,17 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 	}
 }
 
-class CRUDBindingsEncoder: Encoder {
-	let codingPath: [CodingKey] = []
-	let userInfo: [CodingUserInfoKey : Any] = [:]
+public class CRUDBindingsEncoder: Encoder {
+	public let codingPath: [CodingKey] = []
+	public let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
 	private var collectedBinds: [(String, Expression)] = []
 	
-	init(delegate d: SQLGenDelegate) throws {
+	public init(delegate d: SQLGenDelegate) throws {
 		delegate = d
 	}
 	
-	func completedBindings(allKeys: [String],
+	public func completedBindings(allKeys: [String],
 						   ignoreKeys: Set<String>) throws -> [(column: String, identifier: String)] {
 		let exprDict: [String:Expression] = .init(uniqueKeysWithValues: collectedBinds)
 		let ret: [(column: String, identifier: String)] = try allKeys.filter { !ignoreKeys.contains($0) }.map {
@@ -151,13 +151,13 @@ class CRUDBindingsEncoder: Encoder {
 	func addBinding<Key: CodingKey>(key: Key, value: Expression) throws {
 		collectedBinds.append((key.stringValue, value))
 	}
-	func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
+	public func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
 		return KeyedEncodingContainer<Key>(CRUDBindingsWriter<Key>(self))
 	}
-	func unkeyedContainer() -> UnkeyedEncodingContainer {
+	public func unkeyedContainer() -> UnkeyedEncodingContainer {
 		fatalError("Unimplemented")
 	}
-	func singleValueContainer() -> SingleValueEncodingContainer {
+	public func singleValueContainer() -> SingleValueEncodingContainer {
 		fatalError("Unimplemented")
 	}
 }

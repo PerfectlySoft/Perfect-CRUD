@@ -262,26 +262,26 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 	}
 }
 
-class CRUDColumnNameDecoder: Decoder {
-	var codingPath: [CodingKey] = []
-	var userInfo: [CodingUserInfoKey : Any] = [:]
+public class CRUDColumnNameDecoder: Decoder {
+	public var codingPath: [CodingKey] = []
+	public var userInfo: [CodingUserInfoKey : Any] = [:]
 	
 	var tableNamePath: [String] = []
-	var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
+	public var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
 	var subTables: [(name: String, type: Any.Type, decoder: CRUDColumnNameDecoder)] = []
 	var pendingReader: CRUDColumnNameUnkeyedReader?
 	let depth: Int
-	init(depth d: Int = 0) {
+	public init(depth d: Int = 0) {
 		depth = d
 	}
 	func addSubTable(_ name: String, type: Any.Type, decoder: CRUDColumnNameDecoder) {
 		subTables.append((name, type, decoder))
 	}
 	
-	func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
+	public func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
 		return KeyedDecodingContainer<Key>(CRUDColumnNamesReader<Key>(self))
 	}
-	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+	public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
 		let r = CRUDColumnNameUnkeyedReader(parent: self)
 		if depth > 1 {
 			r.count = 0
@@ -289,7 +289,7 @@ class CRUDColumnNameDecoder: Decoder {
 		pendingReader = r
 		return r
 	}
-	func singleValueContainer() throws -> SingleValueDecodingContainer {
+	public func singleValueContainer() throws -> SingleValueDecodingContainer {
 		let r = CRUDColumnNameUnkeyedReader(parent: self)
 		return r
 	}

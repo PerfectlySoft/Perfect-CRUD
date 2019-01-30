@@ -228,29 +228,29 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 	}
 }
 
-class CRUDKeyPathsDecoder: Decoder {
-	var codingPath: [CodingKey] = []
-	var userInfo: [CodingUserInfoKey : Any] = [:]
+public class CRUDKeyPathsDecoder: Decoder {
+	public var codingPath: [CodingKey] = []
+	public var userInfo: [CodingUserInfoKey : Any] = [:]
 	var typeMap: [Int8:String] = [:]
 	var subTypeMap: [(String, Decodable.Type, CRUDKeyPathsDecoder)] = []
 	let depth: Int
 	init(depth d: Int = 0) {
 		depth = d
 	}
-	func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
+	public func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
 		return KeyedDecodingContainer<Key>(CRUDKeyPathsReader<Key>(self))
 	}
-	func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+	public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
 		let r = CRUDKeyPathsUnkeyedReader(self)
 		if depth > 0 {
 			r.count = 0
 		}
 		return r
 	}
-	func singleValueContainer() throws -> SingleValueDecodingContainer {
+	public func singleValueContainer() throws -> SingleValueDecodingContainer {
 		return CRUDKeyPathsUnkeyedReader(self)
 	}
-	func getKeyPathName(_ instance: Any, keyPath: AnyKeyPath) throws -> String? {
+	public func getKeyPathName(_ instance: Any, keyPath: AnyKeyPath) throws -> String? {
 		guard let v = instance[keyPath: keyPath] else {
 			return nil
 		}
