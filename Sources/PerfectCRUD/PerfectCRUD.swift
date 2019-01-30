@@ -324,9 +324,9 @@ public struct SQLGenState {
 		public let equals: AnyKeyPath
 		public let pivot: Codable.Type?
 	}
-	struct Statement {
-		let sql: String
-		let bindings: Bindings
+	public struct Statement {
+		public let sql: String
+		public let bindings: Bindings
 	}
 	struct MyTableData {
 		let firstTable: TableData
@@ -340,11 +340,11 @@ public struct SQLGenState {
 	var tablePopCount = 0
 	public var command: Command = .unknown
 	var whereExpr: Expression?
-	var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
+	public var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
-	var bindingsEncoder: CRUDBindingsEncoder?
-	var columnFilters: (include: [String], exclude: [String]) = ([], [])
+	public var bindingsEncoder: CRUDBindingsEncoder?
+	public var columnFilters: (include: [String], exclude: [String]) = ([], [])
 	public init(delegate d: SQLGenDelegate) {
 		delegate = d
 	}
