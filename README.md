@@ -45,6 +45,10 @@ CRUD support is built directly into each of these database connector packages.
 	* <a href="#select">Select</a>
 	* <a href="#count">Count</a>
 * <a href="#dbspecific">Database Specific Operations</a>
+	* <a href="#mysql-operations">MySQL</a>
+		* <a href="#mysql-operations-lastinsertid">Last Insert Id </a>
+	* <a href="#sqlite-operations">SQLite</a>
+		* <a href="#sqlite-operations-lastinsertid">Last Insert Id</a>
 	* <a href="#postgres-operations">PostgreSQL</a>
 		* <a href="#postgres-operations-returning">Returning</a>
 * <a href="#codable-types">Codable Types</a>
@@ -887,6 +891,47 @@ assert(count == values.count)
 
 <a name="dbspecific"></a>
 ## Database Specific Operations
+
+<a name=#mysql-operations"></a>
+### MySQL
+
+<a name="mysql-operations-lastinsertid"></a>
+#### Last Insert Id
+
+**lastInsertId()** can follow: `insert`.
+
+The `lastInsertId()` function can be called after an insert. It will return the last insert id, if available.
+
+```swift
+public extension Insert {
+	func lastInsertId() throws -> UInt64?
+}
+```
+
+Example Usage:
+
+```swift
+let id = try table
+	.insert(ReturningItem(id: 0, def: 0),
+			ignoreKeys: \ReturningItem.id)//, \ReturningItem.def)
+	.lastInsertId()
+```
+
+<a name=#sqlite-operations"></a>
+### SQLite
+
+<a name="sqlite-operations-lastinsertid"></a>
+#### Last Insert Id
+
+**lastInsertId()** can follow: `insert`.
+
+The `lastInsertId()` function can be called after an insert. It will return the last insert id, if available.
+
+```swift
+public extension Insert {
+	func lastInsertId() throws -> Int?
+}
+```
 
 <a name=#postgres-operations"></a>
 ### PostgreSQL
