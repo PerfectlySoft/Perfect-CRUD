@@ -40,6 +40,13 @@ public protocol SQLGenDelegate {
 	func quote(identifier: String) throws -> String
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String]
 	func getCreateIndexSQL(forTable name: String, on columns: [String], unique: Bool) throws -> [String]
+	func getEmptyInsertSnippet() -> String // usually DEFAULT VALUES vs. VALUES ()
+}
+
+public extension SQLGenDelegate {
+	func getEmptyInsertSnippet() -> String {
+		return "DEFAULT VALUES"
+	}
 }
 
 public protocol SQLExeDelegate {

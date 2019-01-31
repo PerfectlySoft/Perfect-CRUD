@@ -54,7 +54,12 @@ public struct Insert<OAF: Codable, A: TableProtocol>: FromTableProtocol, Command
 		let bindIdentifiers = bindings.map { $0.identifier }
 		
 		let nameQ = try delegate.quote(identifier: "\(OAF.CRUDTableName)")
-		let sqlStr = "INSERT INTO \(nameQ) (\(columnNames.joined(separator: ", "))) VALUES (\(bindIdentifiers.joined(separator: ", ")))"
+		let sqlStr: String
+		if columnNames.isEmpty {
+			sqlStr = "INSERT INTO \(nameQ) \(delegate.getEmptyInsertSnippet())"
+		} else {
+			sqlStr = "INSERT INTO \(nameQ) (\(columnNames.joined(separator: ", "))) VALUES (\(bindIdentifiers.joined(separator: ", ")))"
+		}
 		CRUDLogging.log(.query, sqlStr)
 		sqlGenState = state
 		let exeDelegate = try databaseConfiguration.sqlExeDelegate(forSQL: sqlStr)
