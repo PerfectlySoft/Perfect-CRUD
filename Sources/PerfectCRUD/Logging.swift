@@ -129,12 +129,12 @@ public struct CRUDLogging {
 }
 
 public extension CRUDLogging {
-	public static func flush() {
+	static func flush() {
 		loggingQueue.sync {
 			logCheckInSerialQueue()
 		}
 	}
-	public static var queryLogDestinations: [CRUDLogDestination] {
+	static var queryLogDestinations: [CRUDLogDestination] {
 		set {
 			loggingQueue.async { _queryLogDestinations = newValue }
 		}
@@ -142,7 +142,7 @@ public extension CRUDLogging {
 			return loggingQueue.sync { return _queryLogDestinations }
 		}
 	}
-	public static var errorLogDestinations: [CRUDLogDestination] {
+	static var errorLogDestinations: [CRUDLogDestination] {
 		set {
 			loggingQueue.async { _errorLogDestinations = newValue }
 		}
@@ -150,7 +150,7 @@ public extension CRUDLogging {
 			return loggingQueue.sync { return _errorLogDestinations }
 		}
 	}
-	public static func log(_ type: CRUDLogEventType, _ msg: String) {
+	static func log(_ type: CRUDLogEventType, _ msg: String) {
 		let now = Date()
 	#if DEBUG || Xcode
 		loggingQueue.sync {
