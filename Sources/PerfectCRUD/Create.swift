@@ -17,33 +17,146 @@ public struct TableCreatePolicy: OptionSet {
 	public static let defaultPolicy: TableCreatePolicy = []
 }
 
-public struct TableStructure {
-	public struct Column {
-		public struct Property: OptionSet {
-			public let rawValue: Int
-			public init(rawValue r: Int) { rawValue = r }
-			public static let primaryKey = Property(rawValue: 1)
+public class TableStructure {
+	public class Column {
+		public enum Property: Equatable {
+			case primaryKey
+			case foreignKey(String, String, ForeignKeyAction, ForeignKeyAction) // table, column, onDelete, onUpdate
 		}
 		public let name: String
 		public let type: Any.Type
 		public let optional: Bool
-		public let properties: Property
+		public let properties: [Property]
+		init(name: String,
+			type: Any.Type,
+			optional: Bool,
+			properties: [Property]) {
+			self.name = name
+			self.type = type
+			self.optional = optional
+			self.properties = properties
+		}
 	}
 	public let tableName: String
-	public let primaryKeyName: String?
+	public var primaryKeyName: String? { columns.first(where: { $0.properties.contains(.primaryKey) })?.name }
 	public let columns: [Column]
-	public let subTables: [TableStructure]
+	public var subTables: [TableStructure]
 	public let indexes: [String]
+	init(tableName: String,
+		columns: [Column],
+		subTables: [TableStructure],
+		indexes: [String]) {
+		self.tableName = tableName
+		self.columns = columns
+		self.subTables = subTables
+		self.indexes = indexes
+	}
 }
 
+protocol WrappedValueTypeProvider {
+	static func wrappedValueType() -> Codable.Type
+}
+
+protocol PrimaryKeyWrapper: WrappedValueTypeProvider {}
+
+@propertyWrapper
+public struct PrimaryKey<Value: Codable>: PrimaryKeyWrapper, Codable {
+	static func wrappedValueType() -> Codable.Type { Value.self }
+	public var wrappedValue: Value
+	public var projectedValue: Value { wrappedValue }
+	public init(wrappedValue: Value) {
+		self.wrappedValue = wrappedValue
+	}
+	public init(from decoder: Decoder) throws {
+		wrappedValue = try decoder.singleValueContainer().decode(Value.self)
+	}
+	public func encode(to encoder: Encoder) throws {
+		var c = encoder.singleValueContainer()
+		try c.encode(wrappedValue)
+	}
+}
+
+public enum ForeignKeyAction {
+	case ignore, restrict, setNull, setDefault, cascade
+}
+
+public protocol ForeignKeyActionProvider {
+	static var action: ForeignKeyAction { get }
+}
+
+public struct ForeignKeyActionIgnore: ForeignKeyActionProvider {
+	static public var action = ForeignKeyAction.ignore
+}
+
+public struct ForeignKeyActionRestrict: ForeignKeyActionProvider {
+	static public var action = ForeignKeyAction.restrict
+}
+
+public struct ForeignKeyActionSetNull: ForeignKeyActionProvider {
+	static public var action = ForeignKeyAction.setNull
+}
+
+public struct ForeignKeyActionSetDefault: ForeignKeyActionProvider {
+	static public var action = ForeignKeyAction.setDefault
+}
+
+public struct ForeignKeyActionCascade: ForeignKeyActionProvider {
+	static public var action = ForeignKeyAction.cascade
+}
+
+public let ignore = ForeignKeyActionIgnore()
+public let cascade = ForeignKeyActionCascade()
+
+protocol ForeignKeyWrapper: WrappedValueTypeProvider {
+	static func foreignTableStructure() throws -> TableStructure
+	static func foreignKeyDeleteAction() -> ForeignKeyAction
+	static func foreignKeyUpdateAction() -> ForeignKeyAction
+}
+
+@propertyWrapper
+public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider, UpdateAction: ForeignKeyActionProvider, Value: Codable>: ForeignKeyWrapper, Codable {
+	static func wrappedValueType() -> Codable.Type { Value.self }
+	static func foreignKeyDeleteAction() -> ForeignKeyAction { DeleteAction.action }
+	static func foreignKeyUpdateAction() -> ForeignKeyAction { UpdateAction.action }
+	
+	public var wrappedValue: Value {
+		get { projectedValue! }
+		set { projectedValue = newValue }
+	}
+	public var projectedValue: Value? = nil
+	
+	public init(_ parent: Table.Type, onDelete: DeleteAction, onUpdate: UpdateAction, wrappedValue: Value) {
+		self.projectedValue = wrappedValue
+	}
+	public init(_ parent: Table.Type, onDelete: DeleteAction, onUpdate: UpdateAction) {
+		
+	}
+	public init(from decoder: Decoder) throws {
+		projectedValue = try decoder.singleValueContainer().decode(Value.self)
+	}
+	public func encode(to encoder: Encoder) throws {
+		var c = encoder.singleValueContainer()
+		try c.encode(projectedValue!)
+	}
+	static func foreignTableStructure() throws -> TableStructure {
+		return try Table.CRUDTableStructure()
+	}
+}
+
+private var tableStructureCache: [String:TableStructure] = [:]
+
 extension Decodable {
-	static func CRUDTableStructure(policy: TableCreatePolicy, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+	static func CRUDTableStructure(primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let columnDecoder = CRUDColumnNameDecoder()
 		columnDecoder.tableNamePath.append("\(Self.CRUDTableName)")
 		_ = try Self.init(from: columnDecoder)
-		return try CRUDTableStructure(policy: policy, columnDecoder: columnDecoder, primaryKey: primaryKey)
+		return try CRUDTableStructure(columnDecoder: columnDecoder, primaryKey: primaryKey)
 	}
-	static func CRUDTableStructure(policy: TableCreatePolicy, columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+	static func CRUDTableStructure(columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+		let cacheKey = "\(type(of: Self.self))"
+		if let cached = tableStructureCache[cacheKey] {
+			return cached
+		}
 		let primaryKeyName: String?
 		if let pkpk = primaryKey {
 			let pathDecoder = CRUDKeyPathsDecoder()
@@ -52,33 +165,39 @@ extension Decodable {
 				throw CRUDSQLGenError("Could not get column name for primary key \(Self.self).")
 			}
 			primaryKeyName = pkn
+		} else if let key = columnDecoder.collectedKeys.filter({$0.type is PrimaryKeyWrapper.Type }).first {
+			primaryKeyName = key.name
 		} else if columnDecoder.collectedKeys.map({$0.0}).contains("id") {
 			primaryKeyName = "id"
 		} else {
 			primaryKeyName = nil
 		}
-		let subTables: [TableStructure]
-		if !policy.contains(.shallow) {
-			subTables = try columnDecoder.subTables.map {
-				try CRUDTableStructure(policy: policy, columnDecoder: $0.2)
-			}
-		} else {
-			subTables = []
-		}
 		let tableStruct = TableStructure(
 			tableName: columnDecoder.tableNamePath.last!,
-			primaryKeyName: primaryKeyName,
 			columns: columnDecoder.collectedKeys.map {
-				let props: TableStructure.Column.Property
+				var props: [TableStructure.Column.Property] = []
 				if $0.0 == primaryKeyName {
-					props = .primaryKey
-				} else {
-					props = []
+					props.append(.primaryKey)
 				}
-				return .init(name: $0.name, type: $0.type, optional: $0.optional, properties: props)
+				if let foreignWrapper = $0.type as? ForeignKeyWrapper.Type,
+					let foreignInfo = try? foreignWrapper.foreignTableStructure(),
+					let foreignPK = foreignInfo.columns.first(where: { $0.properties.contains(.primaryKey) }) {
+					props.append(.foreignKey(foreignInfo.tableName, foreignPK.name, foreignWrapper.foreignKeyDeleteAction(), foreignWrapper.foreignKeyUpdateAction()))
+				}
+				let itype: Any.Type
+				if let wrapper = $0.type as? WrappedValueTypeProvider.Type {
+					itype = wrapper.wrappedValueType()
+				} else {
+					itype = $0.type
+				}
+				return .init(name: $0.name, type: itype, optional: $0.optional, properties: props)
 			},
-			subTables: subTables,
+			subTables: [],
 			indexes: [])
+		tableStructureCache[cacheKey] = tableStruct
+		tableStruct.subTables = try columnDecoder.subTables.map {
+			try CRUDTableStructure(columnDecoder: $0.2)
+		}
 		return tableStruct
 	}
 }
@@ -91,7 +210,7 @@ public struct Create<OAF: Codable, D: DatabaseProtocol> {
 	init(fromDatabase ft: D, primaryKey: PartialKeyPath<OAF>?, policy p: TableCreatePolicy) throws {
 		fromDatabase = ft
 		policy = p
-		tableStructure = try OverAllForm.CRUDTableStructure(policy: policy, primaryKey: primaryKey)
+		tableStructure = try OverAllForm.CRUDTableStructure(primaryKey: primaryKey)
 		let delegate = fromDatabase.configuration.sqlGenDelegate
 		let sql = try delegate.getCreateTableSQL(forTable: tableStructure, policy: policy)
 		for stat in sql {

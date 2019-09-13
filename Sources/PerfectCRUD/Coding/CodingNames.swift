@@ -141,7 +141,7 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				parent.addSubTable(key.stringValue, type: subType, decoder: sub)
 			}
 			return ret
-		} else if let _ = ret as? Codable { //...
+		} else if ret is Codable { //...
 			appendKey(key, type(of: ret))
 			return ret
 		}
@@ -246,8 +246,26 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 		advance(type)
 		return ""
 	}
-	func decode<T: Decodable>(_ type: T.Type) throws -> T {
-		advance(type)
+	func decode<T: Decodable>(_ t: T.Type) throws -> T {
+		advance(t)
+		if let special = SpecialType(t) {
+			switch special {
+			case .uint8Array:
+				return [UInt8]() as! T
+			case .int8Array:
+				return [Int8]() as! T
+			case .data:
+				return Data() as! T
+			case .uuid:
+				return UUID() as! T
+			case .date:
+				return Date() as! T
+			case .url:
+				return URL(string: "http://localhost")! as! T
+			case .codable:
+				()
+			}
+		}
 		return try T(from: parent)
 	}
 	func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> {
