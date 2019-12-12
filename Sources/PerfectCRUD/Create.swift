@@ -53,15 +53,16 @@ public class TableStructure {
 	}
 }
 
-protocol WrappedValueTypeProvider {
-	static func wrappedValueType() -> Codable.Type
+public protocol WrappedCodableProvider: Codable {
+	static func provideWrappedValueType() -> Codable.Type
+	func provideWrappedValue() -> Codable
 }
 
-protocol PrimaryKeyWrapper: WrappedValueTypeProvider {}
+protocol PrimaryKeyWrapper: WrappedCodableProvider {}
 
 @propertyWrapper
 public struct PrimaryKey<Value: Codable>: PrimaryKeyWrapper, Codable {
-	static func wrappedValueType() -> Codable.Type { Value.self }
+	public static func provideWrappedValueType() -> Codable.Type { Value.self }
 	public var wrappedValue: Value
 	public var projectedValue: Value { wrappedValue }
 	public init(wrappedValue: Value) {
@@ -73,6 +74,9 @@ public struct PrimaryKey<Value: Codable>: PrimaryKeyWrapper, Codable {
 	public func encode(to encoder: Encoder) throws {
 		var c = encoder.singleValueContainer()
 		try c.encode(wrappedValue)
+	}
+	public func provideWrappedValue() -> Codable {
+		return wrappedValue
 	}
 }
 
@@ -105,9 +109,12 @@ public struct ForeignKeyActionCascade: ForeignKeyActionProvider {
 }
 
 public let ignore = ForeignKeyActionIgnore()
+public let restrict = ForeignKeyActionRestrict()
+public let setNull = ForeignKeyActionSetNull()
+public let setDefault = ForeignKeyActionSetDefault()
 public let cascade = ForeignKeyActionCascade()
 
-protocol ForeignKeyWrapper: WrappedValueTypeProvider {
+protocol ForeignKeyWrapper: WrappedCodableProvider {
 	static func foreignTableStructure() throws -> TableStructure
 	static func foreignKeyDeleteAction() -> ForeignKeyAction
 	static func foreignKeyUpdateAction() -> ForeignKeyAction
@@ -115,9 +122,12 @@ protocol ForeignKeyWrapper: WrappedValueTypeProvider {
 
 @propertyWrapper
 public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider, UpdateAction: ForeignKeyActionProvider, Value: Codable>: ForeignKeyWrapper, Codable {
-	static func wrappedValueType() -> Codable.Type { Value.self }
+	public static func provideWrappedValueType() -> Codable.Type { Value.self }
 	static func foreignKeyDeleteAction() -> ForeignKeyAction { DeleteAction.action }
 	static func foreignKeyUpdateAction() -> ForeignKeyAction { UpdateAction.action }
+	static func foreignTableStructure() throws -> TableStructure {
+		return try Table.CRUDTableStructure()
+	}
 	
 	public var wrappedValue: Value {
 		get { projectedValue! }
@@ -138,12 +148,17 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 		var c = encoder.singleValueContainer()
 		try c.encode(projectedValue!)
 	}
-	static func foreignTableStructure() throws -> TableStructure {
-		return try Table.CRUDTableStructure()
+	public func provideWrappedValue() -> Codable {
+		return wrappedValue
 	}
 }
 
 private var tableStructureCache: [String:TableStructure] = [:]
+
+// for tests
+public func CRUDClearTableStructureCache() {
+	tableStructureCache.removeAll()
+}
 
 extension Decodable {
 	static func CRUDTableStructure(primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
@@ -172,8 +187,9 @@ extension Decodable {
 		} else {
 			primaryKeyName = nil
 		}
+		let thisTableName = columnDecoder.tableNamePath.last!
 		let tableStruct = TableStructure(
-			tableName: columnDecoder.tableNamePath.last!,
+			tableName: thisTableName,
 			columns: columnDecoder.collectedKeys.map {
 				var props: [TableStructure.Column.Property] = []
 				if $0.0 == primaryKeyName {
@@ -185,8 +201,8 @@ extension Decodable {
 					props.append(.foreignKey(foreignInfo.tableName, foreignPK.name, foreignWrapper.foreignKeyDeleteAction(), foreignWrapper.foreignKeyUpdateAction()))
 				}
 				let itype: Any.Type
-				if let wrapper = $0.type as? WrappedValueTypeProvider.Type {
-					itype = wrapper.wrappedValueType()
+				if let wrapper = $0.type as? WrappedCodableProvider.Type {
+					itype = wrapper.provideWrappedValueType()
 				} else {
 					itype = $0.type
 				}
@@ -195,8 +211,8 @@ extension Decodable {
 			subTables: [],
 			indexes: [])
 		tableStructureCache[cacheKey] = tableStruct
-		tableStruct.subTables = try columnDecoder.subTables.map {
-			try CRUDTableStructure(columnDecoder: $0.2)
+		tableStruct.subTables = try columnDecoder.subTables.filter { !$0.matches(Self.self) }.map {
+			return try $0.tableStructure()
 		}
 		return tableStruct
 	}
