@@ -102,6 +102,36 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 			if let str = String(data: data, encoding: .utf8) {
 				try addBinding(key, value: .string(str))
 			}
+		case .wrapped:
+			guard let wrapped = value as? WrappedCodableProvider else {
+				throw CRUDEncoderError("Unsupported encoding type: wrapped(\(value)) for key: \(key.stringValue)")
+			}
+			let wrappedValue = wrapped.provideWrappedValue()
+			switch wrappedValue {
+			case let m as Bool: try encode(m, forKey: key)
+			case let m as Int: try encode(m, forKey: key)
+			case let m as Int8: try encode(m, forKey: key)
+			case let m as Int16: try encode(m, forKey: key)
+			case let m as Int32: try encode(m, forKey: key)
+			case let m as Int64: try encode(m, forKey: key)
+			case let m as UInt: try encode(m, forKey: key)
+			case let m as UInt8: try encode(m, forKey: key)
+			case let m as UInt16: try encode(m, forKey: key)
+			case let m as UInt32: try encode(m, forKey: key)
+			case let m as UInt64: try encode(m, forKey: key)
+			case let m as Float: try encode(m, forKey: key)
+			case let m as Double: try encode(m, forKey: key)
+			case let m as String: try encode(m, forKey: key)
+			case let m as [UInt8]: try encode(m, forKey: key)
+			case let m as [Int8]: try encode(m, forKey: key)
+			case let m as Data: try encode(m, forKey: key)
+			case let m as UUID: try encode(m, forKey: key)
+			case let m as Date: try encode(m, forKey: key)
+			case let m as URL: try encode(m, forKey: key)
+			default:
+				throw CRUDEncoderError("Unsupported encoding type: wrapped(\(wrappedValue)) for key: \(key.stringValue)")
+			}
+			
 		}
 	}
 	func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: K) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {

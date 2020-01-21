@@ -46,10 +46,12 @@ public struct ColumnKey : CodingKey {
 	}
 }
 
-public enum SpecialType {
-	case uint8Array, int8Array, data, uuid, date, codable, url
+public indirect enum SpecialType {
+	case uint8Array, int8Array, data, uuid, date, codable, url, wrapped
 	public init?(_ type: Any.Type) {
 		switch type {
+		case is WrappedCodableProvider.Type:
+			self = .wrapped
 		case is [Int8].Type:
 			self = .int8Array
 		case is [UInt8].Type:

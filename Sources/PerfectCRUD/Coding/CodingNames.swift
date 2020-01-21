@@ -125,6 +125,29 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				return URL(string: "http://localhost")! as! T
 			case .codable:
 				()
+			case .wrapped:
+				guard let wrapped = t as? WrappedCodableProvider.Type else {
+					throw CRUDEncoderError("Unsupported decoding type: \(t) for key: \(key.stringValue)")
+				}
+				let wrappedValueType = wrapped.provideWrappedValueType()
+//				switch wrappedValueType {
+//				case let m as Bool.Type: return try decode(m, forKey: key)
+//				case let m as Int.Type: return try decode(m, forKey: key)
+//				case let m as Int8.Type: return try decode(m, forKey: key)
+//				case let m as Int16.Type: return try decode(m, forKey: key)
+//				case let m as Int32.Type: return try decode(m, forKey: key)
+//				case let m as Int64.Type: return try decode(m, forKey: key)
+//				case let m as UInt.Type: return try decode(m, forKey: key)
+//				case let m as UInt8.Type: return try decode(m, forKey: key)
+//				case let m as UInt16.Type: return try decode(m, forKey: key)
+//				case let m as UInt32.Type: return try decode(m, forKey: key)
+//				case let m as UInt64.Type: return try decode(m, forKey: key)
+//				case let m as Float.Type: return try decode(m, forKey: key)
+//				case let m as Double.Type: return try decode(m, forKey: key)
+//				case let m as String.Type: return try decode(m, forKey: key)
+//				default:
+//					throw CRUDEncoderError("Unsupported decoding type: wrapped(\(wrappedValueType)) for key: \(key.stringValue)")
+//				}
 			}
 		}
 		return try decodeInner(t, forKey: key)
@@ -138,10 +161,13 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				let subType = type(of: ar[0])
 				sub.codingPath.append(key)
 				sub.tableNamePath.append(subType.CRUDTableName)
-				parent.addSubTable(key.stringValue, type: subType, decoder: sub)
+				ar[0].addSubTable(to: parent, name: key.stringValue, decoder: sub)
 			}
 			return ret
-		} else if let _ = ret as? Codable { //...
+//		} else if ret is WrappedValueTypeProvider {
+//			appendKey(key, type(of: ret as! WrappedValueTypeProvider).wrappedValueType())
+//			return ret
+		} else if ret is Codable { //...
 			appendKey(key, type(of: ret))
 			return ret
 		}
@@ -246,8 +272,26 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 		advance(type)
 		return ""
 	}
-	func decode<T: Decodable>(_ type: T.Type) throws -> T {
-		advance(type)
+	func decode<T: Decodable>(_ t: T.Type) throws -> T {
+		advance(t)
+		if let special = SpecialType(t) {
+			switch special {
+			case .uint8Array:
+				return [UInt8]() as! T
+			case .int8Array:
+				return [Int8]() as! T
+			case .data:
+				return Data() as! T
+			case .uuid:
+				return UUID() as! T
+			case .date:
+				return Date() as! T
+			case .url:
+				return URL(string: "http://localhost")! as! T
+			case .codable, .wrapped:
+				()
+			}
+		}
 		return try T(from: parent)
 	}
 	func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> {
@@ -262,20 +306,61 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 	}
 }
 
+protocol SubTableProto {
+	var name: String { get }
+//	var type: Decodable.Type { get }
+//	var decoder: CRUDColumnNameDecoder { get }
+	func tableStructure() throws -> TableStructure
+	func matches<T: Decodable>(_ type: T.Type) -> Bool
+}
+
+struct SubTable<T: Decodable, R: Decodable>: SubTableProto {
+	let name: String
+	let type: T.Type
+	let decoder: CRUDColumnNameDecoder
+	let realType: R.Type
+	func tableStructure() throws -> TableStructure {
+		return try type.self.CRUDTableStructure(columnDecoder: decoder)
+	}
+	func matches<T: Decodable>(_ type: T.Type) -> Bool {
+		return self.type == type
+	}
+}
+
+extension Decodable where Self: Encodable {
+	// !FIX! causing ciompiler crash
+	func makeSubTable(name: String, decoder: CRUDColumnNameDecoder) -> some SubTableProto {
+		return SubTable(name: name, type: Self.self, decoder: decoder, realType: Self.self)
+	}
+	
+	func addSubTable(to: CRUDColumnNameDecoder, name: String, decoder: CRUDColumnNameDecoder) {
+		to.addSubTable(SubTable(name: name, type: Self.self, decoder: decoder, realType: Self.self))
+	}
+}
+
 public class CRUDColumnNameDecoder: Decoder {
 	public var codingPath: [CodingKey] = []
 	public var userInfo: [CodingUserInfoKey : Any] = [:]
 	
 	var tableNamePath: [String] = []
 	public var collectedKeys: [(name: String, optional: Bool, type: Any.Type)] = []
-	var subTables: [(name: String, type: Any.Type, decoder: CRUDColumnNameDecoder)] = []
+	var subTables: [SubTableProto] = []
 	var pendingReader: CRUDColumnNameUnkeyedReader?
 	let depth: Int
 	public init(depth d: Int = 0) {
 		depth = d
 	}
-	func addSubTable(_ name: String, type: Any.Type, decoder: CRUDColumnNameDecoder) {
-		subTables.append((name, type, decoder))
+	func addSubTable<T: Codable>(_ name: String, type: T.Type, decoder: CRUDColumnNameDecoder) {
+		guard subTables.filter({ $0.name == name }).count == 0 else {
+			return
+		}
+		subTables.append(SubTable(name: name, type: type, decoder: decoder, realType: type))
+	}
+	func addSubTable<T: SubTableProto>(_ sub: T) {
+		guard subTables.filter({ $0.name == sub.name }).count == 0 else {
+			return
+		}
+		subTables.append(sub)
 	}
 	
 	public func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {

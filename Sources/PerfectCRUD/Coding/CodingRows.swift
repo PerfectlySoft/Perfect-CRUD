@@ -41,6 +41,93 @@ public class CRUDRowDecoder<K: CodingKey>: Decoder {
 	}
 }
 
+public class CRUDColumnValueDecoder<K: CodingKey>: Decoder, SingleValueDecodingContainer {
+
+	public typealias Key = K
+	public var codingPath: [CodingKey] = []
+	public var userInfo: [CodingUserInfoKey:Any] = [:]
+	var key: Key { codingPath.first! as! Key }
+	let source: KeyedDecodingContainer<Key>
+	public init(source: KeyedDecodingContainer<Key>, key: K) {
+		self.source = source
+		codingPath = [key]
+	}
+	public func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
+		throw CRUDDecoderError("Unimplemented container")
+	}
+	public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+		throw CRUDDecoderError("Unimplemented")
+	}
+	public func singleValueContainer() throws -> SingleValueDecodingContainer {
+		return self//throw CRUDDecoderError("Unimplemented singleValueContainer")
+	}
+	
+	public func decodeNil() -> Bool {
+		return (try? source.decodeNil(forKey: key)) ?? false
+	}
+	
+	public func decode(_ type: Bool.Type) throws -> Bool {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: String.Type) throws -> String {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Double.Type) throws -> Double {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Float.Type) throws -> Float {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Int.Type) throws -> Int {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Int8.Type) throws -> Int8 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Int16.Type) throws -> Int16 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Int32.Type) throws -> Int32 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: Int64.Type) throws -> Int64 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: UInt.Type) throws -> UInt {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: UInt8.Type) throws -> UInt8 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: UInt16.Type) throws -> UInt16 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: UInt32.Type) throws -> UInt32 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode(_ type: UInt64.Type) throws -> UInt64 {
+		return try source.decode(type, forKey: key)
+	}
+	
+	public func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
+		return try source.decode(type, forKey: key)
+	}
+	
+}
+
 struct PivotKey<T: Codable>: Codable {
 	let _crud_pivot_id_: T
 }
