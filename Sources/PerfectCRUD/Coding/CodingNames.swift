@@ -126,10 +126,11 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case .codable:
 				()
 			case .wrapped:
-				guard let wrapped = t as? WrappedCodableProvider.Type else {
-					throw CRUDEncoderError("Unsupported decoding type: \(t) for key: \(key.stringValue)")
-				}
-				let wrappedValueType = wrapped.provideWrappedValueType()
+				()
+//				guard let wrapped = t as? WrappedCodableProvider.Type else {
+//					throw CRUDEncoderError("Unsupported decoding type: \(t) for key: \(key.stringValue)")
+//				}
+//				let wrappedValueType = wrapped.provideWrappedValueType()
 //				switch wrappedValueType {
 //				case let m as Bool.Type: return try decode(m, forKey: key)
 //				case let m as Int.Type: return try decode(m, forKey: key)

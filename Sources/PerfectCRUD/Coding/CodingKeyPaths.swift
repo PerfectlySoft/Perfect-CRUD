@@ -240,7 +240,6 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 			parent.subTypeMap.append((wrappedKey.stringValue, type, decoder))
 			return decoded
 		}
-//		return try T(from: parent)
 	}
 	
 	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
