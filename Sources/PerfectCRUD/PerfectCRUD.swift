@@ -53,6 +53,7 @@ public protocol SQLExeDelegate {
 	func bind(_ bindings: Bindings, skip: Int) throws
 	func hasNext() throws -> Bool
 	func next<A: CodingKey>() throws -> KeyedDecodingContainer<A>?
+	func asyncExecute(completion: @escaping (SQLExeDelegate) -> ())
 }
 
 public protocol DatabaseConfigurationProtocol {
@@ -252,6 +253,10 @@ struct PivotContainer {
 }
 
 struct SQLTopExeDelegate: SQLExeDelegate {
+	func asyncExecute(completion: @escaping (SQLExeDelegate) -> ()) {
+		// place holder
+	}
+
 	let genState: SQLGenState
 	let master: (table: SQLGenState.TableData, delegate: SQLExeDelegate)
 	let subObjects: [String:(onKeyName: String, onKey: AnyKeyPath, equalsKey: AnyKeyPath, objects: [Any])]
