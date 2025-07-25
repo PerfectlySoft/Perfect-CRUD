@@ -311,7 +311,7 @@ try table.index(\.lastName)
 try table.index(unique: true, \.firstName, \.lastName)
 ```
 
-Indexes can be created for individual columns, or for columns as a group. If multiple columns are frequenty used together in queries, then it can often improve performance by adding indexes including those columns.
+Indexes can be created for individual columns, or for columns as a group. If multiple columns are frequently used together in queries, then it can often improve performance by adding indexes including those columns.
 
 By including the `unique: true` parameter, a unique index will be created, meaning that only one row can contain any possible column value. This can be applied to multiple columns, as seen in the example above. Consult your specific database's documentation for the exact behaviours of database indexes.
 
