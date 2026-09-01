@@ -35,11 +35,11 @@ public struct CRUDSQLExeError: Error, CustomStringConvertible {
 	}
 }
 
-public enum CRUDLogDestination {
+public enum CRUDLogDestination: Sendable {
 	case none
 	case console
 	case file(String)
-	case custom((CRUDLogEvent) -> ())
+	case custom(@Sendable (CRUDLogEvent) -> ())
 	
 	func handleEvent(_ event: CRUDLogEvent) {
 		switch self {
@@ -66,7 +66,7 @@ public enum CRUDLogDestination {
 	}
 }
 
-public enum CRUDLogEventType: CustomStringConvertible {
+public enum CRUDLogEventType: CustomStringConvertible, Sendable {
 	case info, warning, error, query
 	public var description: String {
 		switch self {
@@ -82,7 +82,7 @@ public enum CRUDLogEventType: CustomStringConvertible {
 	}
 }
 
-public struct CRUDLogEvent: CustomStringConvertible {
+public struct CRUDLogEvent: CustomStringConvertible, Sendable {
 	public let time: Date
 	public let type: CRUDLogEventType
 	public let msg: String
@@ -94,10 +94,10 @@ public struct CRUDLogEvent: CustomStringConvertible {
 }
 
 public struct CRUDLogging {
-	private static var _queryLogDestinations: [CRUDLogDestination] = [.console]
-	private static var _errorLogDestinations: [CRUDLogDestination] = [.console]
-	private static var pendingEvents: [CRUDLogEvent] = []
-	private static var loggingQueue: DispatchQueue = {
+	nonisolated(unsafe) private static var _queryLogDestinations: [CRUDLogDestination] = [.console]
+	nonisolated(unsafe) private static var _errorLogDestinations: [CRUDLogDestination] = [.console]
+	nonisolated(unsafe) private static var pendingEvents: [CRUDLogEvent] = []
+	nonisolated(unsafe) private static var loggingQueue: DispatchQueue = {
 		let q = DispatchQueue(label: "CRUDLoggingQueue", qos: .background)
 		scheduleLogCheck(q)
 		return q
@@ -124,7 +124,7 @@ public struct CRUDLogging {
 		}
 	}
 	private static func scheduleLogCheck(_ queue: DispatchQueue) {
-		queue.asyncAfter(deadline: .now() + 0.5, execute: logCheckReschedulingInSerialQueue)
+		queue.asyncAfter(deadline: .now() + 0.5, execute: { logCheckReschedulingInSerialQueue() })
 	}
 }
 

@@ -18,7 +18,15 @@
 //
 import Foundation
 
-public indirect enum CRUDExpression {
+// `@unchecked`: the `.lazy` case below holds a plain, non-`@Sendable`
+// closure, so this can't be proven Sendable structurally. In practice these
+// closures are simple, side-effect-free sub-expression builders captured at
+// query-construction time, not shared mutable state -- the same trust level
+// this codebase already extends to numerous `@unchecked Sendable` connector
+// types. Needed directly here (not just on the query-builder types that
+// wrap it) because `Bindings` (`[(String, CRUDExpression)]`) is captured
+// as a plain parameter by Phase 2's async `Database.sql(_:bindings:)`.
+public indirect enum CRUDExpression: @unchecked Sendable {
 	public typealias ExpressionProducer = () -> CRUDExpression
 	
 	case column(String)

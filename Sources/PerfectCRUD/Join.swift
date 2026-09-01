@@ -95,6 +95,12 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 	}
 }
 
+// `@unchecked`: the other stored properties are all KeyPaths, which turn out
+// not to be unconditionally Sendable in the standard library despite being
+// inert, capture-free path descriptors -- safe to share across threads in
+// practice, just not provably so to the compiler.
+extension Join: @unchecked Sendable where A: Sendable {}
+
 public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codable, With: Codable, PivotCompType: Equatable, PivotCompType2: Equatable>: TableProtocol, FromTableProtocol, Joinable, Selectable, Whereable, Orderable, Limitable {
 	public typealias Form = MyForm
 	public typealias FromTableType = MasterTable
@@ -203,3 +209,6 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 		}
 	}
 }
+
+// See Join's conformance above for why this is @unchecked.
+extension JoinPivot: @unchecked Sendable where MasterTable: Sendable {}

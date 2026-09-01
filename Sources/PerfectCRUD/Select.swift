@@ -88,6 +88,10 @@ public struct Ordering<OAF: Codable, A: TableProtocol>: TableProtocol, FromTable
 	}
 }
 
+// `@unchecked`: `keys: [PartialKeyPath<A.Form>]` -- see Join's conformance
+// (Join.swift) for why KeyPath types need `@unchecked` here.
+extension Ordering: @unchecked Sendable where A: Sendable {}
+
 public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTableProtocol, Joinable, Selectable, Whereable, Orderable {
 	public typealias Form = A.Form
 	public typealias FromTableType = A
@@ -103,4 +107,7 @@ public struct Limit<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 		try fromTable.setSQL(state: &state)
 	}
 }
+
+// Stored properties beyond `fromTable: A` are plain Ints -- no `@unchecked` needed.
+extension Limit: Sendable where A: Sendable {}
 

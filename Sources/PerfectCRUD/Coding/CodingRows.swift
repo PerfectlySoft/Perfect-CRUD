@@ -122,10 +122,45 @@ public class CRUDColumnValueDecoder<K: CodingKey>: Decoder, SingleValueDecodingC
 		return try source.decode(type, forKey: key)
 	}
 	
+	// Routes standard primitives back through this class's own dedicated
+	// decode(_:) overloads instead of forwarding `type` straight through as
+	// a generic parameter. Forwarding it generically means `source.decode`
+	// (KeyedDecodingContainer<Key>'s own generic forwarder) calls the
+	// underlying row reader's generic decode<T: Decodable>(_:forKey:)
+	// witness -- which every connector implements as a SpecialType-only
+	// fallback that throws for plain Int/String/etc, since those normally
+	// never reach it (ordinary Codable-synthesized code calls a connector's
+	// dedicated decode(_:Int.Type,forKey:) directly, at a call site where
+	// the concrete type is statically known, not through two layers of
+	// generic indirection the way a property wrapper's own generic
+	// init(from:) does). Found live (ADR-0001 Phase 4): a real
+	// @ForeignKey<..., Int> column encoded fine but any subsequent SELECT
+	// threw "Unsupported type: Int," silently swallowed by
+	// SelectIterator.next() into what looked like a missing row.
 	public func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
-		return try source.decode(type, forKey: key)
+		switch type {
+		case is Bool.Type: return try decode(Bool.self) as! T
+		case is String.Type: return try decode(String.self) as! T
+		case is Double.Type: return try decode(Double.self) as! T
+		case is Float.Type: return try decode(Float.self) as! T
+		case is Int.Type: return try decode(Int.self) as! T
+		case is Int8.Type: return try decode(Int8.self) as! T
+		case is Int16.Type: return try decode(Int16.self) as! T
+		case is Int32.Type: return try decode(Int32.self) as! T
+		case is Int64.Type: return try decode(Int64.self) as! T
+		case is UInt.Type: return try decode(UInt.self) as! T
+		case is UInt8.Type: return try decode(UInt8.self) as! T
+		case is UInt16.Type: return try decode(UInt16.self) as! T
+		case is UInt32.Type: return try decode(UInt32.self) as! T
+		case is UInt64.Type: return try decode(UInt64.self) as! T
+		default:
+			// Genuinely special types (Date, UUID, Data, URL, nested
+			// Codable, another layer of wrapping) fall through to the
+			// underlying row reader's own SpecialType handling, unchanged.
+			return try source.decode(type, forKey: key)
+		}
 	}
-	
+
 }
 
 struct PivotKey<T: Codable>: Codable {

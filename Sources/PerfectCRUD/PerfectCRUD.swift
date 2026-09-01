@@ -41,6 +41,15 @@ public protocol SQLGenDelegate {
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String]
 	func getCreateIndexSQL(forTable name: String, on columns: [String], unique: Bool) throws -> [String]
 	func getEmptyInsertSnippet() -> String // usually DEFAULT VALUES vs. VALUES ()
+	// Declared here (not just as an extension) so a conformer's own override
+	// is actually reached through the `any SQLGenDelegate` existential that
+	// `Database`/`Table`/etc. hold -- an extension-only method with no
+	// protocol requirement is statically dispatched to the default
+	// implementation below, silently ignoring any conformer's override.
+	// (Found by a failing test, not by inspection: an isolation-level test
+	// against a stub that overrides this method got the default `nil`
+	// every time, until this requirement was added.)
+	func setIsolationLevelSQL(_ level: TransactionIsolationLevel) -> String?
 }
 
 public extension SQLGenDelegate {
@@ -49,10 +58,41 @@ public extension SQLGenDelegate {
 	}
 }
 
+/// Transaction isolation levels, understood by `Database.transaction(isolation:_:)`.
+/// Connector-specific: `SQLGenDelegate.setIsolationLevelSQL(_:)` defaults to `nil`
+/// (no-op) for connectors that don't implement it -- setting an isolation level
+/// is opt-in per connector, not a breaking requirement.
+public enum TransactionIsolationLevel: Sendable, Equatable {
+	case readUncommitted, readCommitted, repeatableRead, serializable
+}
+
+public extension SQLGenDelegate {
+	/// SQL to set the isolation level for the transaction about to begin, or
+	/// `nil` if this connector doesn't support/implement isolation-level
+	/// control (the default -- SQLite has no equivalent concept, for example).
+	func setIsolationLevelSQL(_ level: TransactionIsolationLevel) -> String? { nil }
+}
+
 public protocol SQLExeDelegate {
 	func bind(_ bindings: Bindings, skip: Int) throws
 	func hasNext() throws -> Bool
 	func next<A: CodingKey>() throws -> KeyedDecodingContainer<A>?
+	func nextDynamicRow() throws -> DynamicRow?
+	/// Rows affected by the most recently executed non-SELECT statement.
+	/// Not every connector can report this — default 0.
+	func affectedRowCount() -> Int
+	/// The connector-reported auto-generated primary key from the most
+	/// recently executed INSERT, if the connector/table support one.
+	/// Default nil.
+	func lastInsertedID() -> Int64?
+}
+
+public extension SQLExeDelegate {
+	func nextDynamicRow() throws -> DynamicRow? {
+		throw CRUDSQLExeError("Dynamic rows are not supported by this connector.")
+	}
+	func affectedRowCount() -> Int { 0 }
+	func lastInsertedID() -> Int64? { nil }
 }
 
 public protocol DatabaseConfigurationProtocol {

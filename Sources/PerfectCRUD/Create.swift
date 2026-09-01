@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct TableCreatePolicy: OptionSet {
+public struct TableCreatePolicy: OptionSet, Sendable {
 	public let rawValue: Int
 	public init(rawValue r: Int) { rawValue = r }
 	public static let shallow = TableCreatePolicy(rawValue: 1)
@@ -80,7 +80,7 @@ public struct PrimaryKey<Value: Codable>: PrimaryKeyWrapper, Codable {
 	}
 }
 
-public enum ForeignKeyAction {
+public enum ForeignKeyAction: Sendable {
 	case ignore, restrict, setNull, setDefault, cascade
 }
 
@@ -88,24 +88,24 @@ public protocol ForeignKeyActionProvider {
 	static var action: ForeignKeyAction { get }
 }
 
-public struct ForeignKeyActionIgnore: ForeignKeyActionProvider {
-	static public var action = ForeignKeyAction.ignore
+public struct ForeignKeyActionIgnore: ForeignKeyActionProvider, Sendable {
+	static public let action = ForeignKeyAction.ignore
 }
 
-public struct ForeignKeyActionRestrict: ForeignKeyActionProvider {
-	static public var action = ForeignKeyAction.restrict
+public struct ForeignKeyActionRestrict: ForeignKeyActionProvider, Sendable {
+	static public let action = ForeignKeyAction.restrict
 }
 
-public struct ForeignKeyActionSetNull: ForeignKeyActionProvider {
-	static public var action = ForeignKeyAction.setNull
+public struct ForeignKeyActionSetNull: ForeignKeyActionProvider, Sendable {
+	static public let action = ForeignKeyAction.setNull
 }
 
-public struct ForeignKeyActionSetDefault: ForeignKeyActionProvider {
-	static public var action = ForeignKeyAction.setDefault
+public struct ForeignKeyActionSetDefault: ForeignKeyActionProvider, Sendable {
+	static public let action = ForeignKeyAction.setDefault
 }
 
-public struct ForeignKeyActionCascade: ForeignKeyActionProvider {
-	static public var action = ForeignKeyAction.cascade
+public struct ForeignKeyActionCascade: ForeignKeyActionProvider, Sendable {
+	static public let action = ForeignKeyAction.cascade
 }
 
 public let ignore = ForeignKeyActionIgnore()
@@ -153,22 +153,37 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 	}
 }
 
-private var tableStructureCache: [String:TableStructure] = [:]
+// Guards all access to `tableStructureCache`, including the full compute-and-cache
+// sequence below, not just the individual dictionary reads/writes. `CRUDTableStructure`
+// recurses into itself on the same thread (via `ForeignKeyWrapper.foreignTableStructure()`
+// and `SubTable.tableStructure()`, for foreign-key references and nested sub-tables), so
+// a non-recursive lock held across that computation would deadlock the first time a model
+// has either. `NSRecursiveLock` permits that same-thread re-entry while still serializing
+// distinct threads across the entire sequence — which also prevents a second thread from
+// observing a `TableStructure` that's been published into the cache but not yet had its
+// `subTables` filled in (the original single-threaded code relies on that ordering to break
+// cycles for self-referential/mutually-referential models).
+private let tableStructureCacheLock = NSRecursiveLock()
+nonisolated(unsafe) private var tableStructureCache: [String:TableStructure] = [:]
 
 // for tests
 public func CRUDClearTableStructureCache() {
+	tableStructureCacheLock.lock()
+	defer { tableStructureCacheLock.unlock() }
 	tableStructureCache.removeAll()
 }
 
 extension Decodable {
-	static func CRUDTableStructure(primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+	public static func CRUDTableStructure(primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let columnDecoder = CRUDColumnNameDecoder()
 		columnDecoder.tableNamePath.append("\(Self.CRUDTableName)")
 		_ = try Self.init(from: columnDecoder)
 		return try CRUDTableStructure(columnDecoder: columnDecoder, primaryKey: primaryKey)
 	}
-	static func CRUDTableStructure(columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
+	public static func CRUDTableStructure(columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let cacheKey = "\(type(of: Self.self))"
+		tableStructureCacheLock.lock()
+		defer { tableStructureCacheLock.unlock() }
 		if let cached = tableStructureCache[cacheKey] {
 			return cached
 		}

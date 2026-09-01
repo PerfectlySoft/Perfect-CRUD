@@ -23,6 +23,10 @@ public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 	}
 }
 
+// CRUDExpression is `@unchecked Sendable` (Expression.swift); the only
+// property that genuinely varies per instantiation is `fromTable: A`.
+extension Where: Sendable where A: Sendable {}
+
 public extension Where where OverAllForm == FromTableType.Form {
 	@discardableResult
 	func delete() throws -> Delete<OverAllForm, Where> {

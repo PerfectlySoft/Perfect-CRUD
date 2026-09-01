@@ -104,3 +104,7 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 		}
 	}
 }
+
+// Only stored property is `database: C` -- Sendable whenever C is (needed to
+// cross the actor boundary in AsyncExecution.swift's async query methods).
+extension Table: Sendable where C: Sendable {}

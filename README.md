@@ -1,23 +1,47 @@
-# Perfect CRUD [简体中文](README.zh_CN.md)
+# Perfect CRUD
 
-CRUD is an object-relational mapping (ORM) system for Swift 4+. CRUD takes Swift 4 `Codable` types and maps them to SQL database tables. CRUD can create tables based on `Codable` types and perform inserts and updates of objects in those tables. CRUD can also perform selects and joins of tables, all in a type-safe manner.
+<p align="center">
+    <img src="https://img.shields.io/badge/Swift-6.2-orange.svg?style=flat" alt="Swift 6.2">
+    <img src="https://img.shields.io/badge/Platforms-macOS%2012%2B-lightgray.svg?style=flat" alt="Platforms macOS 12+">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg?style=flat" alt="License Apache 2.0"></a>
+</p>
 
-CRUD uses a simple, expressive, and type safe methodology for constructing queries as a series of operations. It is designed to be light-weight and has zero additional dependencies. It uses generics, KeyPaths and Codables to ensure as much misuse as possible is caught at compile time.
+CRUD is an object-relational mapping (ORM) system for Swift, built on Swift's `Codable` and KeyPath
+features. It maps `Codable` types to SQL tables, and can create tables, insert, update, select, and
+join, all in a type-safe manner — no additional dependencies, generics and KeyPaths catch misuse at
+compile time.
 
-Database client library packages can add CRUD support by implementing a few protocols. Support is available for [SQLite](https://github.com/PerfectlySoft/Perfect-SQLite), [Postgres](https://github.com/PerfectlySoft/Perfect-PostgreSQL), and [MySQL](https://github.com/PerfectlySoft/Perfect-MySQL).
+**This package has been modernized for Swift 6**: `Sendable` conformance throughout for strict
+concurrency, plus a new "Dynamic Select" runtime query API. It's foundational — [Perfect-MySQL](https://github.com/PerfectlySoft/Perfect-MySQL),
+[Perfect-MariaDB](https://github.com/PerfectlySoft/Perfect-MariaDB), [Perfect-PostgreSQL](https://github.com/PerfectlySoft/Perfect-PostgreSQL),
+[Perfect-SQLite](https://github.com/PerfectlySoft/Perfect-SQLite), [Perfect-NIO](https://github.com/PerfectlySoft/Perfect-NIO),
+and [PerfectTemplate](https://github.com/PerfectlySoft/PerfectTemplate) all depend on it directly.
 
-To use CRUD in your project simply include the database connector of your choice as a dependency in your Package.swift file. For example:
+The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
 
 ```swift
-// postgres
-.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", from: "3.2.0")
-// mysql
-.package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", from: "3.2.0")
-// sqlite
-.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", from: "3.1.0")
+dependencies: [
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main")
+],
+targets: [
+    .target(name: "MyTarget", dependencies: [
+        .product(name: "PerfectCRUD", package: "Perfect-CRUD")
+    ])
+]
 ```
 
-CRUD support is built directly into each of these database connector packages.
+Then build and test with the standard SwiftPM commands: `swift build`, `swift test`.
+
+To use CRUD with a specific database, add the connector of your choice:
+
+```swift
+.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", branch: "main")
+.package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", branch: "main")
+.package(url: "https://github.com/PerfectlySoft/Perfect-MariaDB.git", branch: "main")
+.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", branch: "main")
+```
+
+CRUD support is built directly into each connector package.
 
 # Contents
 * <a href="#general-usage">General Usage</a>
@@ -28,6 +52,10 @@ CRUD support is built directly into each of these database connector packages.
 			* <a href="#create-policy">Policy</a>
 		* <a href="#table">Table</a>
 		* <a href="#sql">SQL</a>
+		* <a href="#dynamic-select">Dynamic Select</a>
+		* <a href="#connection-pooling">Connection Pooling</a>
+		* <a href="#async-execution">Async Execution</a>
+		* <a href="#migrations">Migrations</a>
 	* <a href="#table-1">Table</a>
 		* <a href="#index">Index</a>
 	* <a href="#join">Join</a>
@@ -55,6 +83,7 @@ CRUD support is built directly into each of these database connector packages.
 	* <a href="#identity">Identity</a>
 * <a href="#error-handling">Error Handling</a>
 * <a href="#logging">Logging</a>
+* <a href="#license">License</a>
 
 <a name="general-usage"></a>
 ## General Usage
@@ -137,6 +166,8 @@ Activity in CRUD is accomplished by obtaining a database connection object and t
 
 Operations are grouped here according to the objects which implement them. Note that many of the type definitions shown below have been abbreviated for simplicity and some functions implemented in extensions have been moved in to keep things in a single block.
 
+Note: several usage examples below use `XCTAssertEqual`/`XCTFail`-style assertions purely for illustration. The package's own test target (`Tests/PerfectCRUDTests`) uses Swift Testing (`import Testing`, `@Test`), not XCTest — if you're copying an example into a test, adapt it to Swift Testing's `#expect`/`#require` macros rather than pasting it verbatim.
+
 <a name="database"></a>
 ### Database
 
@@ -163,9 +194,11 @@ public struct Database<C: DatabaseConfigurationProtocol>: DatabaseProtocol {
 	public init(configuration c: Configuration)
 	public func table<T: Codable>(_ form: T.Type) -> Table<T, Database<C>>
 	public func transaction<T>(_ body: () throws -> T) throws -> T
-	public func create<A: Codable>(_ type: A.Type, 
-		primaryKey: PartialKeyPath<A>? = nil, 
-		policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self>
+	public func create<A: Codable>(_ type: A.Type,
+		policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self>
+	public func create<A: Codable, V: Equatable>(_ type: A.Type,
+		primaryKey: KeyPath<A, V>? = nil,
+		policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self>
 }
 ```
 
@@ -207,11 +240,16 @@ The `create` operation is given a Codable type. It will create a table correspon
 ```swift
 public extension DatabaseProtocol {
 	func create<A: Codable>(
-		_ type: A.Type, 
-		primaryKey: PartialKeyPath<A>? = nil, 
-		policy: TableCreatePolicy = .defaultPolicy) throws -> Create<A, Self>
+		_ type: A.Type,
+		policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self>
+	func create<A: Codable, V: Equatable>(
+		_ type: A.Type,
+		primaryKey: KeyPath<A, V>? = nil,
+		policy: TableCreatePolicy = .defaultPolicy) throws -> Table<A, Self>
 }
 ```
+
+There are two overloads: one with no `primaryKey` parameter, and one generic over the primary key's value type `V` taking a typed `KeyPath<A, V>?`. Both return a `Table<A, Self>`, not a `Create` value — `Create` is used internally to build and execute the `CREATE TABLE` statement, but it is never the type a caller sees.
 
 Example usage:
 
@@ -261,6 +299,130 @@ Example Usage:
 ```swift
 try db.sql("SELECT * FROM mytable WHERE id = 2", TestTable1.self)
 ```
+
+<a name="dynamic-select"></a>
+#### Dynamic Select
+
+CRUD's primary API remains the type-safe `Codable`/KeyPath query builder. For
+runtime-driven use cases such as template engines, admin tools, query builders,
+and legacy adapters, CRUD also exposes a dynamic read API that keeps the same
+connector quoting, binding, logging, and execution machinery.
+
+```swift
+let result = try db.select(DynamicQuery(
+	table: "products",
+	fields: ["id", "sku", "name"],
+	predicates: [
+		DynamicPredicate(
+			field: "active",
+			comparison: .equal,
+			value: .int(1)
+		),
+		DynamicPredicate(
+			field: "name",
+			comparison: .contains,
+			value: .string("jacket")
+		),
+	],
+	orderings: [
+		DynamicOrdering(field: "name")
+	],
+	limit: 25
+))
+
+for row in result.rows {
+	print(row["sku"] ?? .null)
+}
+```
+
+The dynamic API is intentionally a sibling of the typed API, not a replacement
+for it. Runtime table and column names are still quoted through the active SQL
+generator, and runtime values are still bound instead of interpolated.
+
+Connectors support dynamic rows by implementing:
+
+```swift
+func nextDynamicRow() throws -> DynamicRow?
+```
+
+The default implementation throws, so connectors opt in explicitly.
+
+<a name="connection-pooling"></a>
+#### Connection Pooling
+
+`DatabaseConnectionPool<C>` maintains a pool of connections for a given `DatabaseConfigurationProtocol`, checked out for the duration of a unit of work and returned automatically afterward.
+
+```swift
+let pool = try DatabaseConnectionPool(
+    configuration: .init(minConnections: 1, maxConnections: 5),
+    makeConnection: { try MySQLDatabaseConfiguration(database: "mydb", host: "localhost") }
+)
+try await pool.prewarm() // optional: opens minConnections up front instead of on first use
+
+// Safe, high-level API: checks a connection out, runs body, always checks it back in
+// (even on throw or task cancellation).
+let people = try await pool.withConnection { db in
+    try db.table(Person.self).select().map { $0 }
+}
+```
+
+`withConnection(_:)`'s body closure must be `Sendable`, along with everything it captures and returns — if that's too restrictive for a particular call site (e.g. building a route handler where the surrounding value isn't `Sendable`), use the manual pairing instead:
+
+```swift
+let connection = try await pool.acquire()
+defer { Task { await pool.release(connection) } } // release in every exit path — see below
+let db = Database(configuration: connection)
+// ... use db ...
+```
+
+Nothing enforces that `release(_:)` is actually called exactly once with the connection that was acquired — `withConnection(_:)` is the safer default; only reach for manual acquire/release when a genuine `Sendable` constraint forces it (this is exactly why `PerfectNIOCRUD`'s `Routes.db(pool:)`/`.table(pool:)` route overloads use the manual pair internally instead of `withConnection`).
+
+<a name="async-execution"></a>
+#### Async Execution
+
+CRUD's synchronous API (`select()`, `insert()`, `sql()`, etc.) is still the primary surface, and connector work is always blocking under the hood — there is no async I/O in libmysqlclient/libpq/sqlite3. Calling it directly from inside an `async` function (a PerfectNIO route handler, for example) blocks whatever thread is running that task, which must never happen on Swift's cooperative thread pool.
+
+A parallel family of `Async`-suffixed methods routes that same blocking work through a dedicated executor instead:
+
+```swift
+try await db.sqlAsync("DELETE FROM sessions WHERE expires_at < NOW()")
+let user = try await table.firstAsync()
+try await table.insertAsync(newUser)
+try await table.updateAsync(updatedUser)
+try await table.deleteAsync()
+let all = try await table.fetchAll() // no sync equivalent to collide with, so no "Async" suffix
+try await db.transactionAsync { try /* ...synchronous CRUD calls... */ }
+```
+
+These are suffixed rather than plain overloads of the existing sync method names — an identically-named `async` overload anywhere in scope forces `await` at every call site even for a logically-unrelated sync call, which would have silently broken every existing synchronous call inside an already-`async` context. Reach for the `Async` versions specifically when you're calling CRUD from inside `async` code; the plain synchronous API is unchanged and still correct to use from a synchronous context (a CLI tool, a script, a background thread you already own).
+
+<a name="migrations"></a>
+#### Migrations
+
+`DatabaseMigrator<C>` is a versioned migration system layered on top of (not replacing) `TableCreatePolicy.reconcileTable` — an individual migration is free to call `db.create(_:policy: .reconcileTable)` for a simple additive column change, or drop to `db.sql("ALTER TABLE ...")` for anything `reconcileTable` can't express.
+
+```swift
+let migrator = DatabaseMigrator<MySQLDatabaseConfiguration>()
+
+try migrator.register("2026_07_create_posts", up: { db in
+    try db.create(Post.self, policy: .shallow)
+}, down: { db in
+    try db.sql("DROP TABLE IF EXISTS \(Post.CRUDTableName)")
+})
+
+try migrator.register("2026_08_add_posts_published_flag", up: { db in
+    try db.sql("ALTER TABLE \(Post.CRUDTableName) ADD COLUMN published INTEGER DEFAULT 0")
+})
+// register every migration once, at startup, before calling migrate(_:)
+
+try migrator.migrate(db)       // applies every registered migration not yet recorded, in
+                                // registration order (not a lexical/timestamp sort on the
+                                // identifier), each inside its own transaction
+try migrator.rollbackLast(db)  // rolls back only the most recently applied migration; throws
+                                // if it has no `down` — a reverse is never auto-inferred
+```
+
+A migration's `identifier` must be unique — `register` throws if it's already registered, since migrations are meant to be a fixed, reviewed sequence rather than silently overwritable. Applied migrations are tracked in a `perfectcrud_migrations` table, created automatically on first `migrate(_:)` call. Running `migrate(_:)` concurrently from every instance of a horizontally-scaled service against one shared network database is not safe — run it from exactly one process/deploy step for a network connector (SQLite's single-writer semantics make this less of a concern there).
 
 <a name="table-1"></a>
 ### Table
@@ -522,7 +684,7 @@ Joins are not currently supported in updates, inserts, or deletes (cascade delet
 The Join protocol has two functions. The first handles standard two table joins. The second handles junction (three table) joins.
 
 ```swift
-public protocol JoinAble: TableProtocol {
+public protocol Joinable: TableProtocol {
 	// standard join
 	func join<NewType: Codable, KeyType: Equatable>(
 		_ to: KeyPath<OverAllForm, [NewType]?>,
@@ -575,7 +737,7 @@ If a joined table is included in a join but there are no resulting joined object
 A `where` operation introduces a criteria which will be used to filter exactly which objects should be selected, updated, or deleted from the database. Where can only be used when performing a select/count, update, or delete. 
 
 ```swift
-public protocol WhereAble: TableProtocol {
+public protocol Whereable: TableProtocol {
 	func `where`(_ expr: CRUDBooleanExpression) -> Where<OverAllForm, Self>
 }
 ```
@@ -690,7 +852,7 @@ Notice the force-unwraped key path - `\Person.height!`. _This is type-safe_ and 
 An `order` operation introduces an ordering of the over-all resulting objects and/or of the objects selected for a particular join. An order operation should immediately follow either a `table` or a `join`. You may also order over fields with optional types.
 
 ```swift
-public protocol OrderAble: TableProtocol {
+public protocol Orderable: TableProtocol {
 	func order(by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self>
 	func order(descending by: PartialKeyPath<Form>...) -> Ordering<OverAllForm, Self>
 }
@@ -731,7 +893,7 @@ let person = try personTable.order(descending: \.height).select().map {$0}
 A `limit` operation can follow a `table`, `join`, or `order` operation. Limit can both apply an upper bound on the number of resulting objects and impose a skip value. For example the first five found records may be skipped and the result set will begin at the sixth row.
 
 ```swift
-public protocol LimitAble: TableProtocol {
+public protocol Limitable: TableProtocol {
 	func limit(_ max: Int, skip: Int) -> Limit<OverAllForm, Self>
 }
 ```
@@ -772,7 +934,7 @@ let query = try db.table(TestTable1.self)
 An `update` operation can be used to replace values in the existing records which match the query. An update will almost always have a `where` operation in the chain, but it is not required. Providing no `where` operation in the chain will match all records. 
 
 ```swift
-public protocol UpdateAble: TableProtocol {
+public protocol Updatable: TableProtocol {
 	func update(_ instance: OverAllForm, setKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	func update(_ instance: OverAllForm, ignoreKeys: PartialKeyPath<OverAllForm>, _ rest: PartialKeyPath<OverAllForm>...) throws -> Update<OverAllForm, Self>
 	func update(_ instance: OverAllForm) throws -> Update<OverAllForm, Self>
@@ -841,7 +1003,7 @@ try table.insert([newOne, newTwo], setKeys: \.id, \.name)
 A `delete` operation is used to remove records from the table which match the query. A delete will almost always have a `where` operation in the chain, but it is not required. Providing no `where` operation in the chain will delete all records.
 
 ```swift
-public protocol DeleteAble: TableProtocol {
+public protocol Deleteable: TableProtocol {
 	func delete() throws -> Delete<OverAllForm, Self>
 }
 ```
@@ -870,7 +1032,7 @@ assert(j2.count == 0)
 <a name="select">Select</a> returns an object which can be used to iterate over the resulting values.
 
 ```swift
-public protocol SelectAble: TableProtocol {
+public protocol Selectable: TableProtocol {
 	func select() throws -> Select<OverAllForm, Self>
 	func count() throws -> Int
 	func first() throws -> OverAllForm?
@@ -1191,3 +1353,8 @@ public enum CRUDLogDestination {
 ```
 
 Each message can go to multiple destinations. By default, both errors and queries are logged to the console.
+
+<a name="license"></a>
+## License
+
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) for the full text.
