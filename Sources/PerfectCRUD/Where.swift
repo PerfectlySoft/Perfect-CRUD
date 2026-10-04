@@ -13,7 +13,7 @@ public struct Where<OAF: Codable, A: TableProtocol>: TableProtocol, FromTablePro
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
-	let expression: Expression
+	let expression: CRUDExpression
 	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		state.whereExpr = expression

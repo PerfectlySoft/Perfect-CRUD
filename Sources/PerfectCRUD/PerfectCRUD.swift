@@ -7,8 +7,11 @@
 
 import Foundation
 
+/// Deprecated: Foundation in the macOS 15 SDK and later also exports `Expression`, so code
+/// importing both modules gets "'Expression' is ambiguous". Use `CRUDExpression`.
+@available(*, deprecated, renamed: "CRUDExpression")
 public typealias Expression = CRUDExpression
-public typealias Bindings = [(String, Expression)]
+public typealias Bindings = [(String, CRUDExpression)]
 
 public protocol QueryItem {
 	associatedtype OverAllForm: Codable
@@ -36,7 +39,7 @@ public protocol SelectProtocol: Sequence, FromTableProtocol, CommandProtocol {
 
 public protocol SQLGenDelegate {
 	var bindings: Bindings { get set }
-	func getBinding(for: Expression) throws -> String
+	func getBinding(for: CRUDExpression) throws -> String
 	func quote(identifier: String) throws -> String
 	func getCreateTableSQL(forTable: TableStructure, policy: TableCreatePolicy) throws -> [String]
 	func getCreateIndexSQL(forTable name: String, on columns: [String], unique: Bool) throws -> [String]
@@ -386,7 +389,7 @@ public struct SQLGenState {
 	public var tableData: [TableData] = []
 	var tablePopCount = 0
 	public var command: Command = .unknown
-	var whereExpr: Expression?
+	var whereExpr: CRUDExpression?
 	public var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
