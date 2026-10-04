@@ -55,7 +55,12 @@ final class StatefulStubExeDelegate: SQLExeDelegate, @unchecked Sendable {
 	private let store: StatefulRowStore
 	private let sql: String
 	private var pendingRows: [[String: CRUDExpression]] = []
-	private var rowIndex = 0
+	// Matches the real connectors' contract: `hasNext()` steps to the next
+	// row and `next()` returns the *current* row without advancing. A model
+	// whose `init(from:)` asks for its keyed container more than once (a
+	// subclass calling `super.init(from: decoder)`) calls `next()` once per
+	// container, so advancing there would stitch one value out of two rows.
+	private var rowIndex = -1
 	private var fetchedRows = false
 
 	init(store: StatefulRowStore, sql: String) {
@@ -88,12 +93,12 @@ final class StatefulStubExeDelegate: SQLExeDelegate, @unchecked Sendable {
 			}
 			pendingRows = store.rows(table: table)
 		}
+		rowIndex += 1
 		return rowIndex < pendingRows.count
 	}
 
 	func next<A: CodingKey>() throws -> KeyedDecodingContainer<A>? {
-		guard rowIndex < pendingRows.count else { return nil }
-		defer { rowIndex += 1 }
+		guard pendingRows.indices.contains(rowIndex) else { return nil }
 		return KeyedDecodingContainer(StatefulKeyedDecodingContainer<A>(row: pendingRows[rowIndex]))
 	}
 

@@ -38,8 +38,8 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		let fNameQ = try delegate.quote(identifier: firstTable.type.CRUDTableName)
 		let fAliasQ = try delegate.quote(identifier: firstTable.alias)
-		let lhsStr = try Expression.sqlSnippet(keyPath: on, tableData: firstTable, state: state)
-		let rhsStr = try Expression.sqlSnippet(keyPath: equals, tableData: myTable, state: state)
+		let lhsStr = try CRUDExpression.sqlSnippet(keyPath: on, tableData: firstTable, state: state)
+		let rhsStr = try CRUDExpression.sqlSnippet(keyPath: equals, tableData: myTable, state: state)
 		switch state.command {
 		case .count:
 			() // joins do nothing on .count except limit master #
@@ -65,14 +65,14 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 					}
 					let nameQ = try delegate.quote(identifier: joinTable.type.CRUDTableName)
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
-					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
-					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
+					let lhsStr = try CRUDExpression.keyPath(joinData.on).sqlSnippet(state: state)
+					let rhsStr = try CRUDExpression.keyPath(joinData.equals).sqlSnippet(state: state)
 					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
 			if !orderings.isEmpty {
-				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
+				let m = try orderings.map { "\(try CRUDExpression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
 			}
 			if let (max, skip) = limit {
@@ -141,14 +141,14 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 		let firstNameQ = try delegate.quote(identifier: firstTable.type.CRUDTableName)
 		let firstAliasQ = try delegate.quote(identifier: firstTable.alias)
 		
-		let lhsStr = try Expression.sqlSnippet(keyPath: on, tableData: firstTable, state: state)
-		let rhsStr = try Expression.sqlSnippet(keyPath: equals, tableData: pivotTable, state: state)
+		let lhsStr = try CRUDExpression.sqlSnippet(keyPath: on, tableData: firstTable, state: state)
+		let rhsStr = try CRUDExpression.sqlSnippet(keyPath: equals, tableData: pivotTable, state: state)
 		
 		let pivotNameQ = try delegate.quote(identifier: pivotTable.type.CRUDTableName)
 		let pivotAliasQ = try delegate.quote(identifier: pivotTable.alias)
 		
-		let lhsStr2 = try Expression.sqlSnippet(keyPath: and, tableData: myTable, state: state)
-		let rhsStr2 = try Expression.sqlSnippet(keyPath: alsoEquals, tableData: pivotTable, state: state)
+		let lhsStr2 = try CRUDExpression.sqlSnippet(keyPath: and, tableData: myTable, state: state)
+		let rhsStr2 = try CRUDExpression.sqlSnippet(keyPath: alsoEquals, tableData: pivotTable, state: state)
 		
 		let tempColumnNameQ = try delegate.quote(identifier: joinPivotIdColumnName)
 		
@@ -180,14 +180,14 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 					}
 					let nameQ = try delegate.quote(identifier: joinTable.type.CRUDTableName)
 					let aliasQ = try delegate.quote(identifier: joinTable.alias)
-					let lhsStr = try Expression.keyPath(joinData.on).sqlSnippet(state: state)
-					let rhsStr = try Expression.keyPath(joinData.equals).sqlSnippet(state: state)
+					let lhsStr = try CRUDExpression.keyPath(joinData.on).sqlSnippet(state: state)
+					let rhsStr = try CRUDExpression.keyPath(joinData.equals).sqlSnippet(state: state)
 					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
 			if !orderings.isEmpty {
-				let m = try orderings.map { "\(try Expression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
+				let m = try orderings.map { "\(try CRUDExpression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
 			}
 			if let (max, skip) = limit {

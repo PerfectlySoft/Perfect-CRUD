@@ -27,7 +27,7 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 	init(_ p: CRUDBindingsEncoder) {
 		parent = p
 	}
-	func addBinding(_ key: Key, value: Expression) throws {
+	func addBinding(_ key: Key, value: CRUDExpression) throws {
 		try parent.addBinding(key: key, value: value)
 	}
 	func encodeNil(forKey key: K) throws {
@@ -152,7 +152,7 @@ public class CRUDBindingsEncoder: Encoder {
 	public let codingPath: [CodingKey] = []
 	public let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
-	private var collectedBinds: [(String, Expression)] = []
+	private var collectedBinds: [(String, CRUDExpression)] = []
 	
 	public init(delegate d: SQLGenDelegate) throws {
 		delegate = d
@@ -160,7 +160,7 @@ public class CRUDBindingsEncoder: Encoder {
 	
 	public func completedBindings(allKeys: [String],
 						   ignoreKeys: Set<String>) throws -> [(column: String, identifier: String)] {
-		let exprDict: [String:Expression] = .init(uniqueKeysWithValues: collectedBinds)
+		let exprDict: [String:CRUDExpression] = .init(uniqueKeysWithValues: collectedBinds)
 		let ret: [(column: String, identifier: String)] = try allKeys.filter { !ignoreKeys.contains($0) }.map {
 			key in
 			let bindId: String
@@ -178,7 +178,7 @@ public class CRUDBindingsEncoder: Encoder {
 		return try completedBindings(allKeys: collectedBinds.map { $0.0 }, ignoreKeys: ignoreKeys)
 	}
 	
-	func addBinding<Key: CodingKey>(key: Key, value: Expression) throws {
+	func addBinding<Key: CodingKey>(key: Key, value: CRUDExpression) throws {
 		collectedBinds.append((key.stringValue, value))
 	}
 	public func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {

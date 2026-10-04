@@ -775,7 +775,9 @@ Custom Comparison Operators:
 
 • Like: `%=%`, `=%`, `%=`, `%!=%`, `!=%`, `%!=` 
 
-For the equality and comparison operators, the left-hand operand must be a KeyPath indicating a Codable property of a Codable type. The right-hand operand can be Int, Double, String, [UInt8], Bool, UUID, or Date. The KeyPath can indicate an Optional property value, in which case the right-hand operand may be `nil` to indicate an "IS NULL", "IS NOT NULL" type of query.
+For the equality and comparison operators, the left-hand operand must be a KeyPath indicating a Codable property of a Codable type. The right-hand operand can be Int, Double, String, [UInt8], Bool, UUID, or Date. The KeyPath can indicate an Optional property value. With `==` and `!=`, the right-hand operand may then be `nil` to indicate an "IS NULL", "IS NOT NULL" type of query. The comparison operators also accept an Optional KeyPath (`\TestTable1.score < 3.0` where `score` is a `Double?`), but their right-hand operand must be non-optional: as in SQL, a row whose column is NULL never matches `<`, `<=`, `>` or `>=`.
+
+PerfectCRUD's expression type is `CRUDExpression`. The old `Expression` typealias has been removed: it collided with Foundation's `Expression` when building with the macOS 15 SDK or later (whatever the deployment target), making an unqualified `Expression` ambiguous. Replace any remaining uses with `CRUDExpression`.
 
 The equality and comparison operators are type-safe, meaning you can not make a comparison between, for example, an Int and a String. The type of the right-hand operand must match the KeyPath property type. This is how Swift normally works, so it should not come with any surprises.
 
