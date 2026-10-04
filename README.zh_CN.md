@@ -559,7 +559,7 @@ guard let foundNewOne = try query.first() else {
 
 对于等价或者比较运算符，左边的运算单元必须为可编码类型的一个字段路径，而右边的运算单元可以是这些类型： Int, Double, String, [UInt8], Bool, UUID, 或者 Date。字段路径可以是可选属性值。对于 `==` 和 `!=`，此时右运算单元可以是 nil，用于匹配查询中的空与非空类型。比较运算符（`<`、`<=`、`>`、`>=`）同样支持可选属性的字段路径，但右运算单元必须是非可选值；与 SQL 一致，字段为 NULL 的记录不会匹配这些比较。
 
-PerfectCRUD 的表达式类型是 `CRUDExpression`。旧的 `Expression` 类型别名已弃用，因为使用 macOS 15 及更高版本的 SDK 编译时（与部署目标无关），它会与 Foundation 的 `Expression` 冲突，导致未限定的 `Expression` 产生歧义。
+PerfectCRUD 的表达式类型是 `CRUDExpression`。旧的 `Expression` 类型别名已移除：使用 macOS 15 及更高版本的 SDK 编译时（与部署目标无关），它会与 Foundation 的 `Expression` 冲突，导致未限定的 `Expression` 产生歧义。请将剩余的用法改为 `CRUDExpression`。
 
 上述等价和比较运算符是类型安全的，也就意味着，比如不能将整数与字符串直接比较。而右运算单元必须于左边的字段路径类型匹配。这种方式是Swift语言的典型应用，应该不会有意外。
 

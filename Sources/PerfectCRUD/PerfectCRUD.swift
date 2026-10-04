@@ -7,10 +7,6 @@
 
 import Foundation
 
-/// Deprecated: Foundation in the macOS 15 SDK and later also exports `Expression`, so code
-/// importing both modules gets "'Expression' is ambiguous". Use `CRUDExpression`.
-@available(*, deprecated, renamed: "CRUDExpression")
-public typealias Expression = CRUDExpression
 public typealias Bindings = [(String, CRUDExpression)]
 
 public protocol QueryItem {
