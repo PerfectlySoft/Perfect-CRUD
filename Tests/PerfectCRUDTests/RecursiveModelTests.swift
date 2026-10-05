@@ -223,7 +223,7 @@ struct RecursiveModelTests {
 	}
 
 	@Test func decodingTerminates() async throws {
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux) || os(Windows) || os(FreeBSD) || os(OpenBSD)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseKeyPaths()
 		}
@@ -239,7 +239,7 @@ struct RecursiveModelTests {
 	}
 
 	@Test func keyPathsResolve() async throws {
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux) || os(Windows) || os(FreeBSD) || os(OpenBSD)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseKeyPaths()
 		}
@@ -275,7 +275,7 @@ struct RecursiveModelTests {
 	}
 
 	@Test func keyPathsIntoTheRecursionAreStillNested() async throws {
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux) || os(Windows) || os(FreeBSD) || os(OpenBSD)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseKeyPaths()
 		}
@@ -294,7 +294,7 @@ struct RecursiveModelTests {
 	}
 
 	@Test func tableStructuresHaveTheTopLevelColumns() async throws {
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux) || os(Windows) || os(FreeBSD) || os(OpenBSD)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseTableStructures()
 		}
@@ -316,7 +316,7 @@ struct RecursiveModelTests {
 	}
 
 	@Test func tablesGenerateSQL() async throws {
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux) || os(Windows) || os(FreeBSD) || os(OpenBSD)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseSQL()
 		}
@@ -335,7 +335,7 @@ struct RecursiveModelTests {
 	}
 
 	@Test func nonOptionalSelfReferenceThrows() async throws {
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux) || os(Windows) || os(FreeBSD) || os(OpenBSD)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseEndless()
 		}
