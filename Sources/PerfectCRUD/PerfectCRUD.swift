@@ -363,6 +363,21 @@ public struct SQLGenState {
 		public let modelInstance: Codable?
 		public let keyPathDecoder: CRUDKeyPathsDecoder
 		public let joinData: PropertyJoinData?
+		// Resolves a join's `to` key path the way SQLTopExeDelegate will when
+		// the query runs. Called while generating SQL so a bad key path throws
+		// from select(), rather than inside Select.makeIterator(), which can
+		// only log it and return no rows.
+		func validateJoinTarget(_ keyPath: AnyKeyPath) throws {
+			let name: String?
+			do {
+				name = try modelInstance.flatMap { try keyPathDecoder.getKeyPathName($0, keyPath: keyPath) }
+			} catch {
+				throw CRUDSQLGenError("Join key path \(keyPath) can't be resolved on \(type): \(error)")
+			}
+			guard nil != name else {
+				throw CRUDSQLGenError("Join key path \(keyPath) does not refer to a column of \(type).")
+			}
+		}
 	}
 	public struct PropertyJoinData {
 		public let to: AnyKeyPath

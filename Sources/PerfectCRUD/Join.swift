@@ -44,6 +44,7 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 		case .count:
 			() // joins do nothing on .count except limit master #
 		case .select:
+			try firstTable.validateJoinTarget(to)
 			var sqlStr =
 			"""
 			SELECT DISTINCT \(aliasQ).*
@@ -156,6 +157,7 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 		case .count:
 			() // joins do nothing on .count except limit master #
 		case .select:
+			try firstTable.validateJoinTarget(to)
 			var sqlStr =
 			"""
 			SELECT DISTINCT \(myAliasQ).*, \(lhsStr) AS \(tempColumnNameQ)
