@@ -188,6 +188,28 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 	public func provideWrappedValue() -> Codable {
 		return wrappedValue
 	}
+	// A decoded value: `.some(nil)` for an optional `Value` decoded from a null or absent key,
+	// as `init(from:)` gives for a null.
+	init(decodedValue: Value) {
+		self.projectedValue = decodedValue
+	}
+}
+
+// Synthesized Codable decodes a property wrapper with `decode(_:forKey:)`, never
+// `decodeIfPresent`, so an absent key threw `keyNotFound` for a wrapped Optional where a plain
+// optional property decodes nil. These overloads are picked at the synthesized call site in
+// the model's module for a wrapper around an Optional, and treat an absent key like a null.
+// `decodeIfPresent` asks the container's `contains` and `decodeNil` and then calls its
+// `decode`, so CRUD's own decoders and the connectors' row readers still see the column, as
+// they do for a plain optional property. Encoding is unchanged: a nil value is written as an
+// explicit null, which decodes back to nil.
+extension KeyedDecodingContainer {
+	public func decode<V: Codable>(_ type: PrimaryKey<V?>.Type, forKey key: Key) throws -> PrimaryKey<V?> {
+		return try decodeIfPresent(type, forKey: key) ?? PrimaryKey(wrappedValue: nil)
+	}
+	public func decode<T, D, U, V: Codable>(_ type: ForeignKey<T, D, U, V?>.Type, forKey key: Key) throws -> ForeignKey<T, D, U, V?> {
+		return try decodeIfPresent(type, forKey: key) ?? ForeignKey(decodedValue: nil)
+	}
 }
 
 // What a foreign key column references: the target table's name and primary key column.
