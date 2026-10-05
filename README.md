@@ -19,8 +19,9 @@ and [PerfectTemplate](https://github.com/PerfectlySoft/PerfectTemplate) all depe
 
 The pre-Swift-6 version of this package (2.0.0 and earlier) is preserved on the [`legacy`](../../tree/legacy) branch.
 
-**Requirements:** Swift tools 6.2 or newer. macOS 12+, iOS 15+ and Linux; CI runs the tests on macOS
-(debug and release), Linux (Swift 6.4, Ubuntu 24.04) and the iOS Simulator.
+**Requirements:** Swift 6.2 or newer. macOS 12+, iOS 15+ and Linux; CI runs the tests on Linux (Swift
+6.2 and 6.4, Ubuntu 24.04) and macOS (Xcode 26.0.1 and 26.6) in debug and release, and on the iOS
+Simulator.
 
 ```swift
 dependencies: [
@@ -45,7 +46,9 @@ To use CRUD with a specific database, add the connector of your choice:
 ```
 
 CRUD support is built directly into each connector package. The connectors' Swift 6 releases follow
-CRUD 3.0.0; switch each to `from:` once it's tagged.
+CRUD 3.0.0; switch each to `from:` once it's tagged. Until then, note that a connector on
+`branch: "main"` depends on CRUD's `main` branch too, so SwiftPM resolves CRUD to `main` rather than
+to 3.0.0.
 
 ## Migrating from 2.x
 
@@ -57,7 +60,8 @@ most likely to need attention when upgrading:
   macOS 15+ SDK. Use `CRUDExpression`, the same type.
 * **`Sendable`.** A `CRUDLogDestination.custom` closure must be `@Sendable`.
 * **Nested transactions.** A `transaction` inside another on the same `Database` value now uses a
-  savepoint instead of a second `BEGIN`, so an inner failure rolls back only to its savepoint.
+  savepoint instead of a second `BEGIN`, so an inner failure rolls back only to its savepoint. The
+  error still propagates, and rolls back the outer transaction too unless the outer body catches it.
 * **Optional `@ForeignKey` / `@PrimaryKey`.** These are now nullable columns of the wrapped type, not
   JSON/text columns. Existing tables keep the old column (`.reconcileTable` won't change it): recreate
   or alter them.
@@ -245,7 +249,9 @@ public extension Database {
 }
 ```
 
-Transactions nest. A `transaction` called inside another on the same `Database` value runs between `SAVEPOINT` and `RELEASE SAVEPOINT`, and a failure rolls back only to that savepoint. `isolation` (`.readUncommitted`, `.readCommitted`, `.repeatableRead`, `.serializable`) applies only to the outermost transaction, and only on connectors that implement it; on the others it's ignored.
+Transactions nest. A `transaction` called inside another on the same `Database` value runs between `SAVEPOINT` and `RELEASE SAVEPOINT`, and a failure rolls back only to that savepoint. The error is still rethrown, so the outer transaction rolls back as well unless its body catches the error.
+
+`isolation` (`.readUncommitted`, `.readCommitted`, `.repeatableRead`, `.serializable`) applies only to the outermost transaction, and only on connectors that implement `SQLGenDelegate.setIsolationLevelSQL(_:)`; on the others it's ignored. None of the PerfectlySoft connectors implement it yet.
 
 Example usage:
 

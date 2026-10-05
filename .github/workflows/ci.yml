@@ -4,14 +4,20 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   linux:
-    name: Linux (Swift 6.4, ${{ matrix.configuration }})
+    name: Linux (Swift ${{ matrix.swift }}, ${{ matrix.configuration }})
     runs-on: ubuntu-24.04
-    container: swift:6.4-noble
+    container: swift:${{ matrix.swift }}-noble
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # The oldest supported Swift (swift-tools-version 6.2) and the newest.
+        swift: ["6.2", "6.4"]
         configuration: [debug, release]
     steps:
       - uses: actions/checkout@v7
@@ -31,17 +37,23 @@ jobs:
         run: swift test $FLAGS
 
   macos:
-    name: macOS (${{ matrix.configuration }})
+    name: macOS (Xcode ${{ matrix.xcode }}, ${{ matrix.configuration }})
     runs-on: macos-26
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # The oldest Xcode with Swift 6.2, and the runner's default. Swift 6.2 miscompiled an
+        # existential in release builds that newer compilers handle, so both matter.
+        xcode: ["26.0.1", "26.6"]
         configuration: [debug, release]
     steps:
       - uses: actions/checkout@v7
 
-      - name: Toolchain
-        run: swift --version
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app
+          swift --version
 
       - name: Build (warnings are errors)
         run: |
@@ -57,19 +69,19 @@ jobs:
   ios:
     name: iOS Simulator
     runs-on: macos-26
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
-      - name: Pick a simulator
+      - name: Select Xcode
         run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
-          # Simulator names change with each Xcode, so take the first available iPhone.
-          udid=$(xcrun simctl list devices available -j \
-            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
-          [ -n "$udid" ] && [ "$udid" != null ] || { echo "No iPhone simulator available"; exit 1; }
-          echo "SIMULATOR=$udid" >> "$GITHUB_ENV"
 
+      # The test target builds at the package's iOS 15 deployment target, so this also
+      # catches APIs that need a newer iOS.
       - name: Test
         run: |
-          xcodebuild test -scheme PerfectCRUD -destination "platform=iOS Simulator,id=$SIMULATOR" \
+          xcodebuild test -scheme PerfectCRUD \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
