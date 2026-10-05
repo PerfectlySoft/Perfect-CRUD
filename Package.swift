@@ -5,6 +5,7 @@ let package = Package(
     name: "PerfectCRUD",
     platforms: [
         .macOS(.v12),
+        .iOS(.v15),
     ],
     products: [
         .library(name: "PerfectCRUD", targets: ["PerfectCRUD"])

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    name: Linux (Swift 6.4, ${{ matrix.configuration }})
+    runs-on: ubuntu-24.04
+    container: swift:6.4-noble
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build (warnings are errors)
+        run: |
+          flags="-c ${{ matrix.configuration }} -Xswiftc -warnings-as-errors"
+          # @testable imports need testing enabled in an optimized build.
+          [ "${{ matrix.configuration }}" = release ] && flags="$flags -Xswiftc -enable-testing"
+          echo "FLAGS=$flags" >> "$GITHUB_ENV"
+          swift build --build-tests $flags
+
+      - name: Test
+        run: swift test $FLAGS
+
+  macos:
+    name: macOS (${{ matrix.configuration }})
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build (warnings are errors)
+        run: |
+          flags="-c ${{ matrix.configuration }} -Xswiftc -warnings-as-errors"
+          # @testable imports need testing enabled in an optimized build.
+          [ "${{ matrix.configuration }}" = release ] && flags="$flags -Xswiftc -enable-testing"
+          echo "FLAGS=$flags" >> "$GITHUB_ENV"
+          swift build --build-tests $flags
+
+      - name: Test
+        run: swift test $FLAGS
+
+  ios:
+    name: iOS Simulator
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pick a simulator
+        run: |
+          xcodebuild -version
+          # Simulator names change with each Xcode, so take the first available iPhone.
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          [ -n "$udid" ] && [ "$udid" != null ] || { echo "No iPhone simulator available"; exit 1; }
+          echo "SIMULATOR=$udid" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: |
+          xcodebuild test -scheme PerfectCRUD -destination "platform=iOS Simulator,id=$SIMULATOR" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
