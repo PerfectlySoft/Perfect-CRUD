@@ -163,8 +163,12 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 // observing a `TableStructure` that's been published into the cache but not yet had its
 // `subTables` filled in (the original single-threaded code relies on that ordering to break
 // cycles for self-referential/mutually-referential models).
+//
+// Keyed by type identity, not by name: the type name is unqualified, so two distinct
+// types with the same name (nested or function-local types in different scopes, or the
+// same name in two modules) would otherwise share one cached structure.
 private let tableStructureCacheLock = NSRecursiveLock()
-nonisolated(unsafe) private var tableStructureCache: [String:TableStructure] = [:]
+nonisolated(unsafe) private var tableStructureCache: [ObjectIdentifier:TableStructure] = [:]
 
 // for tests
 public func CRUDClearTableStructureCache() {
@@ -181,7 +185,7 @@ extension Decodable {
 		return try CRUDTableStructure(columnDecoder: columnDecoder, primaryKey: primaryKey)
 	}
 	public static func CRUDTableStructure(columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
-		let cacheKey = "\(type(of: Self.self))"
+		let cacheKey = ObjectIdentifier(Self.self)
 		tableStructureCacheLock.lock()
 		defer { tableStructureCacheLock.unlock() }
 		if let cached = tableStructureCache[cacheKey] {
