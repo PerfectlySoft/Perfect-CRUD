@@ -107,6 +107,10 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 				throw CRUDEncoderError("Unsupported encoding type: wrapped(\(value)) for key: \(key.stringValue)")
 			}
 			let wrappedValue = wrapped.provideWrappedValue()
+			if let optional = wrappedValue as? CRUDOptional, optional.crudIsNil {
+				try addBinding(key, value: .null)
+				return
+			}
 			switch wrappedValue {
 			case let m as Bool: try encode(m, forKey: key)
 			case let m as Int: try encode(m, forKey: key)

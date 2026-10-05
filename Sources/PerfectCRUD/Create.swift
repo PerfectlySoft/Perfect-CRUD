@@ -60,6 +60,29 @@ public protocol WrappedCodableProvider: Codable {
 
 protocol PrimaryKeyWrapper: WrappedCodableProvider {}
 
+// Lets type-erased code see through an Optional: a wrapper's `Value`, or a value boxed as
+// `Codable`. Synthesized Codable decodes and encodes a property wrapper with
+// `decode(_:forKey:)` / `encode(_:forKey:)` even when it wraps an Optional, so a wrapped
+// Optional never reaches the `decodeIfPresent` / `encodeIfPresent` paths that plain
+// optional properties take.
+protocol CRUDOptional {
+	static var crudWrappedType: Any.Type { get }
+	static var crudNone: Self { get }
+	var crudIsNil: Bool { get }
+}
+
+extension Optional: CRUDOptional {
+	static var crudWrappedType: Any.Type { Wrapped.self }
+	static var crudNone: Self { nil }
+	// Nil at any level: `.some(nil)` of an `Int??` is a NULL column too.
+	var crudIsNil: Bool {
+		switch self {
+		case .none: return true
+		case .some(let wrapped): return (wrapped as? CRUDOptional)?.crudIsNil ?? false
+		}
+	}
+}
+
 @propertyWrapper
 public struct PrimaryKey<Value: Codable>: PrimaryKeyWrapper, Codable {
 	public static func provideWrappedValueType() -> Codable.Type { Value.self }
@@ -130,10 +153,20 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 	}
 	
 	public var wrappedValue: Value {
-		get { projectedValue! }
+		get {
+			guard let value = projectedValue ?? Self.unsetValue else {
+				fatalError("ForeignKey<\(Table.self), \(Value.self)> read before a value was assigned.")
+			}
+			return value
+		}
 		set { projectedValue = newValue }
 	}
 	public var projectedValue: Value? = nil
+	// What an optional `Value` reads as before anything is assigned: nil. A non-optional
+	// `Value` has none.
+	private static var unsetValue: Value? {
+		(Value.self as? CRUDOptional.Type).map { $0.crudNone as! Value }
+	}
 	
 	public init(_ parent: Table.Type, onDelete: DeleteAction, onUpdate: UpdateAction, wrappedValue: Value) {
 		self.projectedValue = wrappedValue
@@ -145,8 +178,12 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 		projectedValue = try decoder.singleValueContainer().decode(Value.self)
 	}
 	public func encode(to encoder: Encoder) throws {
+		guard let value = projectedValue ?? Self.unsetValue else {
+			throw EncodingError.invalidValue(Value.self, .init(codingPath: encoder.codingPath,
+				debugDescription: "ForeignKey<\(Table.self), \(Value.self)> encoded before a value was assigned."))
+		}
 		var c = encoder.singleValueContainer()
-		try c.encode(projectedValue!)
+		try c.encode(value)
 	}
 	public func provideWrappedValue() -> Codable {
 		return wrappedValue
@@ -281,13 +318,21 @@ extension Decodable {
 					let foreignPK = target.primaryKeyName {
 					props.append(.foreignKey(target.tableName, foreignPK, foreignWrapper.foreignKeyDeleteAction(), foreignWrapper.foreignKeyUpdateAction()))
 				}
-				let itype: Any.Type
+				var itype: Any.Type
+				var optional = $0.optional
 				if let wrapper = $0.type as? WrappedCodableProvider.Type {
 					itype = wrapper.provideWrappedValueType()
+					// The column decoder can't tell that a wrapper holds an Optional (see
+					// `CRUDOptional`), so a wrapped Optional is a nullable column of its
+					// `Wrapped` type.
+					while let wrappedOptional = itype as? CRUDOptional.Type {
+						itype = wrappedOptional.crudWrappedType
+						optional = true
+					}
 				} else {
 					itype = $0.type
 				}
-				return .init(name: $0.name, type: itype, optional: $0.optional, properties: props)
+				return .init(name: $0.name, type: itype, optional: optional, properties: props)
 			},
 			subTables: [],
 			indexes: [])

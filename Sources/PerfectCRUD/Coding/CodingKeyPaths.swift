@@ -208,6 +208,11 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 		case let t as Float.Type: return try decode(t) as! T
 		case let t as Double.Type: return try decode(t) as! T
 		case let t as String.Type: return try decode(t) as! T
+		case is CRUDOptional.Type:
+			// A wrapper holding an Optional: Optional's own init(from:) asks for this key's
+			// single value container again (`parent.wrappedKey` is still set), then decodes
+			// its Wrapped, which counts the key once.
+			return try T(from: parent)
 		default: ()
 		}
 		currentIndex += 1
