@@ -38,6 +38,38 @@ private enum WhereJoinScope {
 		let links: [ParentTag]?
 		let tags: [Tag]?
 	}
+	// Label is joined directly and is also the pivot table for items.
+	struct Owner: Codable {
+		let id: Int
+		let labels: [Label]?
+		let items: [Item]?
+	}
+	struct Label: Codable {
+		let id: Int
+		let ownerId: Int
+		let itemId: Int
+		let name: String
+	}
+	struct Item: Codable {
+		let id: Int
+		let name: String
+	}
+	// A self-join, and a pivot from Person back to Person.
+	struct Node: Codable {
+		let id: Int
+		let parentId: Int
+		let name: String
+		let children: [Node]?
+	}
+	struct Person: Codable {
+		let id: Int
+		let name: String
+		let friends: [Person]?
+	}
+	struct Friendship: Codable {
+		let personId: Int
+		let friendId: Int
+	}
 }
 
 // Records each statement's SQL and returns no rows.
@@ -185,18 +217,6 @@ struct WhereClauseJoinTests {
 		#expect(sql.hasPrefix("SELECT COUNT(*)") && sql.contains(pivotJoin) && sql.contains(tagJoin), "SQL was:\n\(sql)")
 	}
 
-	@Test("a where on a type joined twice joins its first table in the second join's statement")
-	func whereOnTypeJoinedTwice() throws {
-		let select = try Database(configuration: try StatefulStubConfig()).table(Family.self)
-			.join(\.kids, on: \.id, equals: \.parentId)
-			.join(\.kids2, on: \.id, equals: \.parentId)
-			.where(\Kid.id == 20)
-			.select()
-		let sqls = statements(select)
-		#expect(sqls.count == 3)
-		// t1 is kids, t2 kids2; the where resolves to t1.
-		#expect(sqls[2].contains(#"LEFT JOIN "kids" AS "t1" ON "t0"."id" = "t1"."parentId""#), "SQL was:\n\(sqls[2])")
-	}
 
 	@Test("a pivot-joined type is joined through its own pivot table, not another table of that type")
 	func pivotTypeAlsoJoinedDirectly() throws {
@@ -214,5 +234,116 @@ struct WhereClauseJoinTests {
 		for sql in [sqls[0], sqls[1]] {
 			#expect(sql.contains(pivotJoin) && sql.contains(tagJoin), "SQL was:\n\(sql)")
 		}
+	}
+}
+
+// MARK: - Key paths on a type with more than one table
+//
+// A key path such as `\Kid.id` can't say which table it means, and resolving it to the first
+// table of its type made every statement filter or sort on that table: in a second join of the
+// same type, the where filtered the first join's rows and ORDER BY named an alias the statement
+// never defined. A where key path now means the master table when it has the key path's type,
+// otherwise the only table of that type; more than one is an error. An ordering on a join sorts
+// that join's own rows.
+
+extension WhereClauseJoinTests {
+	fileprivate typealias Owner = WhereJoinScope.Owner
+	fileprivate typealias Label = WhereJoinScope.Label
+	fileprivate typealias Item = WhereJoinScope.Item
+	fileprivate typealias Node = WhereJoinScope.Node
+	fileprivate typealias Person = WhereJoinScope.Person
+	fileprivate typealias Friendship = WhereJoinScope.Friendship
+
+	private func database() throws -> Database<StatefulStubConfig> {
+		Database(configuration: try StatefulStubConfig())
+	}
+
+	private func expectAmbiguous(_ body: () throws -> Void, sourceLocation: SourceLocation = #_sourceLocation) {
+		#expect(sourceLocation: sourceLocation) {
+			try body()
+		} throws: { error in
+			"\(error)".contains("ambiguous")
+		}
+	}
+
+	@Test("a where on a type joined twice throws instead of filtering the first join's table")
+	func whereOnTypeJoinedTwice() throws {
+		let query = try database().table(Family.self)
+			.join(\.kids, on: \.id, equals: \.parentId)
+			.join(\.kids2, on: \.id, equals: \.parentId)
+			.where(\Kid.id == 20)
+		expectAmbiguous { _ = try query.select() }
+		expectAmbiguous { _ = try query.count() }
+	}
+
+	@Test("a where on a type that is one join's pivot table and another join's type throws")
+	func whereOnPivotTypeAlsoJoined() throws {
+		let query = try database().table(Owner.self)
+			.join(\.labels, on: \.id, equals: \.ownerId)
+			.join(\.items, with: Label.self, on: \.id, equals: \.ownerId, and: \.id, is: \.itemId)
+		expectAmbiguous { _ = try query.where(\Label.name == "a").select() }
+		// Item has one table, so a where on it still works.
+		let sqls = statements(try query.where(\Item.name == "a").select())
+		#expect(sqls.count == 3)
+		for sql in sqls {
+			#expect(sql.contains(#"WHERE "t2"."name" = ?"#), "SQL was:\n\(sql)")
+		}
+	}
+
+	@Test("a where on a self-joined type filters the masters in every statement")
+	func whereOnSelfJoin() throws {
+		let sqls = statements(try database().table(Node.self)
+			.join(\.children, on: \.id, equals: \.parentId)
+			.where(\Node.name == "a")
+			.select())
+		#expect(sqls.count == 2)
+		for sql in sqls {
+			#expect(sql.contains(#"WHERE "t0"."name" = ?"#), "SQL was:\n\(sql)")
+		}
+	}
+
+	@Test("a where on a type pivot-joined back to itself filters the masters in every statement")
+	func whereOnSelfPivot() throws {
+		let sqls = statements(try database().table(Person.self)
+			.join(\.friends, with: Friendship.self, on: \.id, equals: \.personId, and: \.id, is: \.friendId)
+			.where(\Person.name == "a")
+			.select())
+		#expect(sqls.count == 2)
+		for sql in sqls {
+			#expect(sql.contains(#"WHERE "t0"."name" = ?"#), "SQL was:\n\(sql)")
+		}
+	}
+
+	@Test("an ordering on the second join of a type sorts that join's rows")
+	func orderOnTypeJoinedTwice() throws {
+		let sqls = statements(try database().table(Family.self)
+			.join(\.kids, on: \.id, equals: \.parentId)
+			.join(\.kids2, on: \.id, equals: \.parentId)
+			.order(descending: \.id)
+			.select())
+		#expect(sqls.count == 3)
+		#expect(sqls[2].contains(#"ORDER BY "t2"."id" DESC"#), "SQL was:\n\(sqls[2])")
+	}
+
+	@Test("an ordering on a self-join sorts the joined rows, not the masters")
+	func orderOnSelfJoin() throws {
+		let sqls = statements(try database().table(Node.self)
+			.order(by: \.id)
+			.join(\.children, on: \.id, equals: \.parentId)
+			.order(by: \.name)
+			.select())
+		#expect(sqls.count == 2)
+		#expect(sqls[0].contains(#"ORDER BY "t0"."id""#), "SQL was:\n\(sqls[0])")
+		#expect(sqls[1].contains(#"ORDER BY "t1"."name""#), "SQL was:\n\(sqls[1])")
+	}
+
+	@Test("an ordering on a pivot join back to the master's type sorts the joined rows")
+	func orderOnSelfPivot() throws {
+		let sqls = statements(try database().table(Person.self)
+			.join(\.friends, with: Friendship.self, on: \.id, equals: \.personId, and: \.id, is: \.friendId)
+			.order(by: \.name)
+			.select())
+		#expect(sqls.count == 2)
+		#expect(sqls[1].contains(#"ORDER BY "t1"."name""#), "SQL was:\n\(sqls[1])")
 	}
 }

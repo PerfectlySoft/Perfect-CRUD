@@ -477,16 +477,44 @@ public struct SQLGenState {
 		}
 		return tables
 	}
+	/// The table a where clause key path rooted at `type` refers to, in every statement: the
+	/// master table if it has that type, so in a self-join `\P.x` filters the masters; otherwise
+	/// the only table of that type. A key path can't say which of several joined or pivot tables
+	/// it means, so a type with more than one (other than the master's) is an error rather than
+	/// silently meaning the first.
+	func whereTableData(type: Any.Type) throws -> TableData {
+		if let master = tableData.first, master.type == type {
+			return master
+		}
+		let tables = tableData.filter { $0.type == type }
+		guard let table = tables.first else {
+			throw CRUDSQLGenError("Unknown type included in where clause \(type).")
+		}
+		guard tables.count == 1 else {
+			throw CRUDSQLGenError("\(type) is joined more than once, so a key path on it is ambiguous.")
+		}
+		return table
+	}
+	/// An ORDER BY term for the statement of `statementTable`. Orderings are key paths on the
+	/// form of the table, join or pivot join they follow, so they sort that statement's own
+	/// rows; resolving by type alone would sort a second join of a type, or a self-join, by
+	/// the first table of that type.
+	func orderingSnippet(_ ordering: Ordering, statementTable: TableData) throws -> String {
+		let rootType = type(of: ordering.key).rootType
+		guard rootType == statementTable.type else {
+			throw CRUDSQLGenError("Ordering key path on \(rootType) does not belong to \(statementTable.type).")
+		}
+		let snippet = try CRUDExpression.sqlSnippet(keyPath: ordering.key, tableData: statementTable, state: self)
+		return snippet + (ordering.desc ? " DESC" : "")
+	}
 	/// LEFT JOIN clauses for the joined tables that `whereExpr` references but the current
-	/// statement doesn't include (`present` holds the aliases it does). A where clause's key
-	/// paths resolve to the first table of their type, so that is the one joined. A
-	/// pivot-joined type is reached through its pivot table, which is joined first.
+	/// statement doesn't include (`present` holds the aliases it does). The tables are those
+	/// `whereTableData(type:)` resolves the clause's key paths to. A pivot-joined type is
+	/// reached through its pivot table, which is joined first.
 	func whereClauseJoins(for whereExpr: CRUDExpression, present: Set<String>) throws -> [String] {
 		var needed: Set<String> = []
 		for type in whereExpr.referencedTypes() {
-			guard let table = getTableData(type: type) else {
-				throw CRUDSQLGenError("Unknown type included in where clause \(type).")
-			}
+			let table = try whereTableData(type: type)
 			if !present.contains(table.alias) {
 				needed.insert(table.alias)
 			}

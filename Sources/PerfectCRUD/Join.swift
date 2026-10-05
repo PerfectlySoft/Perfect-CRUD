@@ -66,7 +66,7 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
 			if !orderings.isEmpty {
-				let m = try orderings.map { "\(try CRUDExpression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
+				let m = try orderings.map { try state.orderingSnippet($0, statementTable: myTable) }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
 			}
 			if let (max, skip) = limit {
@@ -166,7 +166,7 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
 			if !orderings.isEmpty {
-				let m = try orderings.map { "\(try CRUDExpression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
+				let m = try orderings.map { try state.orderingSnippet($0, statementTable: myTable) }
 				sqlStr += "ORDER BY \(m.joined(separator: ", "))\n"
 			}
 			if let (max, skip) = limit {

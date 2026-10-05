@@ -50,7 +50,7 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			if state.command == .count {
 				sqlStr = "SELECT COUNT(*) AS count FROM (\(sqlStr + limitStr)) AS s1"
 			} else if !orderings.isEmpty {
-				let m = try orderings.map { "\(try CRUDExpression.keyPath($0.key).sqlSnippet(state: state))\($0.desc ? " DESC" : "")" }
+				let m = try orderings.map { try state.orderingSnippet($0, statementTable: myTable) }
 				sqlStr += "\nORDER BY \(m.joined(separator: ", "))" + limitStr
 			} else {
 				sqlStr += limitStr

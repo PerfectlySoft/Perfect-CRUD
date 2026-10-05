@@ -142,10 +142,7 @@ extension CRUDExpression {
 		case .greaterThanEqual(let lhs, let rhs):
 			return try bin(state, ">=", lhs, rhs)
 		case .keyPath(let k):
-			let rootType = type(of: k).rootType
-			guard let tableData = state.getTableData(type: rootType) else {
-				throw CRUDSQLGenError("Unable to get table for KeyPath root \(rootType).")
-			}
+			let tableData = try state.whereTableData(type: type(of: k).rootType)
 			return try CRUDExpression.sqlSnippet(keyPath: k, tableData: tableData, state: state)
 		case .null:
 			return "NULL"
