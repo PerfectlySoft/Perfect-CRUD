@@ -33,23 +33,8 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 			FROM \(nameQ) AS \(aliasQ)
 			"""
 			if let whereExpr = state.whereExpr {
-				let joinTables = poppedTableData.remainingTables
-				let referencedTypes = whereExpr.referencedTypes()
-				for joinTable in joinTables {
-					guard joinTable.type != Form.self else {
-						continue
-					}
-					guard let _ = referencedTypes.first(where: { joinTable.type == $0 }) else {
-						continue
-					}
-					guard let joinData = joinTable.joinData else {
-						throw CRUDSQLGenError("Join without a clause \(joinTable.type).")
-					}
-					let nameQ = try delegate.quote(identifier: "\(joinTable.type)")
-					let aliasQ = try delegate.quote(identifier: joinTable.alias)
-					let lhsStr = try CRUDExpression.keyPath(joinData.on).sqlSnippet(state: state)
-					let rhsStr = try CRUDExpression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "\n\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)"
+				for join in try state.whereClauseJoins(for: whereExpr, present: [myTable.alias]) {
+					sqlStr += "\n\(join)"
 				}
 				sqlStr += "\nWHERE \(try whereExpr.sqlSnippet(state: state))"
 			}
