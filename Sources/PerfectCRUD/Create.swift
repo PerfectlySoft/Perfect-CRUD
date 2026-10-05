@@ -167,8 +167,22 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 // Keyed by type identity, not by name: the type name is unqualified, so two distinct
 // types with the same name (nested or function-local types in different scopes, or the
 // same name in two modules) would otherwise share one cached structure.
+//
+// Only the canonical structure is cached: one computed for a top-level decoder
+// (`depth == 0`) with no explicit primary key. A sub-table's structure is computed with a
+// `depth >= 1` decoder, which truncates the sub-table's own arrays (see
+// `CRUDColumnNameDecoder.unkeyedContainer()`), so it has no `subTables`; caching it would
+// hand that truncated structure to a later top-level call. A structure computed for an
+// explicit `primaryKey` (`create(primaryKey:)`) marks that column, not the default one, so
+// it's only visible to the calls it makes while being computed (through
+// `tableStructureInProgress`), never cached. While one is in progress, nothing else is
+// cached either: a structure computed then may have reached the explicit-key one through a
+// foreign key. Sub-table computations neither read nor write either map: their result is
+// always computed fresh, so it matches what a cold cache gives.
 private let tableStructureCacheLock = NSRecursiveLock()
 nonisolated(unsafe) private var tableStructureCache: [ObjectIdentifier:TableStructure] = [:]
+nonisolated(unsafe) private var tableStructureInProgress: [ObjectIdentifier:TableStructure] = [:]
+nonisolated(unsafe) private var explicitPrimaryKeyComputations = 0
 
 // for tests
 public func CRUDClearTableStructureCache() {
@@ -186,9 +200,11 @@ extension Decodable {
 	}
 	public static func CRUDTableStructure(columnDecoder: CRUDColumnNameDecoder, primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let cacheKey = ObjectIdentifier(Self.self)
+		let isTopLevel = columnDecoder.depth == 0
+		let isCacheable = isTopLevel && primaryKey == nil
 		tableStructureCacheLock.lock()
 		defer { tableStructureCacheLock.unlock() }
-		if let cached = tableStructureCache[cacheKey] {
+		if isCacheable, let cached = tableStructureInProgress[cacheKey] ?? tableStructureCache[cacheKey] {
 			return cached
 		}
 		let primaryKeyName: String?
@@ -229,7 +245,28 @@ extension Decodable {
 			},
 			subTables: [],
 			indexes: [])
-		tableStructureCache[cacheKey] = tableStruct
+		// Publish before filling in `subTables`, so that a foreign key back to this type from
+		// one of them finds this structure instead of recursing forever. (A foreign key cycle
+		// among the columns themselves is resolved before this point, and still recurses.)
+		let writesCache = isCacheable && explicitPrimaryKeyComputations == 0
+		let publishesInProgress = isTopLevel && !writesCache
+		let previousInProgress = tableStructureInProgress[cacheKey]
+		if writesCache {
+			tableStructureCache[cacheKey] = tableStruct
+		} else if publishesInProgress {
+			tableStructureInProgress[cacheKey] = tableStruct
+		}
+		if primaryKey != nil {
+			explicitPrimaryKeyComputations += 1
+		}
+		defer {
+			if publishesInProgress {
+				tableStructureInProgress[cacheKey] = previousInProgress
+			}
+			if primaryKey != nil {
+				explicitPrimaryKeyComputations -= 1
+			}
+		}
 		tableStruct.subTables = try columnDecoder.subTables.filter { !$0.matches(Self.self) }.map {
 			return try $0.tableStructure()
 		}
