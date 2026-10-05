@@ -18,10 +18,18 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
 	let to: KeyPath<OverAllForm, [Form]?>
-	let on: KeyPath<OverAllForm, ComparisonType>
-	let equals: KeyPath<Form, ComparisonType>
+	// Either side may be an Optional of ComparisonType (see Joinable.join).
+	let on: PartialKeyPath<OverAllForm>
+	let equals: PartialKeyPath<Form>
+	init(fromTable: FromTableType, to: KeyPath<OverAllForm, [Form]?>, on: PartialKeyPath<OverAllForm>, equals: PartialKeyPath<Form>) {
+		self.fromTable = fromTable
+		self.to = to
+		self.on = on
+		self.equals = equals
+	}
 	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
+		try checkJoinComparisonType(of: on)
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: nil))
 	}
 	public func setSQL(state: inout SQLGenState) throws {
@@ -119,6 +127,7 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 	
 	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
+		try checkJoinComparisonType(of: on)
 		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: PivotTableType.self))
 		try state.addTable(type: PivotTableType.self)
 	}
