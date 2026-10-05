@@ -115,7 +115,7 @@ public let setDefault = ForeignKeyActionSetDefault()
 public let cascade = ForeignKeyActionCascade()
 
 protocol ForeignKeyWrapper: WrappedCodableProvider {
-	static func foreignTableStructure() throws -> TableStructure
+	static func foreignKeyTarget() throws -> ForeignKeyTarget
 	static func foreignKeyDeleteAction() -> ForeignKeyAction
 	static func foreignKeyUpdateAction() -> ForeignKeyAction
 }
@@ -125,8 +125,8 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 	public static func provideWrappedValueType() -> Codable.Type { Value.self }
 	static func foreignKeyDeleteAction() -> ForeignKeyAction { DeleteAction.action }
 	static func foreignKeyUpdateAction() -> ForeignKeyAction { UpdateAction.action }
-	static func foreignTableStructure() throws -> TableStructure {
-		return try Table.CRUDTableStructure()
+	static func foreignKeyTarget() throws -> ForeignKeyTarget {
+		return try Table.CRUDForeignKeyTarget()
 	}
 	
 	public var wrappedValue: Value {
@@ -153,16 +153,21 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 	}
 }
 
+// What a foreign key column references: the target table's name and primary key column.
+struct ForeignKeyTarget {
+	let tableName: String
+	let primaryKeyName: String?
+}
+
 // Guards all access to `tableStructureCache`, including the full compute-and-cache
 // sequence below, not just the individual dictionary reads/writes. `CRUDTableStructure`
-// recurses into itself on the same thread (via `ForeignKeyWrapper.foreignTableStructure()`
+// recurses into itself on the same thread (via `ForeignKeyWrapper.foreignKeyTarget()`
 // and `SubTable.tableStructure()`, for foreign-key references and nested sub-tables), so
 // a non-recursive lock held across that computation would deadlock the first time a model
 // has either. `NSRecursiveLock` permits that same-thread re-entry while still serializing
 // distinct threads across the entire sequence — which also prevents a second thread from
 // observing a `TableStructure` that's been published into the cache but not yet had its
-// `subTables` filled in (the original single-threaded code relies on that ordering to break
-// cycles for self-referential/mutually-referential models).
+// `subTables` filled in.
 //
 // Keyed by type identity, not by name: the type name is unqualified, so two distinct
 // types with the same name (nested or function-local types in different scopes, or the
@@ -174,14 +179,25 @@ public struct ForeignKey<Table: Codable, DeleteAction: ForeignKeyActionProvider,
 // `CRUDColumnNameDecoder.unkeyedContainer()`), so it has no `subTables`; caching it would
 // hand that truncated structure to a later top-level call. A structure computed for an
 // explicit `primaryKey` (`create(primaryKey:)`) marks that column, not the default one, so
-// it's only visible to the calls it makes while being computed (through
-// `tableStructureInProgress`), never cached. While one is in progress, nothing else is
+// it's never cached; only the foreign keys resolved while it's computed see that column
+// (through `foreignKeyTargetsInProgress`, below). While one is in progress, nothing else is
 // cached either: a structure computed then may have reached the explicit-key one through a
-// foreign key. Sub-table computations neither read nor write either map: their result is
-// always computed fresh, so it matches what a cold cache gives.
+// foreign key. Those structures are kept in `explicitPrimaryKeyScope` instead, and dropped
+// when the explicit-key computation ends, so one that's reached again during it isn't
+// recomputed (a model whose foreign keys reach the same types along several paths would
+// otherwise take exponential time). Sub-table computations neither read nor write the cache
+// or the scope: their result is always computed fresh, so it matches what a cold cache gives.
+//
+// A foreign key column only needs its target's table name and primary key, so a top-level
+// computation records those in `foreignKeyTargetsInProgress` before resolving its own
+// columns or sub-tables. A foreign key cycle (a self-referencing column, two or more types
+// referencing each other, or a sub-table referencing its parent) then finds the entry
+// instead of recomputing the structure forever. The entry carries the primary key this
+// computation uses, so with an explicit `primaryKey` that's what those foreign keys see.
 private let tableStructureCacheLock = NSRecursiveLock()
 nonisolated(unsafe) private var tableStructureCache: [ObjectIdentifier:TableStructure] = [:]
-nonisolated(unsafe) private var tableStructureInProgress: [ObjectIdentifier:TableStructure] = [:]
+nonisolated(unsafe) private var foreignKeyTargetsInProgress: [ObjectIdentifier:ForeignKeyTarget] = [:]
+nonisolated(unsafe) private var explicitPrimaryKeyScope: [ObjectIdentifier:TableStructure] = [:]
 nonisolated(unsafe) private var explicitPrimaryKeyComputations = 0
 
 // for tests
@@ -192,6 +208,15 @@ public func CRUDClearTableStructureCache() {
 }
 
 extension Decodable {
+	static func CRUDForeignKeyTarget() throws -> ForeignKeyTarget {
+		tableStructureCacheLock.lock()
+		defer { tableStructureCacheLock.unlock() }
+		if let target = foreignKeyTargetsInProgress[ObjectIdentifier(Self.self)] {
+			return target
+		}
+		let structure = try CRUDTableStructure()
+		return ForeignKeyTarget(tableName: structure.tableName, primaryKeyName: structure.primaryKeyName)
+	}
 	public static func CRUDTableStructure(primaryKey: PartialKeyPath<Self>? = nil) throws -> TableStructure {
 		let columnDecoder = CRUDColumnNameDecoder()
 		columnDecoder.tableNamePath.append("\(Self.CRUDTableName)")
@@ -204,7 +229,7 @@ extension Decodable {
 		let isCacheable = isTopLevel && primaryKey == nil
 		tableStructureCacheLock.lock()
 		defer { tableStructureCacheLock.unlock() }
-		if isCacheable, let cached = tableStructureInProgress[cacheKey] ?? tableStructureCache[cacheKey] {
+		if isCacheable, let cached = explicitPrimaryKeyScope[cacheKey] ?? tableStructureCache[cacheKey] {
 			return cached
 		}
 		let primaryKeyName: String?
@@ -223,6 +248,27 @@ extension Decodable {
 			primaryKeyName = nil
 		}
 		let thisTableName = columnDecoder.tableNamePath.last!
+		// Recorded before the columns are resolved; see `foreignKeyTargetsInProgress`.
+		let previousTarget = foreignKeyTargetsInProgress[cacheKey]
+		if isTopLevel {
+			foreignKeyTargetsInProgress[cacheKey] = ForeignKeyTarget(tableName: thisTableName, primaryKeyName: primaryKeyName)
+		}
+		// Counted before the columns too: a type reached through a foreign key from them may
+		// reference this explicit key, so it mustn't be cached either.
+		if primaryKey != nil {
+			explicitPrimaryKeyComputations += 1
+		}
+		defer {
+			if isTopLevel {
+				foreignKeyTargetsInProgress[cacheKey] = previousTarget
+			}
+			if primaryKey != nil {
+				explicitPrimaryKeyComputations -= 1
+				if explicitPrimaryKeyComputations == 0 {
+					explicitPrimaryKeyScope.removeAll()
+				}
+			}
+		}
 		let tableStruct = TableStructure(
 			tableName: thisTableName,
 			columns: columnDecoder.collectedKeys.map {
@@ -231,9 +277,9 @@ extension Decodable {
 					props.append(.primaryKey)
 				}
 				if let foreignWrapper = $0.type as? ForeignKeyWrapper.Type,
-					let foreignInfo = try? foreignWrapper.foreignTableStructure(),
-					let foreignPK = foreignInfo.columns.first(where: { $0.properties.contains(.primaryKey) }) {
-					props.append(.foreignKey(foreignInfo.tableName, foreignPK.name, foreignWrapper.foreignKeyDeleteAction(), foreignWrapper.foreignKeyUpdateAction()))
+					let target = try? foreignWrapper.foreignKeyTarget(),
+					let foreignPK = target.primaryKeyName {
+					props.append(.foreignKey(target.tableName, foreignPK, foreignWrapper.foreignKeyDeleteAction(), foreignWrapper.foreignKeyUpdateAction()))
 				}
 				let itype: Any.Type
 				if let wrapper = $0.type as? WrappedCodableProvider.Type {
@@ -245,26 +291,13 @@ extension Decodable {
 			},
 			subTables: [],
 			indexes: [])
-		// Publish before filling in `subTables`, so that a foreign key back to this type from
-		// one of them finds this structure instead of recursing forever. (A foreign key cycle
-		// among the columns themselves is resolved before this point, and still recurses.)
-		let writesCache = isCacheable && explicitPrimaryKeyComputations == 0
-		let publishesInProgress = isTopLevel && !writesCache
-		let previousInProgress = tableStructureInProgress[cacheKey]
-		if writesCache {
-			tableStructureCache[cacheKey] = tableStruct
-		} else if publishesInProgress {
-			tableStructureInProgress[cacheKey] = tableStruct
-		}
-		if primaryKey != nil {
-			explicitPrimaryKeyComputations += 1
-		}
-		defer {
-			if publishesInProgress {
-				tableStructureInProgress[cacheKey] = previousInProgress
-			}
-			if primaryKey != nil {
-				explicitPrimaryKeyComputations -= 1
+		// Published before filling in `subTables`, so that a sub-table reaching this type again
+		// through a foreign key finds it instead of computing it again.
+		if isCacheable {
+			if explicitPrimaryKeyComputations == 0 {
+				tableStructureCache[cacheKey] = tableStruct
+			} else {
+				explicitPrimaryKeyScope[cacheKey] = tableStruct
 			}
 		}
 		tableStruct.subTables = try columnDecoder.subTables.filter { !$0.matches(Self.self) }.map {
