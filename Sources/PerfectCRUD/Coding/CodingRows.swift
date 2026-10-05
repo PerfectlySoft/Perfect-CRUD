@@ -153,6 +153,11 @@ public class CRUDColumnValueDecoder<K: CodingKey>: Decoder, SingleValueDecodingC
 		case is UInt16.Type: return try decode(UInt16.self) as! T
 		case is UInt32.Type: return try decode(UInt32.self) as! T
 		case is UInt64.Type: return try decode(UInt64.self) as! T
+		case is CRUDOptional.Type:
+			// A wrapper holding an Optional: Optional's own init(from:) checks decodeNil(),
+			// then decodes its Wrapped through this same container. Forwarded generically,
+			// the row reader would treat it as JSON.
+			return try T(from: self)
 		default:
 			// Genuinely special types (Date, UUID, Data, URL, nested
 			// Codable, another layer of wrapping) fall through to the
