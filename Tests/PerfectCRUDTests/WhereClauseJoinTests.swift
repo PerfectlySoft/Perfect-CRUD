@@ -70,6 +70,16 @@ private enum WhereJoinScope {
 		let personId: Int
 		let friendId: Int
 	}
+	// A pivot join whose pivot type is also the joined type.
+	struct Hub: Codable {
+		let id: Int
+		let links: [Link]?
+	}
+	struct Link: Codable {
+		let id: Int
+		let hubId: Int
+		let name: String
+	}
 }
 
 // Records each statement's SQL and returns no rows.
@@ -253,6 +263,8 @@ extension WhereClauseJoinTests {
 	fileprivate typealias Node = WhereJoinScope.Node
 	fileprivate typealias Person = WhereJoinScope.Person
 	fileprivate typealias Friendship = WhereJoinScope.Friendship
+	fileprivate typealias Hub = WhereJoinScope.Hub
+	fileprivate typealias Link = WhereJoinScope.Link
 
 	private func database() throws -> Database<StatefulStubConfig> {
 		Database(configuration: try StatefulStubConfig())
@@ -345,5 +357,38 @@ extension WhereClauseJoinTests {
 			.select())
 		#expect(sqls.count == 2)
 		#expect(sqls[1].contains(#"ORDER BY "t1"."name""#), "SQL was:\n\(sqls[1])")
+	}
+
+	@Test("a where on a pivot join whose pivot type is the joined type throws")
+	func whereOnPivotTypeEqualToJoinedType() throws {
+		let query = try database().table(Hub.self)
+			.join(\.links, with: Link.self, on: \.id, equals: \.hubId, and: \.id, is: \.id)
+		expectAmbiguous { _ = try query.where(\Link.name == "a").select() }
+	}
+
+	@Test("a where on a self-join with an ordering on the join filters the masters and sorts the children")
+	func whereAndOrderOnSelfJoin() throws {
+		let sqls = statements(try database().table(Node.self)
+			.join(\.children, on: \.id, equals: \.parentId)
+			.order(by: \.name)
+			.where(\Node.name == "a")
+			.select())
+		#expect(sqls.count == 2)
+		#expect(sqls[1].contains(#"WHERE "t0"."name" = ?"#) && sqls[1].contains(#"ORDER BY "t1"."name""#), "SQL was:\n\(sqls[1])")
+	}
+
+	@Test("orderings through limits on chained joins sort each statement's own table")
+	func orderThroughLimitsOnJoins() throws {
+		let sqls = statements(try database().table(Family.self)
+			.join(\.kids, on: \.id, equals: \.parentId)
+			.limit(2)
+			.order(descending: \.id)
+			.join(\.kids2, on: \.id, equals: \.parentId)
+			.limit(1)
+			.order(by: \.parentId)
+			.select())
+		#expect(sqls.count == 3)
+		#expect(sqls[1].contains(#"ORDER BY "t1"."id" DESC"#), "SQL was:\n\(sqls[1])")
+		#expect(sqls[2].contains(#"ORDER BY "t2"."parentId""#), "SQL was:\n\(sqls[2])")
 	}
 }

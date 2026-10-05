@@ -491,7 +491,7 @@ public struct SQLGenState {
 			throw CRUDSQLGenError("Unknown type included in where clause \(type).")
 		}
 		guard tables.count == 1 else {
-			throw CRUDSQLGenError("\(type) is joined more than once, so a key path on it is ambiguous.")
+			throw CRUDSQLGenError("\(type) appears more than once among the joined and pivot tables, so a key path on it is ambiguous: it can't say which table it means.")
 		}
 		return table
 	}
