@@ -10,7 +10,7 @@ import Foundation
 //
 // Each test first runs the operation in a child process (an exit test), so on a build without
 // the fix the test fails instead of taking the test runner down. Only then does it check the
-// results in process.
+// results in process. Exit tests don't exist on iOS, so there the checks run in process only.
 
 private final class Node: Codable {
 	var v: Int
@@ -223,12 +223,14 @@ struct RecursiveModelTests {
 	}
 
 	@Test func decodingTerminates() async throws {
+#if os(macOS) || os(Linux) || os(Windows)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseKeyPaths()
 		}
 		guard case .exitCode(EXIT_SUCCESS)? = result?.exitStatus else {
 			return
 		}
+#endif
 
 		let node = try Node(from: CRUDKeyPathsDecoder())
 		// A model's own `next` is still decoded once, so it stays a column.
@@ -237,12 +239,14 @@ struct RecursiveModelTests {
 	}
 
 	@Test func keyPathsResolve() async throws {
+#if os(macOS) || os(Linux) || os(Windows)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseKeyPaths()
 		}
 		guard case .exitCode(EXIT_SUCCESS)? = result?.exitStatus else {
 			return
 		}
+#endif
 
 		#expect(try columnName(\Node.v) == "v")
 		#expect(try columnName(\Node.next) == "next")
@@ -271,12 +275,14 @@ struct RecursiveModelTests {
 	}
 
 	@Test func keyPathsIntoTheRecursionAreStillNested() async throws {
+#if os(macOS) || os(Linux) || os(Windows)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseKeyPaths()
 		}
 		guard case .exitCode(EXIT_SUCCESS)? = result?.exitStatus else {
 			return
 		}
+#endif
 
 		for check in [{ _ = try columnName(\Holder.head?.v) },
 					  { _ = try columnName(\Node.next?.v) },
@@ -288,12 +294,14 @@ struct RecursiveModelTests {
 	}
 
 	@Test func tableStructuresHaveTheTopLevelColumns() async throws {
+#if os(macOS) || os(Linux) || os(Windows)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseTableStructures()
 		}
 		guard case .exitCode(EXIT_SUCCESS)? = result?.exitStatus else {
 			return
 		}
+#endif
 
 		#expect(try columns(Node.self) == ["v": false, "next": true])
 		#expect(try columns(Holder.self) == ["id": false, "name": false, "head": true, "flag": false])
@@ -308,12 +316,14 @@ struct RecursiveModelTests {
 	}
 
 	@Test func tablesGenerateSQL() async throws {
+#if os(macOS) || os(Linux) || os(Windows)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseSQL()
 		}
 		guard case .exitCode(EXIT_SUCCESS)? = result?.exitStatus else {
 			return
 		}
+#endif
 
 		let db = Database(configuration: try RecursiveStubConfig())
 		let nodeSQL = try #require(try db.table(Node.self).where(\Node.v == 1).select().sqlGenState.statements.first?.sql)
@@ -325,12 +335,14 @@ struct RecursiveModelTests {
 	}
 
 	@Test func nonOptionalSelfReferenceThrows() async throws {
+#if os(macOS) || os(Linux) || os(Windows)
 		let result = await #expect(processExitsWith: .success) {
 			exerciseEndless()
 		}
 		guard case .exitCode(EXIT_SUCCESS)? = result?.exitStatus else {
 			return
 		}
+#endif
 
 		let keyPathError = #expect(throws: CRUDDecoderError.self) { _ = try Endless(from: CRUDKeyPathsDecoder()) }
 		#expect(keyPathError?.msg.contains("optional property") == true)

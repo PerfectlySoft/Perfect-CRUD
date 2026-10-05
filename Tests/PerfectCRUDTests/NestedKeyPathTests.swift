@@ -313,7 +313,7 @@ struct NestedKeyPathTests {
 		let childSQL = try #require(select.sqlGenState.statements.last?.sql)
 		#expect(childSQL.contains("\"parentId\""), "SQL was: \(childSQL)")
 		// Executing resolves `\.children` and `\.id` against the model instance.
-		#expect(try select.map { $0 }.isEmpty)
+		#expect(select.map { $0 }.isEmpty)
 	}
 
 	@Test func undecodedRandomFieldsDontMakeAColumnLookNested() throws {

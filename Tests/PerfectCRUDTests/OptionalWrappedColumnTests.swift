@@ -385,13 +385,10 @@ struct OptionalWrappedColumnTests {
 	func mixedColumns() throws {
 		typealias Model = MixedScope.Model
 		let structure = try Model.CRUDTableStructure()
-		func column(_ name: String) throws -> TableStructure.Column {
-			try #require(structure.columns.first { $0.name == name })
-		}
 		for (name, type, optional) in [("first", Int.self as Any.Type, true), ("second", Int.self, true),
 									   ("ref", UUID.self, true), ("owner", Int.self, false),
 									   ("plain", Int.self, true), ("nested", Int.self, true)] {
-			let c = try column(name)
+			let c = try #require(structure.columns.first { $0.name == name }, "\(name)")
 			#expect(c.optional == optional, "\(name)")
 			#expect(ObjectIdentifier(c.type) == ObjectIdentifier(type), "\(name): \(c.type)")
 		}

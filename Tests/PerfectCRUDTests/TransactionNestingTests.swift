@@ -83,7 +83,7 @@ struct TransactionNestingTests {
 		let (db, config) = try makeTxnDB()
 		// The outer transaction itself succeeds -- only the inner one throws,
 		// and the outer body catches it, so the outer still COMMITs.
-		try db.transaction {
+		_ = try db.transaction {
 			#expect(throws: Boom.self) {
 				try db.transaction { throw Boom() }
 			}
@@ -119,7 +119,7 @@ struct TransactionNestingTests {
 		struct Boom: Error {}
 		let (db, config) = try makeTxnDB()
 
-		try db.transaction {
+		_ = try db.transaction {
 			#expect(throws: Boom.self) {
 				try db.transaction { throw Boom() }
 			}
