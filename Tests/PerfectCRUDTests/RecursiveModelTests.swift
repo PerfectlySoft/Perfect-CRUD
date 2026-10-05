@@ -130,6 +130,16 @@ private final class ExplicitOptionalNode: Codable {
 	}
 }
 
+// Same-typed columns of the model's own type, which the same-type resolution tells apart with
+// extra probes (one array column filled, or one optional column nil).
+private final class Family: Codable {
+	var v: Int
+	var kids: [Family]?
+	var others: [Family]?
+	var next: Family?
+	var prev: Family?
+}
+
 // Can't be decoded from any finite input: `next` isn't optional.
 private final class Endless: Codable {
 	var v: Int
@@ -172,6 +182,9 @@ private func exerciseKeyPaths() {
 	_ = try? columnName(\WrappedNode.id)
 	_ = try? columnName(\WrappedNode.next)
 	_ = try? columnName(\ExplicitOptionalNode.v)
+	_ = try? columnName(\Family.others)
+	_ = try? columnName(\Family.prev)
+	_ = try? columnName(\Family.next?.kids)
 }
 
 private func exerciseTableStructures() {
@@ -250,6 +263,11 @@ struct RecursiveModelTests {
 		#expect(try columnName(\FanOut.c5) == "c5")
 		#expect(try columnName(\WrappedNode.id) == "id")
 		#expect(try columnName(\WrappedNode.next) == "next")
+		#expect(try columnName(\Family.v) == "v")
+		#expect(try columnName(\Family.kids) == "kids")
+		#expect(try columnName(\Family.others) == "others")
+		#expect(try columnName(\Family.next) == "next")
+		#expect(try columnName(\Family.prev) == "prev")
 	}
 
 	@Test func keyPathsIntoTheRecursionAreStillNested() async throws {
@@ -262,7 +280,8 @@ struct RecursiveModelTests {
 
 		for check in [{ _ = try columnName(\Holder.head?.v) },
 					  { _ = try columnName(\Node.next?.v) },
-					  { _ = try columnName(\Person.pet?.name) }] {
+					  { _ = try columnName(\Person.pet?.name) },
+					  { _ = try columnName(\Family.next?.kids) }] {
 			let error = #expect(throws: CRUDSQLGenError.self) { try check() }
 			#expect(error?.description.contains("top-level property") == true)
 		}
