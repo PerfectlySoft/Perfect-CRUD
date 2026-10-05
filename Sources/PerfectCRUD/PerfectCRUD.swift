@@ -398,6 +398,9 @@ public struct SQLGenState {
 		public let on: AnyKeyPath
 		public let equals: AnyKeyPath
 		public let pivot: Codable.Type?
+		/// For a pivot join: the joined type's key path and the pivot table's key path it equals.
+		public let pivotAnd: AnyKeyPath?
+		public let pivotAlsoEquals: AnyKeyPath?
 	}
 	public struct Statement {
 		public let sql: String
@@ -473,6 +476,60 @@ public struct SQLGenState {
 			}
 		}
 		return tables
+	}
+	/// LEFT JOIN clauses for the joined tables that `whereExpr` references but the current
+	/// statement doesn't include (`present` holds the aliases it does). A where clause's key
+	/// paths resolve to the first table of their type, so that is the one joined. A
+	/// pivot-joined type is reached through its pivot table, which is joined first.
+	func whereClauseJoins(for whereExpr: CRUDExpression, present: Set<String>) throws -> [String] {
+		var needed: Set<String> = []
+		for type in whereExpr.referencedTypes() {
+			guard let table = getTableData(type: type) else {
+				throw CRUDSQLGenError("Unknown type included in where clause \(type).")
+			}
+			if !present.contains(table.alias) {
+				needed.insert(table.alias)
+			}
+		}
+		guard !needed.isEmpty, let master = tableData.first else {
+			return []
+		}
+		func join(_ table: TableData, on lhs: AnyKeyPath, of lhsTable: TableData, equals rhs: AnyKeyPath, of rhsTable: TableData) throws -> String {
+			let nameQ = try delegate.quote(identifier: table.type.CRUDTableName)
+			let aliasQ = try delegate.quote(identifier: table.alias)
+			let lhsStr = try CRUDExpression.sqlSnippet(keyPath: lhs, tableData: lhsTable, state: self)
+			let rhsStr = try CRUDExpression.sqlSnippet(keyPath: rhs, tableData: rhsTable, state: self)
+			return "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)"
+		}
+		var joins: [String] = []
+		var joined = present
+		for index in tableData.indices.dropFirst() {
+			let table = tableData[index]
+			// Pivot tables have no join data; they are handled with their joined type.
+			guard let joinData = table.joinData else {
+				continue
+			}
+			guard let pivot = joinData.pivot else {
+				if needed.contains(table.alias) {
+					joins.append(try join(table, on: joinData.on, of: master, equals: joinData.equals, of: table))
+				}
+				continue
+			}
+			guard index + 1 < tableData.count, tableData[index + 1].type == pivot,
+				let pivotAnd = joinData.pivotAnd, let pivotAlsoEquals = joinData.pivotAlsoEquals else {
+				throw CRUDSQLGenError("No pivot table for the join to \(table.type).")
+			}
+			let pivotTable = tableData[index + 1]
+			let needsTable = needed.contains(table.alias)
+			if (needsTable || needed.contains(pivotTable.alias)) && !joined.contains(pivotTable.alias) {
+				joins.append(try join(pivotTable, on: joinData.on, of: master, equals: joinData.equals, of: pivotTable))
+				joined.insert(pivotTable.alias)
+			}
+			if needsTable {
+				joins.append(try join(table, on: pivotAnd, of: table, equals: pivotAlsoEquals, of: pivotTable))
+			}
+		}
+		return joins
 	}
 	mutating func getAlias<A: Codable>(type: A.Type) -> String? {
 		return tableData.first { $0.type == type }?.alias

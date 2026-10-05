@@ -30,7 +30,7 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		try checkJoinComparisonType(of: on)
-		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: nil))
+		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: nil, pivotAnd: nil, pivotAlsoEquals: nil))
 	}
 	public func setSQL(state: inout SQLGenState) throws {
 		let (orderings, limit) = state.consumeState()
@@ -41,7 +41,6 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 		}
 		let myTable = poppedTableData.myTable
 		let firstTable = poppedTableData.firstTable
-		let joinTables = poppedTableData.remainingTables
 		let nameQ = try delegate.quote(identifier: Form.CRUDTableName)
 		let aliasQ = try delegate.quote(identifier: myTable.alias)
 		let fNameQ = try delegate.quote(identifier: firstTable.type.CRUDTableName)
@@ -61,22 +60,8 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 			
 			"""
 			if let whereExpr = state.whereExpr {
-				let referencedTypes = whereExpr.referencedTypes()
-				for type in referencedTypes {
-					guard type != firstTable.type && type != Form.self else {
-						continue
-					}
-					guard let joinTable = joinTables.first(where: { type == $0.type }) else {
-						throw CRUDSQLGenError("Unknown type included in where clause \(type).")
-					}
-					guard let joinData = joinTable.joinData else {
-						throw CRUDSQLGenError("Join without a clause \(type).")
-					}
-					let nameQ = try delegate.quote(identifier: joinTable.type.CRUDTableName)
-					let aliasQ = try delegate.quote(identifier: joinTable.alias)
-					let lhsStr = try CRUDExpression.keyPath(joinData.on).sqlSnippet(state: state)
-					let rhsStr = try CRUDExpression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
+				for join in try state.whereClauseJoins(for: whereExpr, present: [firstTable.alias, myTable.alias]) {
+					sqlStr += "\(join)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
@@ -128,7 +113,7 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 	public func setState(state: inout SQLGenState) throws {
 		try fromTable.setState(state: &state)
 		try checkJoinComparisonType(of: on)
-		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: PivotTableType.self))
+		try state.addTable(type: Form.self, joinData: .init(to: to, on: on, equals: equals, pivot: PivotTableType.self, pivotAnd: and, pivotAlsoEquals: alsoEquals))
 		try state.addTable(type: PivotTableType.self)
 	}
 	public func setSQL(state: inout SQLGenState) throws {
@@ -142,7 +127,6 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 		}
 		let myTable = poppedTableData1.myTable
 		let firstTable = poppedTableData1.firstTable
-		let joinTables = poppedTableData1.remainingTables
 		let pivotTable = poppedTableData2.myTable
 		
 		let myNameQ = try delegate.quote(identifier: myTable.type.CRUDTableName)
@@ -176,24 +160,8 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 			
 			"""
 			if let whereExpr = state.whereExpr {
-				let referencedTypes = whereExpr.referencedTypes()
-				for type in referencedTypes {
-					guard type != firstTable.type,
-							type != Form.self,
-							type != PivotTableType.self else {
-						continue
-					}
-					guard let joinTable = joinTables.first(where: { type == $0.type }) else {
-						throw CRUDSQLGenError("Unknown type included in where clause \(type).")
-					}
-					guard let joinData = joinTable.joinData else {
-						throw CRUDSQLGenError("Join without a clause \(type).")
-					}
-					let nameQ = try delegate.quote(identifier: joinTable.type.CRUDTableName)
-					let aliasQ = try delegate.quote(identifier: joinTable.alias)
-					let lhsStr = try CRUDExpression.keyPath(joinData.on).sqlSnippet(state: state)
-					let rhsStr = try CRUDExpression.keyPath(joinData.equals).sqlSnippet(state: state)
-					sqlStr += "\(joinWord) \(nameQ) AS \(aliasQ) ON \(lhsStr) = \(rhsStr)\n"
+				for join in try state.whereClauseJoins(for: whereExpr, present: [firstTable.alias, myTable.alias, pivotTable.alias]) {
+					sqlStr += "\(join)\n"
 				}
 				sqlStr += "WHERE \(try whereExpr.sqlSnippet(state: state))\n"
 			}
