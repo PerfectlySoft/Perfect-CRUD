@@ -179,11 +179,15 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		sub.decodingTypes = parent.decodingTypes + [ObjectIdentifier(t)]
 		let ret = try T(from: sub)
 		if let ar = ret as? [Codable] {
-			if !ar.isEmpty {
-				let subType = type(of: ar[0])
+			// Open the element existential through a generic function. Projecting it in place
+			// (`type(of: ar[0])`, `ar[0].addSubTable`) crashes optimized builds with Swift 6.2.
+			func addSubTable<E: Codable>(_ element: E) {
 				sub.codingPath.append(key)
-				sub.tableNamePath.append(subType.CRUDTableName)
-				ar[0].addSubTable(to: parent, name: key.stringValue, decoder: sub)
+				sub.tableNamePath.append(E.CRUDTableName)
+				element.addSubTable(to: parent, name: key.stringValue, decoder: sub)
+			}
+			if let first = ar.first {
+				addSubTable(first)
 			}
 			return ret
 //		} else if ret is WrappedValueTypeProvider {
