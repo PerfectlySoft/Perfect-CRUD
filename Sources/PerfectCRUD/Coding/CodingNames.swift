@@ -43,8 +43,25 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return true
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
+		// See CRUDKeyPathsDecoder.maxOptionalDepth. Nothing is recorded this deep.
+		guard parent.depth < CRUDKeyPathsDecoder.maxOptionalDepth else {
+			return true
+		}
 		isOptional = true
 		return false
+	}
+	func decodeIfPresent<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T? {
+		if try decodeNil(forKey: key) {
+			return nil
+		}
+		// An optional property of a type that's already being decoded further up
+		// (`next: Node?` inside Node) is nil, so self-referential models stay finite.
+		// Nothing is recorded for it, so don't let it mark the next key optional.
+		if parent.decodingTypes.contains(ObjectIdentifier(type)) {
+			isOptional = false
+			return nil
+		}
+		return try decode(type, forKey: key)
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
 		appendKey(key, type)
@@ -155,7 +172,11 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	}
 	
 	func decodeInner<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
+		guard parent.depth < CRUDColumnNameDecoder.maxDepth else {
+			throw CRUDDecoderError("\(t) for key \(key.stringValue) is nested more than \(CRUDColumnNameDecoder.maxDepth) levels deep. A property whose type contains itself must be optional.")
+		}
 		let sub = CRUDColumnNameDecoder(depth: 1 + parent.depth)
+		sub.decodingTypes = parent.decodingTypes + [ObjectIdentifier(t)]
 		let ret = try T(from: sub)
 		if let ar = ret as? [Codable] {
 			if !ar.isEmpty {
@@ -348,6 +369,10 @@ public class CRUDColumnNameDecoder: Decoder {
 	var subTables: [SubTableProto] = []
 	var pendingReader: CRUDColumnNameUnkeyedReader?
 	let depth: Int
+	// The Codable types the decoders above this one, and this one, are decoding
+	// (see CRUDKeyPathsDecoder.decodingTypes).
+	var decodingTypes: [ObjectIdentifier] = []
+	static let maxDepth = 32
 	public init(depth d: Int = 0) {
 		depth = d
 	}
