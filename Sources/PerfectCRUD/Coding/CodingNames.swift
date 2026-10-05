@@ -43,8 +43,8 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return true
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
-		// See CRUDKeyPathsDecoder.maxOptionalDepth. Nothing is recorded this deep.
-		guard parent.depth < CRUDKeyPathsDecoder.maxOptionalDepth else {
+		// See CRUDKeyPathsDecoder.cutsOptionals. Only depth 0 records columns.
+		guard !parent.cutsOptionals else {
 			return true
 		}
 		isOptional = true
@@ -173,7 +173,7 @@ class CRUDColumnNamesReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	
 	func decodeInner<T: Decodable>(_ t: T.Type, forKey key: Key) throws -> T {
 		guard parent.depth < CRUDColumnNameDecoder.maxDepth else {
-			throw CRUDDecoderError("\(t) for key \(key.stringValue) is nested more than \(CRUDColumnNameDecoder.maxDepth) levels deep. A property whose type contains itself must be optional.")
+			throw CRUDDecoderError("\(t) for key \(key.stringValue) is nested more than \(CRUDColumnNameDecoder.maxDepth) levels deep. A model can't contain itself except through an optional property (`var next: Node?`) or a collection.")
 		}
 		let sub = CRUDColumnNameDecoder(depth: 1 + parent.depth)
 		sub.decodingTypes = parent.decodingTypes + [ObjectIdentifier(t)]
@@ -226,7 +226,7 @@ class CRUDColumnNameUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecoding
 		decodedType = t
 	}
 	func decodeNil() -> Bool {
-		return false
+		return parent.cutsOptionals
 	}
 	
 	func decode(_ type: Bool.Type) throws -> Bool {
@@ -373,6 +373,9 @@ public class CRUDColumnNameDecoder: Decoder {
 	// (see CRUDKeyPathsDecoder.decodingTypes).
 	var decodingTypes: [ObjectIdentifier] = []
 	static let maxDepth = 32
+	var cutsOptionals: Bool {
+		return depth >= CRUDKeyPathsDecoder.maxOptionalDepth || CRUDKeyPathsDecoder.repeats(decodingTypes)
+	}
 	public init(depth d: Int = 0) {
 		depth = d
 	}

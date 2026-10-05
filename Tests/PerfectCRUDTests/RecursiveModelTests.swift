@@ -71,6 +71,65 @@ private final class ManualNode: Codable {
 	}
 }
 
+// Like ManualNode, with six such properties. Cut only by depth this decoded 6^8 nodes per pass.
+private final class FanOut: Codable {
+	var v: Int
+	var c0, c1, c2, c3, c4, c5: FanOut?
+	private enum CodingKeys: String, CodingKey {
+		case v, c0, c1, c2, c3, c4, c5
+	}
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		v = try c.decode(Int.self, forKey: .v)
+		func child(_ key: CodingKeys) throws -> FanOut? {
+			return try c.decodeNil(forKey: key) ? nil : c.decode(FanOut.self, forKey: key)
+		}
+		c0 = try child(.c0)
+		c1 = try child(.c1)
+		c2 = try child(.c2)
+		c3 = try child(.c3)
+		c4 = try child(.c4)
+		c5 = try child(.c5)
+	}
+}
+
+// A property wrapper around an Optional of the model's own type: decodeIfPresent never sees it.
+@propertyWrapper
+private struct Wrapped<V: Codable>: WrappedCodableProvider {
+	var wrappedValue: V
+	init(wrappedValue: V) {
+		self.wrappedValue = wrappedValue
+	}
+	init(from decoder: Decoder) throws {
+		wrappedValue = try decoder.singleValueContainer().decode(V.self)
+	}
+	func encode(to encoder: Encoder) throws {
+		var c = encoder.singleValueContainer()
+		try c.encode(wrappedValue)
+	}
+	static func provideWrappedValueType() -> Codable.Type { V.self }
+	func provideWrappedValue() -> Codable { wrappedValue }
+}
+
+private final class WrappedNode: Codable {
+	var id: Int
+	@Wrapped var next: WrappedNode?
+}
+
+// Decodes its Optional with decode(_:forKey:) rather than decodeIfPresent.
+private final class ExplicitOptionalNode: Codable {
+	var v: Int
+	var next: ExplicitOptionalNode?
+	private enum CodingKeys: String, CodingKey {
+		case v, next
+	}
+	init(from decoder: Decoder) throws {
+		let c = try decoder.container(keyedBy: CodingKeys.self)
+		v = try c.decode(Int.self, forKey: .v)
+		next = try c.decode(ExplicitOptionalNode?.self, forKey: .next)
+	}
+}
+
 // Can't be decoded from any finite input: `next` isn't optional.
 private final class Endless: Codable {
 	var v: Int
@@ -109,6 +168,10 @@ private func exerciseKeyPaths() {
 	_ = try? columnName(\Person.pet?.name)
 	_ = try? columnName(\Outer.inner)
 	_ = try? columnName(\ManualNode.v)
+	_ = try? columnName(\FanOut.c5)
+	_ = try? columnName(\WrappedNode.id)
+	_ = try? columnName(\WrappedNode.next)
+	_ = try? columnName(\ExplicitOptionalNode.v)
 }
 
 private func exerciseTableStructures() {
@@ -118,6 +181,9 @@ private func exerciseTableStructures() {
 	_ = try? Person.CRUDTableStructure()
 	_ = try? Outer.CRUDTableStructure()
 	_ = try? ManualNode.CRUDTableStructure()
+	_ = try? FanOut.CRUDTableStructure()
+	_ = try? WrappedNode.CRUDTableStructure()
+	_ = try? ExplicitOptionalNode.CRUDTableStructure()
 }
 
 private func exerciseSQL() {
@@ -180,6 +246,10 @@ struct RecursiveModelTests {
 		#expect(try columnName(\Outer.inner) == "inner")
 		#expect(try columnName(\ManualNode.v) == "v")
 		#expect(try columnName(\ManualNode.next) == "next")
+		#expect(try columnName(\FanOut.v) == "v")
+		#expect(try columnName(\FanOut.c5) == "c5")
+		#expect(try columnName(\WrappedNode.id) == "id")
+		#expect(try columnName(\WrappedNode.next) == "next")
 	}
 
 	@Test func keyPathsIntoTheRecursionAreStillNested() async throws {
@@ -212,6 +282,10 @@ struct RecursiveModelTests {
 		#expect(try columns(Person.self) == ["id": false, "name": false, "pet": true])
 		#expect(try columns(Outer.self) == ["id": false, "inner": true])
 		#expect(try columns(ManualNode.self) == ["v": false, "next": true])
+		#expect(try columns(FanOut.self) == ["v": false, "c0": true, "c1": true, "c2": true, "c3": true, "c4": true, "c5": true])
+		#expect(try columns(WrappedNode.self) == ["id": false, "next": true])
+		// decode(X?.self, forKey:) never asks decodeNil(forKey:), so `next` isn't marked nullable.
+		#expect(try Set(columns(ExplicitOptionalNode.self).keys) == ["v", "next"])
 	}
 
 	@Test func tablesGenerateSQL() async throws {
@@ -240,9 +314,9 @@ struct RecursiveModelTests {
 		}
 
 		let keyPathError = #expect(throws: CRUDDecoderError.self) { _ = try Endless(from: CRUDKeyPathsDecoder()) }
-		#expect(keyPathError?.msg.contains("must be optional") == true)
+		#expect(keyPathError?.msg.contains("optional property") == true)
 		let columnError = #expect(throws: CRUDDecoderError.self) { _ = try Endless.CRUDTableStructure() }
-		#expect(columnError?.msg.contains("must be optional") == true)
+		#expect(columnError?.msg.contains("optional property") == true)
 		let db = Database(configuration: try RecursiveStubConfig())
 		#expect(throws: CRUDDecoderError.self) { _ = try db.table(Endless.self).select() }
 	}
