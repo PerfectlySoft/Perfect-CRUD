@@ -20,7 +20,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return true
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
-		return false
+		return parent.isNilledColumn(key)
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
 		return try parent.countBool(key)
@@ -344,6 +344,72 @@ class MyUnkeyedDecodingContainer: UnkeyedDecodingContainer {
 	}
 }
 
+// Handed out instead of the empty container on a `.fillColumn` probe, so an
+// array column decodes with one element and can be told apart from another
+// array of the same type. The element is decoded by a plain decoder, which
+// hands out empty arrays again, so recursive element types stay finite.
+class CRUDKeyPathsOneElementContainer: UnkeyedDecodingContainer {
+	let codingPath: [CodingKey] = []
+	let count: Int? = 1
+	var currentIndex: Int = 0
+	var isAtEnd: Bool { return currentIndex >= 1 }
+	let depth: Int
+	let key: CodingKey
+	
+	init(depth d: Int, key k: CodingKey) {
+		depth = d
+		key = k
+	}
+	
+	private func next<T: Decodable>(_ type: T.Type) throws -> T {
+		guard !isAtEnd else {
+			throw CRUDDecoderError("CRUDKeyPathsOneElementContainer is at end")
+		}
+		currentIndex += 1
+		let decoder = CRUDKeyPathsDecoder(depth: depth)
+		decoder.wrappedKey = key
+		// Scalars and the special types get their values from the reader.
+		// Anything else decodes itself from the decoder, which also gives
+		// wrappers like Optional the single-value container they ask for.
+		if Self.isScalar(type) || SpecialType(type).map({ $0 != .codable }) ?? false {
+			return try CRUDKeyPathsUnkeyedReader(decoder, key: key).decode(type)
+		}
+		return try T(from: decoder)
+	}
+	
+	private static func isScalar(_ type: Any.Type) -> Bool {
+		return type is any BinaryInteger.Type || type == Bool.self || type == String.self
+			|| type == Double.self || type == Float.self
+	}
+	
+	func decodeNil() throws -> Bool { return false }
+	func decode(_ type: Bool.Type) throws -> Bool { return try next(type) }
+	func decode(_ type: String.Type) throws -> String { return try next(type) }
+	func decode(_ type: Double.Type) throws -> Double { return try next(type) }
+	func decode(_ type: Float.Type) throws -> Float { return try next(type) }
+	func decode(_ type: Int.Type) throws -> Int { return try next(type) }
+	func decode(_ type: Int8.Type) throws -> Int8 { return try next(type) }
+	func decode(_ type: Int16.Type) throws -> Int16 { return try next(type) }
+	func decode(_ type: Int32.Type) throws -> Int32 { return try next(type) }
+	func decode(_ type: Int64.Type) throws -> Int64 { return try next(type) }
+	func decode(_ type: UInt.Type) throws -> UInt { return try next(type) }
+	func decode(_ type: UInt8.Type) throws -> UInt8 { return try next(type) }
+	func decode(_ type: UInt16.Type) throws -> UInt16 { return try next(type) }
+	func decode(_ type: UInt32.Type) throws -> UInt32 { return try next(type) }
+	func decode(_ type: UInt64.Type) throws -> UInt64 { return try next(type) }
+	func decode<T: Decodable>(_ type: T.Type) throws -> T { return try next(type) }
+	
+	func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
+		throw CRUDDecoderError("Unimplimented nestedContainer")
+	}
+	func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
+		throw CRUDDecoderError("Unimplimented nestedUnkeyedContainer")
+	}
+	func superDecoder() throws -> Decoder {
+		throw CRUDDecoderError("Unimplimented superDecoder")
+	}
+}
+
 public class CRUDKeyPathsDecoder: Decoder {
 	public var codingPath: [CodingKey] = []
 	public var userInfo: [CodingUserInfoKey : Any] = [:]
@@ -365,6 +431,12 @@ public class CRUDKeyPathsDecoder: Decoder {
 		case upFromDepth(Int)
 		// Every decoder below the given top-level property.
 		case subtree(String)
+		// Nothing skewed, but the given top-level property decodes as nil if
+		// it's optional.
+		case nilColumn(String)
+		// Nothing skewed, but arrays directly in the given top-level property
+		// decode with one element instead of none.
+		case fillColumn(String)
 	}
 	let skew: Skew
 	
@@ -380,14 +452,33 @@ public class CRUDKeyPathsDecoder: Decoder {
 	
 	private var isSkewed: Bool {
 		switch skew {
-		case .none, .subtree: return false
+		case .none, .subtree, .nilColumn, .fillColumn: return false
 		case .fromDepth(let d), .upFromDepth(let d): return depth >= d
 		}
 	}
 	
+	func isNilledColumn(_ key: CodingKey) -> Bool {
+		return depth == 0 && skew == .nilColumn(key.stringValue)
+	}
+	
+	// On a `.fillColumn` probe: the column's own decoder, and the key it hands
+	// one-element arrays out for. `filledColumn` is set on the probe's root
+	// decoder once the column actually decoded an array.
+	private weak var fillRoot: CRUDKeyPathsDecoder?
+	private var fillKey: CodingKey?
+	private var filledColumn = false
+	
 	func childDecoder(for key: CodingKey) -> CRUDKeyPathsDecoder {
 		if depth == 0, case .subtree(let name) = skew {
 			return CRUDKeyPathsDecoder(depth: 1, skew: name == key.stringValue ? .fromDepth(1) : .none)
+		}
+		if depth == 0, case .fillColumn(let name) = skew {
+			let child = CRUDKeyPathsDecoder(depth: 1)
+			if name == key.stringValue {
+				child.fillRoot = self
+				child.fillKey = key
+			}
+			return child
 		}
 		return CRUDKeyPathsDecoder(depth: 1 + depth, skew: skew)
 	}
@@ -419,6 +510,10 @@ public class CRUDKeyPathsDecoder: Decoder {
 		return KeyedDecodingContainer<Key>(CRUDKeyPathsReader<Key>(self))
 	}
 	public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+		if let root = fillRoot, let key = fillKey {
+			root.filledColumn = true
+			return CRUDKeyPathsOneElementContainer(depth: 1 + depth, key: key)
+		}
 		return MyUnkeyedDecodingContainer()
 	}
 	public func singleValueContainer() throws -> SingleValueDecodingContainer {
@@ -431,9 +526,10 @@ public class CRUDKeyPathsDecoder: Decoder {
 		guard let v = instance[keyPath: keyPath] else {
 			return nil
 		}
-		guard subTypeMap.contains(where: { $0.2.producedValues }),
+		guard subTypeMap.contains(where: { $0.2.producedValues }) || hasSameTypedColumns,
 			let modelType = type(of: instance) as? Decodable.Type else {
-			// No nested decoder produced anything, so every leaf is top-level.
+			// No nested decoder produced anything, so every leaf is top-level,
+			// and no two columns share a type, so matching by type is exact.
 			return try getKeyPathName(fromValue: v)
 		}
 		let key = ResolutionKey(type: ObjectIdentifier(modelType), keyPath: keyPath)
@@ -453,6 +549,8 @@ public class CRUDKeyPathsDecoder: Decoder {
 			throw CRUDSQLGenError("Key path \(keyPath) does not refer to a top-level property of \(type(of: instance)). Key paths through a nested Codable property or an optional chain (e.g. \\T.sub?.x) can't be mapped to a column.")
 		case .undecoded:
 			throw CRUDSQLGenError("Key path \(keyPath) does not refer to a column of \(type(of: instance)): it isn't a property that init(from:) decodes.")
+		case .ambiguous(let names):
+			throw CRUDSQLGenError("Key path \(keyPath) can't be resolved: columns \(names.joined(separator: ", ")) of \(type(of: instance)) have the same type and can't be told apart, or the key path reaches into a property nested in one of them. Make the columns optional or give their type a decoded field.")
 		}
 	}
 	
@@ -475,10 +573,12 @@ public class CRUDKeyPathsDecoder: Decoder {
 	// When nothing can be told (no decoded
 	// value under the leaf, or a probe can't be decoded because a nested
 	// init(from:) rejects the skewed values) the name is found by value, as
-	// before. The result depends only on the model type and key path, so it's
-	// cached; this assumes init(from:) decodes the same shape every time.
+	// before, unless several columns have the leaf's type (see
+	// `resolveWithoutValues`). The result depends only on the model type and
+	// key path, so it's cached; this assumes init(from:) decodes the same shape
+	// every time.
 	enum Resolution {
-		case byValue, column(String), nested, undecoded
+		case byValue, column(String), nested, undecoded, ambiguous([String])
 	}
 	
 	private func resolve(_ modelType: Decodable.Type, keyPath: AnyKeyPath, value v: Any) -> Resolution {
@@ -518,13 +618,18 @@ public class CRUDKeyPathsDecoder: Decoder {
 			return .byValue
 		}
 		let leafType = type(of: Self.unwrapped(v))
-		let candidates = subTypeMap.filter { $0.1 == leafType }.map { $0.0 }
+		var seen = Set<String>()
+		// A key decoded into two properties appears twice; count it once.
+		let candidates = subTypeMap.filter { $0.1 == leafType && seen.insert($0.0).inserted }.map { $0.0 }
 		let mine = Self.deepCodes(v)
 		let theirs = Self.deepCodes(control)
 		guard mine.count == theirs.count else {
 			return .byValue
 		}
 		let stable = mine.indices.filter { mine[$0] != nil && mine[$0] == theirs[$0] }
+		if stable.isEmpty, candidates.count > 1 {
+			return Self.resolveWithoutValues(modelType, keyPath: keyPath, value: v, control: control, candidates: candidates)
+		}
 		func changes(_ skew: Skew) -> Bool? {
 			guard let p = Self.probe(modelType, skew)?[keyPath: keyPath] else {
 				return nil
@@ -550,6 +655,70 @@ public class CRUDKeyPathsDecoder: Decoder {
 		return undecided ? .byValue : .nested
 	}
 	
+	// A Codable leaf with no decoded value under it (an empty join array, a
+	// type with no decoded fields) looks the same whichever column it came
+	// from. If several columns have its type, decode the model once per
+	// candidate with only that column changed, and see which one changes the
+	// leaf: `.fillColumn` gives an array column one element, `.nilColumn`
+	// sets an optional column to nil. If every candidate is an array that did
+	// get its element and none of them changed the leaf, the leaf came from
+	// deeper in the model. Otherwise (say two non-optional columns of a type
+	// with no decoded fields) throw rather than guess. A candidate whose probe
+	// can't be decoded is skipped.
+	private static func resolveWithoutValues(_ modelType: Decodable.Type, keyPath: AnyKeyPath, value: Any, control: Any, candidates: [String]) -> Resolution {
+		var matches: [String] = []
+		var allFilled = true
+		for name in candidates {
+			let filled = probeBox(modelType, .fillColumn(name))
+			allFilled = allFilled && filled.value != nil && filled.filledColumn
+			if let p = filled.value, let leaf = p[keyPath: keyPath], differs(leaf, from: control, value: value) {
+				matches.append(name)
+				continue
+			}
+			if let p = probe(modelType, .nilColumn(name)), p[keyPath: keyPath].map(isNil) ?? true {
+				matches.append(name)
+			}
+		}
+		if matches.count == 1 {
+			return .column(matches[0])
+		}
+		return matches.isEmpty && allFilled ? .nested : .ambiguous(candidates)
+	}
+	
+	// Whether a probe's leaf differs from the control's: nil versus not, a
+	// different number of elements or stored values, or a different scalar
+	// (including nil versus not) where the leaf and the control agree.
+	// Values that differ between two plain decodes carry no signal.
+	private static func differs(_ probed: Any, from control: Any, value: Any) -> Bool {
+		if isNil(probed) != isNil(control) {
+			return true
+		}
+		guard Mirror(reflecting: unwrapped(probed)).children.count == Mirror(reflecting: unwrapped(control)).children.count else {
+			return true
+		}
+		let p = deepCodes(probed), c = deepCodes(control), v = deepCodes(value)
+		guard p.count == c.count else {
+			return true
+		}
+		return v.count == c.count && c.indices.contains { v[$0] == c[$0] && p[$0] != c[$0] }
+	}
+	
+	private static func isNil(_ v: Any) -> Bool {
+		let mirror = Mirror(reflecting: v)
+		guard mirror.displayStyle == .optional else {
+			return false
+		}
+		guard let wrapped = mirror.children.first else {
+			return true
+		}
+		return isNil(wrapped.value)
+	}
+	
+	private var hasSameTypedColumns: Bool {
+		var seen = Set<ObjectIdentifier>()
+		return subTypeMap.contains { !seen.insert(ObjectIdentifier($0.1)).inserted }
+	}
+	
 	private var producedValues: Bool {
 		return counter > 1 || boolCounter > 0 || subTypeMap.contains { $0.2.producedValues }
 	}
@@ -560,7 +729,11 @@ public class CRUDKeyPathsDecoder: Decoder {
 	// same thing twice.
 	private final class ProbeBox: @unchecked Sendable {
 		let value: Any?
-		init(_ v: Any?) { value = v }
+		let filledColumn: Bool
+		init(_ v: Any?, filledColumn f: Bool) {
+			value = v
+			filledColumn = f
+		}
 	}
 	private struct ProbeKey: Hashable {
 		let type: ObjectIdentifier
@@ -575,18 +748,24 @@ public class CRUDKeyPathsDecoder: Decoder {
 	nonisolated(unsafe) private static var resolutions: [ResolutionKey: Resolution] = [:]
 	
 	private static func probe(_ type: Decodable.Type, _ skew: Skew) -> Any? {
+		return probeBox(type, skew).value
+	}
+	
+	private static func probeBox(_ type: Decodable.Type, _ skew: Skew) -> ProbeBox {
 		let key = ProbeKey(type: ObjectIdentifier(type), skew: skew)
 		cacheLock.lock()
 		let cached = probes[key]
 		cacheLock.unlock()
 		if let cached {
-			return cached.value
+			return cached
 		}
-		let made = try? type.init(from: CRUDKeyPathsDecoder(depth: 0, skew: skew))
+		let decoder = CRUDKeyPathsDecoder(depth: 0, skew: skew)
+		let made = try? type.init(from: decoder)
+		let box = ProbeBox(made, filledColumn: decoder.filledColumn)
 		cacheLock.lock()
-		probes[key] = ProbeBox(made)
+		probes[key] = box
 		cacheLock.unlock()
-		return made
+		return box
 	}
 	
 	private static func cachedResolution(_ key: ResolutionKey) -> Resolution? {
