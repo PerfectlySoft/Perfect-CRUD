@@ -146,6 +146,19 @@ public extension Joinable {
 													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
 		return .init(fromTable: self, to: to, on: on, equals: equals)
 	}
+	/// Joins on an optional key in the joined type, such as a nullable foreign key.
+	/// A row whose key is NULL matches nothing.
+	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
+													on: KeyPath<OverAllForm, KeyType>,
+													equals: KeyPath<NewType, KeyType?>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
+		return .init(fromTable: self, to: to, on: on, equals: equals)
+	}
+	/// Joins on an optional key in this type. A row whose key is NULL gets no joined objects.
+	func join<NewType: Codable, KeyType: Equatable>(_ to: KeyPath<OverAllForm, [NewType]?>,
+													on: KeyPath<OverAllForm, KeyType?>,
+													equals: KeyPath<NewType, KeyType>) throws -> Join<OverAllForm, Self, NewType, KeyType> {
+		return .init(fromTable: self, to: to, on: on, equals: equals)
+	}
 	
 	func join<NewType: Codable, Pivot: Codable, FirstKeyType: Equatable, SecondKeyType: Equatable>(
 			_ to: KeyPath<OverAllForm, [NewType]?>,

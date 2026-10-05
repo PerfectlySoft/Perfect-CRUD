@@ -7,6 +7,32 @@
 
 import Foundation
 
+// The types a join can compare keys on: SQLTopRowReader and CRUDPivotRowDecoder decode a key
+// through a switch over these.
+private let joinComparisonTypes: [Any.Type] = [
+	Bool.self, Int.self, Int8.self, Int16.self, Int32.self, Int64.self,
+	UInt.self, UInt8.self, UInt16.self, UInt32.self, UInt64.self,
+	Float.self, Double.self, String.self, Date.self, Data.self, UUID.self,
+]
+
+// An optional key compares as its wrapped type; a NULL key matches nothing.
+func joinComparisonType(_ type: Any.Type) -> Any.Type {
+	var type = type
+	while let optional = type as? CRUDOptional.Type {
+		type = optional.crudWrappedType
+	}
+	return type
+}
+
+// Checked while the SQL is generated, so an unsupported key throws from select(). At row
+// decoding time, SelectIterator would swallow the error and return no rows.
+func checkJoinComparisonType(of keyPath: AnyKeyPath) throws {
+	let type = joinComparisonType(Swift.type(of: keyPath).valueType)
+	guard joinComparisonTypes.contains(where: { $0 == type }) else {
+		throw CRUDSQLGenError("Invalid join comparison type \(Swift.type(of: keyPath).valueType).")
+	}
+}
+
 class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	typealias Key = K
 	var codingPath: [CodingKey] = []
@@ -72,13 +98,14 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 	// !FIX! to put cached sub objects in foreign key dictionary
 	func decode<T>(_ intype: T.Type, forKey key: Key) throws -> T where T : Decodable {
 		if let (onKeyName, onKey, equalsKey, objects) = exeDelegate.subObjects[key.stringValue],
-			let columnKey = Key(stringValue: onKeyName),
-			let comparisonType = type(of: onKey).valueType as? Decodable.Type {
-			
+			let columnKey = Key(stringValue: onKeyName) {
+			let comparisonType = joinComparisonType(type(of: onKey).valueType)
 			// I could not get this to compile. because comparisonType isn't known at compile time?
 			//let keyValue = try subRowReader.decode(comparisonType, forKey: columnKey)
 			let theseObjs: [Any]
 			switch comparisonType {
+			case _ where try subRowReader.decodeNil(forKey: columnKey):
+				theseObjs = []
 			case let i as Bool.Type:
 				let keyValue = try subRowReader.decode(i, forKey: columnKey)
 				theseObjs = filteredValues(objects, lhs: keyValue, rhsKey: equalsKey)
@@ -146,6 +173,7 @@ class SQLTopRowReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				}
 				return p.instance
 			}
+			// A NULL optional key fails the cast and matches nothing.
 			guard let rhs = $0[keyPath: rhsKey] as? ComparisonType,
 				lhs == rhs else {
 					return nil

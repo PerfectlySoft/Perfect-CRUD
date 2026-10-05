@@ -178,11 +178,11 @@ public class CRUDPivotRowDecoder<K: CodingKey>: Decoder {
 	public var codingPath: [CodingKey] = []
 	public var userInfo: [CodingUserInfoKey:Any] = [:]
 	let delegate: SQLExeDelegate
-	let pivotOnType: Codable.Type
+	let pivotOnType: Any.Type
 	public var orderedKeys: [Codable] = []
 	public init(delegate d: SQLExeDelegate, pivotOn p: Codable.Type) {
 		delegate = d
-		pivotOnType = p
+		pivotOnType = joinComparisonType(p)
 	}
 	public func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
 		guard let next: KeyedDecodingContainer<ColumnKey> = try delegate.next(),
@@ -190,6 +190,8 @@ public class CRUDPivotRowDecoder<K: CodingKey>: Decoder {
 			throw CRUDDecoderError("No row.")
 		}
 		switch pivotOnType {
+		case _ where try next.decodeNil(forKey: columnKey):
+			() // no key: the row matches nothing
 		case let i as Bool.Type:
 			let keyValue = try next.decode(i, forKey: columnKey)
 			orderedKeys.append(keyValue)
