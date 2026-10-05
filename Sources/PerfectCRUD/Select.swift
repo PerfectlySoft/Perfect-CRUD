@@ -60,6 +60,7 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		guard state.accumulatedOrderings.isEmpty else {
 			throw CRUDSQLGenError("Orderings were not consumed: \(state.accumulatedOrderings)")
 		}
+		_ = try state.selectTables()
 		sqlGenState = state
 	}
 	public func makeIterator() -> Iterator {

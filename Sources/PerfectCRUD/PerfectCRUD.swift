@@ -296,7 +296,8 @@ struct SQLTopExeDelegate: SQLExeDelegate {
 	let subObjects: [String:(onKeyName: String, onKey: AnyKeyPath, equalsKey: AnyKeyPath, objects: [Any])]
 	init(genState state: SQLGenState, configurator: DatabaseConfigurationProtocol) throws {
 		genState = state
-		let delegates: [(table: SQLGenState.TableData, delegate: SQLExeDelegate)] = try zip(state.tableData, state.statements).map {
+		let tables = try state.selectTables()
+		let delegates: [(table: SQLGenState.TableData, delegate: SQLExeDelegate)] = try zip(tables, state.statements).map {
 			let sd = try configurator.sqlExeDelegate(forSQL: $0.1.sql)
 			try sd.bind($0.1.bindings)
 			return ($0.0, sd)
@@ -401,7 +402,7 @@ public struct SQLGenState {
 	var tablePopCount = 0
 	public var command: Command = .unknown
 	var whereExpr: CRUDExpression?
-	public var statements: [Statement] = [] // statements count must match tableData count for exe to succeed
+	public var statements: [Statement] = [] // select: statements count must match statementTableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
 	public var bindingsEncoder: CRUDBindingsEncoder?
@@ -424,6 +425,41 @@ public struct SQLGenState {
 							   modelInstance: model,
 							   keyPathDecoder: decoder,
 							   joinData: joinData))
+	}
+	/// The tables that generate a select statement, in statement order: every table except the
+	/// pivot table that a pivot join adds directly after its joined type.
+	var statementTableData: [TableData] {
+		return tableData.indices.filter { index in
+			guard index > 0, let pivot = tableData[index - 1].joinData?.pivot else {
+				return true
+			}
+			return pivot != tableData[index].type
+		}.map { tableData[$0] }
+	}
+	/// The tables paired, in order, with a select's statements. A pivot join's pivot table has
+	/// no statement of its own, so pairing statements with tableData by position would hand
+	/// every later join's SQL to the wrong table. Called by Select.init so a mismatch throws
+	/// from select(), not inside Select.makeIterator(), which can only log it and return no rows.
+	func selectTables() throws -> [TableData] {
+		let tables = statementTableData
+		guard tables.count == statements.count else {
+			throw CRUDSQLGenError("Statement count \(statements.count) does not match table count \(tables.count).")
+		}
+		// Joined objects are keyed by their target property's name, so two joins into the
+		// same property would collide there.
+		if let master = tables.first, let modelInstance = master.modelInstance {
+			var names: Set<String> = []
+			for table in tables.dropFirst() {
+				guard let to = table.joinData?.to,
+					let name = try master.keyPathDecoder.getKeyPathName(modelInstance, keyPath: to) else {
+					continue
+				}
+				guard names.insert(name).inserted else {
+					throw CRUDSQLGenError("More than one join targets the property \"\(name)\" of \(master.type).")
+				}
+			}
+		}
+		return tables
 	}
 	mutating func getAlias<A: Codable>(type: A.Type) -> String? {
 		return tableData.first { $0.type == type }?.alias
