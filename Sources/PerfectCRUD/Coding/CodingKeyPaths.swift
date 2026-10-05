@@ -20,7 +20,18 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 		return true
 	}
 	func decodeNil(forKey key: Key) throws -> Bool {
-		return parent.isNilledColumn(key)
+		return parent.isNilledColumn(key) || parent.cutsOptionals
+	}
+	func decodeIfPresent<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T? {
+		if try decodeNil(forKey: key) {
+			return nil
+		}
+		// An optional property of a type that's already being decoded further up
+		// (`next: Node?` inside Node) is nil, so self-referential models stay finite.
+		if parent.isDecoding(type) {
+			return nil
+		}
+		return try decode(type, forKey: key)
 	}
 	func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
 		return try parent.countBool(key)
@@ -89,7 +100,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 			case .url:
 				return URL(string: "http://localhost:\(counter)/")! as! T
 			case .codable:
-				let decoder = parent.childDecoder(for: key)
+				let decoder = try parent.childDecoder(for: key, type: type)
 				let decoded = try T(from: decoder)
 				parent.subTypeMap.append((key.stringValue, type, decoder))
 				return decoded
@@ -97,7 +108,7 @@ class CRUDKeyPathsReader<K : CodingKey>: KeyedDecodingContainerProtocol {
 				throw CRUDDecoderError("Unhandled decode type \(type)")
 			}
 		} else {
-			let decoder = parent.childDecoder(for: key)
+			let decoder = try parent.childDecoder(for: key, type: type)
 			let decoded = try T(from: decoder)
 			parent.subTypeMap.append((key.stringValue, type, decoder))
 			return decoded
@@ -131,7 +142,8 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 	}
 	
 	func decodeNil() -> Bool {
-		return false
+		// Optional (as a property wrapper's value, say) asks this before decoding.
+		return parent.cutsOptionals
 	}
 	
 	func decode(_ type: Bool.Type) throws -> Bool {
@@ -232,7 +244,7 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 			case .url:
 				return URL(string: "http://localhost:\(counter)/")! as! T
 			case .codable:
-				let decoder = parent.childDecoder(for: wrappedKey)
+				let decoder = try parent.childDecoder(for: wrappedKey, type: type)
 				let decoded = try T(from: decoder)
 				parent.subTypeMap.append((wrappedKey.stringValue, type, decoder))
 				return decoded
@@ -240,7 +252,7 @@ class CRUDKeyPathsUnkeyedReader: UnkeyedDecodingContainer, SingleValueDecodingCo
 				throw CRUDDecoderError("Unhandled decode type \(type)")
 			}
 		} else {
-			let decoder = parent.childDecoder(for: wrappedKey)
+			let decoder = try parent.childDecoder(for: wrappedKey, type: type)
 			let decoded = try T(from: decoder)
 			parent.subTypeMap.append((wrappedKey.stringValue, type, decoder))
 			return decoded
@@ -439,15 +451,47 @@ public class CRUDKeyPathsDecoder: Decoder {
 		case fillColumn(String)
 	}
 	let skew: Skew
+	// The Codable types the decoders above this one, and this one, are decoding.
+	// The root's own type isn't known, so a model's top-level `next: Node?` is
+	// still decoded once and stays a column.
+	let decodingTypes: [ObjectIdentifier]
+	// Optional properties this deep decode as nil (see `cutsOptionals`).
+	static let maxOptionalDepth = 8
+	// Beyond this a model can't be decoded at all (a non-optional property
+	// whose type contains itself), so throw rather than overflow the stack.
+	static let maxDepth = 32
 	
 	init(depth d: Int = 0) {
 		depth = d
 		skew = .none
+		decodingTypes = []
 	}
 	
-	private init(depth d: Int, skew s: Skew) {
+	private init(depth d: Int, skew s: Skew, decodingTypes t: [ObjectIdentifier] = []) {
 		depth = d
 		skew = s
+		decodingTypes = t
+	}
+	
+	func isDecoding(_ type: Any.Type) -> Bool {
+		return decodingTypes.contains(ObjectIdentifier(type))
+	}
+	
+	// Whether every optional this decoder is asked about decodes as nil: when
+	// its own type is already being decoded further up, or it's deep. This
+	// stops what decodeIfPresent can't see: an init(from:) that checks
+	// decodeNil(forKey:) and then decodes, and Optionals inside property
+	// wrappers. Cutting at the first repeat, rather than only by depth, keeps
+	// a type with several such properties from fanning out at every level.
+	var cutsOptionals: Bool {
+		return depth >= Self.maxOptionalDepth || Self.repeats(decodingTypes)
+	}
+	
+	static func repeats(_ types: [ObjectIdentifier]) -> Bool {
+		guard let last = types.last else {
+			return false
+		}
+		return types.dropLast().contains(last)
 	}
 	
 	private var isSkewed: Bool {
@@ -468,19 +512,23 @@ public class CRUDKeyPathsDecoder: Decoder {
 	private var fillKey: CodingKey?
 	private var filledColumn = false
 	
-	func childDecoder(for key: CodingKey) -> CRUDKeyPathsDecoder {
+	func childDecoder(for key: CodingKey, type: Any.Type) throws -> CRUDKeyPathsDecoder {
+		guard depth < Self.maxDepth else {
+			throw CRUDDecoderError("\(type) for key \(key.stringValue) is nested more than \(Self.maxDepth) levels deep. A model can't contain itself except through an optional property (`var next: Node?`) or a collection.")
+		}
+		let types = decodingTypes + [ObjectIdentifier(type)]
 		if depth == 0, case .subtree(let name) = skew {
-			return CRUDKeyPathsDecoder(depth: 1, skew: name == key.stringValue ? .fromDepth(1) : .none)
+			return CRUDKeyPathsDecoder(depth: 1, skew: name == key.stringValue ? .fromDepth(1) : .none, decodingTypes: types)
 		}
 		if depth == 0, case .fillColumn(let name) = skew {
-			let child = CRUDKeyPathsDecoder(depth: 1)
+			let child = CRUDKeyPathsDecoder(depth: 1, skew: .none, decodingTypes: types)
 			if name == key.stringValue {
 				child.fillRoot = self
 				child.fillKey = key
 			}
 			return child
 		}
-		return CRUDKeyPathsDecoder(depth: 1 + depth, skew: skew)
+		return CRUDKeyPathsDecoder(depth: 1 + depth, skew: skew, decodingTypes: types)
 	}
 	
 	func countKey(_ key: CodingKey) -> Int8 {
