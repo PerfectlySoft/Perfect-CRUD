@@ -431,4 +431,32 @@ struct OptionalWrappedColumnTests {
 		#expect(binding(insert, column: "big").map { String(describing: $0) } == String(describing: CRUDExpression.uinteger64(.max)))
 		#expect(binding(insert, column: "word").map { String(describing: $0) } == String(describing: CRUDExpression.uinteger(.max)))
 	}
+
+	@Test("A negative [Int8] binds its bit pattern instead of trapping")
+	func negativeInt8Array() throws {
+		struct Signed: Codable {
+			let id: Int
+			let bytes: [Int8]
+		}
+		let config = try RecordingConfig()
+		try Database(configuration: config).table(Signed.self).insert(Signed(id: 1, bytes: [-1, 0, 127, -128]))
+		let insert = try #require(config.store.statements.first { $0.sql.hasPrefix("INSERT") })
+		#expect(binding(insert, column: "bytes").map { String(describing: $0) } == String(describing: CRUDExpression.blob([255, 0, 127, 128])))
+	}
+
+	@Test("A key encoded twice throws instead of trapping")
+	func duplicateEncodedKeyThrows() throws {
+		struct Twice: Codable {
+			let id: Int
+			func encode(to encoder: Encoder) throws {
+				var c = encoder.container(keyedBy: CodingKeys.self)
+				try c.encode(id, forKey: .id)
+				try c.encode(id + 1, forKey: .id)
+			}
+		}
+		let config = try RecordingConfig()
+		#expect(throws: CRUDEncoderError.self) {
+			try Database(configuration: config).table(Twice.self).insert(Twice(id: 1))
+		}
+	}
 }

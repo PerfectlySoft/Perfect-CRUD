@@ -28,7 +28,8 @@ public struct DynamicRow: Equatable, Sendable {
 	public let values: [String: DynamicValue]
 
 	/// Field names are case-insensitive. When two keys differ only by case (`a` and `A`, as a
-	/// join's result columns can), one value is kept: the one whose key sorts first. A dictionary
+	/// join's result columns can), one value is kept: the one whose key sorts first by `String <`,
+	/// so uppercase wins (`Name` over `name`). A dictionary
 	/// has no column order, so a connector that wants the first result column to win should
 	/// drop the later duplicates before building the row.
 	public init(_ values: [String: DynamicValue]) {

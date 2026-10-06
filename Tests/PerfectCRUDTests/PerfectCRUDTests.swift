@@ -322,11 +322,16 @@ struct PerfectCRUDTests {
 
 	@Test func dynamicRowKeysDifferingOnlyByCaseKeepOneValue() {
 		// A join can return `p.Name` and `c.name`. This used to trap ("Duplicate values for key").
-		for _ in 0..<20 {
-			let row = DynamicRow(["Name": .string("parent"), "name": .string("child"), "id": .int(1)])
+		// Different capacities give different iteration orders; the winner must not change.
+		for capacity in [0, 4, 16, 64, 256] {
+			var values = [String: DynamicValue](minimumCapacity: capacity)
+			for (key, value) in [("name", "lower"), ("nAmE", "mixed"), ("Name", "title"), ("NAME", "upper")] {
+				values[key] = .string(value)
+			}
+			values["id"] = .int(1)
+			let row = DynamicRow(values)
 			#expect(row.values.count == 2)
-			// The key that sorts first wins, whatever order the dictionary iterates in.
-			#expect(row["name"] == .string("parent"))
+			#expect(row["name"] == .string("upper"))
 			#expect(row["id"] == .int(1))
 		}
 	}

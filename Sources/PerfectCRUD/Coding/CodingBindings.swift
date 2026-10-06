@@ -90,7 +90,7 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		case .uint8Array:
 			try addBinding(key, value: .blob((value as! [UInt8])))
 		case .int8Array:
-			try addBinding(key, value: .blob((value as! [Int8]).map { UInt8($0) }))
+			try addBinding(key, value: .blob((value as! [Int8]).map { UInt8(bitPattern: $0) }))
 		case .data:
 			try addBinding(key, value: .blob((value as! Data).map { $0 }))
 		case .uuid:
@@ -185,6 +185,10 @@ public class CRUDBindingsEncoder: Encoder {
 	}
 	
 	func addBinding<Key: CodingKey>(key: Key, value: CRUDExpression) throws {
+		// A custom encode(to:) can encode a key twice; the bindings dictionary would trap on it.
+		guard !collectedBinds.contains(where: { $0.0 == key.stringValue }) else {
+			throw CRUDEncoderError("Key \(key.stringValue) was encoded more than once.")
+		}
 		collectedBinds.append((key.stringValue, value))
 	}
 	public func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
