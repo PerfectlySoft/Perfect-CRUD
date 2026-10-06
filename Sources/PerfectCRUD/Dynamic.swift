@@ -27,10 +27,20 @@ public enum DynamicValue: Equatable, Sendable {
 public struct DynamicRow: Equatable, Sendable {
 	public let values: [String: DynamicValue]
 
+	/// Field names are case-insensitive. When two keys differ only by case (`a` and `A`, as a
+	/// join's result columns can), one value is kept: the one whose key sorts first. A dictionary
+	/// has no column order, so a connector that wants the first result column to win should
+	/// drop the later duplicates before building the row.
 	public init(_ values: [String: DynamicValue]) {
-		self.values = Dictionary(uniqueKeysWithValues: values.map {
-			($0.key.lowercased(), $0.value)
-		})
+		var folded: [String: (key: String, value: DynamicValue)] = [:]
+		for (key, value) in values {
+			let name = key.lowercased()
+			if let kept = folded[name], kept.key < key {
+				continue
+			}
+			folded[name] = (key, value)
+		}
+		self.values = folded.mapValues(\.value)
 	}
 
 	public subscript(_ field: String) -> DynamicValue? {

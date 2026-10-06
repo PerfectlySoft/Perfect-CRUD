@@ -320,6 +320,17 @@ struct PerfectCRUDTests {
 		#expect(row["DISPLAYNAME"] == .string("Ada"))
 	}
 
+	@Test func dynamicRowKeysDifferingOnlyByCaseKeepOneValue() {
+		// A join can return `p.Name` and `c.name`. This used to trap ("Duplicate values for key").
+		for _ in 0..<20 {
+			let row = DynamicRow(["Name": .string("parent"), "name": .string("child"), "id": .int(1)])
+			#expect(row.values.count == 2)
+			// The key that sorts first wins, whatever order the dictionary iterates in.
+			#expect(row["name"] == .string("parent"))
+			#expect(row["id"] == .int(1))
+		}
+	}
+
 	@Test func dynamicSelectCompilesAndReturnsRows() throws {
 		let expectedRow = DynamicRow([
 			"id": .int(7),
