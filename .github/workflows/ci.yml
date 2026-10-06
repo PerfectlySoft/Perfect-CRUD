@@ -78,10 +78,31 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
 
+      # On a fresh runner the simulator service can start late, and xcodebuild then lists no
+      # simulators at all ("Unable to find a device"). Wait until it offers the one we test on.
+      # Listing devices with simctl makes the service refresh its runtimes
+      # (actions/runner-images#12948).
+      - name: Wait for the simulator
+        run: |
+          deadline=$((SECONDS + 300))
+          while [ $SECONDS -lt $deadline ]; do
+            xcrun simctl list devices available > /dev/null 2>&1 || true
+            if destinations=$(xcodebuild -showdestinations -scheme PerfectCRUD) \
+                && grep -q "name:iPhone 17 }" <<< "$destinations"; then
+              exit 0
+            fi
+            echo "No iPhone 17 simulator yet; retrying in 5 seconds"
+            sleep 5
+          done
+          echo "No iPhone 17 simulator after 5 minutes"
+          xcrun simctl list devices available
+          exit 1
+
       # The test target builds at the package's iOS 15 deployment target, so this also
       # catches APIs that need a newer iOS.
       - name: Test
         run: |
           xcodebuild test -scheme PerfectCRUD \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -destination-timeout 120 \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
