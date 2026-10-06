@@ -416,4 +416,19 @@ struct OptionalWrappedColumnTests {
 		#expect(binding(inserts[1], column: "ref").map { String(describing: $0) } == String(describing: CRUDExpression.uuid(uuid)))
 		#expect(binding(inserts[1], column: "nested").map { String(describing: $0) } == String(describing: CRUDExpression.integer(6)))
 	}
+
+	@Test("UInt and UInt64 above Int.max bind as unsigned instead of trapping")
+	func largeUnsignedBindings() throws {
+		struct Counter: Codable {
+			let id: Int
+			let big: UInt64
+			let word: UInt
+		}
+		let config = try RecordingConfig()
+		try Database(configuration: config).table(Counter.self)
+			.insert(Counter(id: 1, big: .max, word: .max))
+		let insert = try #require(config.store.statements.first { $0.sql.hasPrefix("INSERT") })
+		#expect(binding(insert, column: "big").map { String(describing: $0) } == String(describing: CRUDExpression.uinteger64(.max)))
+		#expect(binding(insert, column: "word").map { String(describing: $0) } == String(describing: CRUDExpression.uinteger(.max)))
+	}
 }

@@ -57,7 +57,8 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		try addBinding(key, value: .integer(Int(value)))
 	}
 	func encode(_ value: UInt, forKey key: K) throws {
-		try addBinding(key, value: .integer(Int(value)))
+		// Values above Int.max don't fit .integer; Int(value) trapped on them.
+		try addBinding(key, value: .uinteger(value))
 	}
 	func encode(_ value: UInt8, forKey key: K) throws {
 		try addBinding(key, value: .integer(Int(value)))
@@ -69,7 +70,8 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		try addBinding(key, value: .integer(Int(value)))
 	}
 	func encode(_ value: UInt64, forKey key: K) throws {
-		try addBinding(key, value: .integer(Int(value)))
+		// Values above Int.max don't fit .integer; Int(value) trapped on them.
+		try addBinding(key, value: .uinteger64(value))
 	}
 	func encode(_ value: Float, forKey key: K) throws {
 		try addBinding(key, value: .decimal(Double(value)))
