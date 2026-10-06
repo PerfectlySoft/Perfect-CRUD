@@ -610,6 +610,7 @@ struct ForeignKeyCycleTests {
 		#expect(try reference(c, "aCode") == .foreignKey("A", "id", .cascade, .cascade))
 	}
 
+	@available(macOS 13, iOS 16, tvOS 16, watchOS 9, *) // .timeLimit
 	@Test("foreign keys reaching the same types along many paths", .timeLimit(.minutes(1)))
 	func layeredForeignKeys() throws {
 		let keyed = try LayeredScope.Root.CRUDTableStructure(primaryKey: \.code)

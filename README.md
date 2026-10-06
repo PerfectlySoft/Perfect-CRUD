@@ -2,7 +2,7 @@
 
 <p align="center">
     <img src="https://img.shields.io/badge/Swift-6.2-orange.svg?style=flat" alt="Swift 6.2">
-    <img src="https://img.shields.io/badge/Platforms-macOS%2012%2B-lightgray.svg?style=flat" alt="Platforms macOS 12+">
+    <img src="https://img.shields.io/badge/Platforms-macOS%2012%2B%20%7C%20iOS%2015%2B%20%7C%20Linux-lightgray.svg?style=flat" alt="Platforms macOS 12+ | iOS 15+ | Linux">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg?style=flat" alt="License Apache 2.0"></a>
 </p>
 
@@ -17,11 +17,15 @@ concurrency, plus a new "Dynamic Select" runtime query API. It's foundational â€
 [Perfect-SQLite](https://github.com/PerfectlySoft/Perfect-SQLite), [Perfect-NIO](https://github.com/PerfectlySoft/Perfect-NIO),
 and [PerfectTemplate](https://github.com/PerfectlySoft/PerfectTemplate) all depend on it directly.
 
-The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
+The pre-Swift-6 version of this package (2.0.0 and earlier) is preserved on the [`legacy`](../../tree/legacy) branch.
+
+**Requirements:** Swift 6.2 or newer. macOS 12+, iOS 15+ and Linux; CI runs the tests on Linux (Swift
+6.2 and 6.4, Ubuntu 24.04) and macOS (Xcode 26.0.1 and 26.6) in debug and release, and on the iOS
+Simulator.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", branch: "main")
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.0.0")
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
@@ -41,7 +45,37 @@ To use CRUD with a specific database, add the connector of your choice:
 .package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", branch: "main")
 ```
 
-CRUD support is built directly into each connector package.
+CRUD support is built directly into each connector package. The connectors' Swift 6 releases follow
+CRUD 3.0.0; switch each to `from:` once it's tagged. Until then, note that a connector on
+`branch: "main"` depends on CRUD's `main` branch too, so SwiftPM resolves CRUD to `main` rather than
+to 3.0.0.
+
+## Migrating from 2.x
+
+3.0.0 is a major release. The [release notes](../../releases/tag/3.0.0) list every change; the ones
+most likely to need attention when upgrading:
+
+* **Toolchain and platforms.** Swift tools 6.2 is required, and the minimum macOS is now 12 (was 10.15).
+* **`Expression` is gone.** The `Expression` typealias collided with Foundation's `Expression` on the
+  macOS 15+ SDK. Use `CRUDExpression`, the same type.
+* **`Sendable`.** A `CRUDLogDestination.custom` closure must be `@Sendable`.
+* **Nested transactions.** A `transaction` inside another on the same `Database` value now uses a
+  savepoint instead of a second `BEGIN`, so an inner failure rolls back only to its savepoint. The
+  error still propagates, and rolls back the outer transaction too unless the outer body catches it.
+* **Optional `@ForeignKey` / `@PrimaryKey`.** These are now nullable columns of the wrapped type, not
+  JSON/text columns. Existing tables keep the old column (`.reconcileTable` won't change it): recreate
+  or alter them.
+* **Queries that were silently wrong now throw `CRUDSQLGenError`.** This covers key paths through nested or
+  optional-chained properties (`\T.sub?.x`) or to properties `init(from:)` never decodes; a join
+  whose target key path can't be resolved (`select()` / `first()` used to return nothing); joining the
+  same key path twice (used to trap); an unsupported join key type (now thrown while the query is
+  built, `count()` included); and a `where` on a type that appears more than once in the query and
+  isn't the master's type (2.0.0's `count()` silently used the first table of that type).
+* **Self-join orderings.** `.order(by:)` after a self-join or self-pivot join now sorts the joined rows
+  by their own column, not the parent's, which can change the rows returned with `.limit()`.
+* **Connector authors.** `SQLGenDelegate` gained `setIsolationLevelSQL(_:)`, and `SQLExeDelegate`
+  gained `nextDynamicRow()`, `affectedRowCount()` and `lastInsertedID()`. All have default
+  implementations; implement them to support isolation levels and Dynamic Select.
 
 # Contents
 * <a href="#general-usage">General Usage</a>
@@ -211,9 +245,13 @@ The `transaction` operation will execute the body between a set of "BEGIN" and "
 
 ```swift
 public extension Database {
-	func transaction<T>(_ body: () throws -> T) throws -> T
+	func transaction<T>(isolation: TransactionIsolationLevel? = nil, _ body: () throws -> T) throws -> T
 }
 ```
+
+Transactions nest. A `transaction` called inside another on the same `Database` value runs between `SAVEPOINT` and `RELEASE SAVEPOINT`, and a failure rolls back only to that savepoint. The error is still rethrown, so the outer transaction rolls back as well unless its body catches the error.
+
+`isolation` (`.readUncommitted`, `.readCommitted`, `.repeatableRead`, `.serializable`) applies only to the outermost transaction, and only on connectors that implement `SQLGenDelegate.setIsolationLevelSQL(_:)`; on the others it's ignored. None of the PerfectlySoft connectors implement it yet.
 
 Example usage:
 

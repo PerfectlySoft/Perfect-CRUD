@@ -81,6 +81,7 @@ struct PoolTests {
 		#expect(await pool.currentSize == 1)
 	}
 
+	@available(macOS 13, iOS 16, tvOS 16, watchOS 9, *) // .timeLimit
 	@Test("concurrent withConnection calls beyond maxConnections queue and are served FIFO", .timeLimit(.minutes(1)))
 	func concurrentCheckoutsQueueInOrder() async throws {
 		let nextID = Counter()
@@ -124,6 +125,7 @@ struct PoolTests {
 		#expect(await order.entries == ["A", "B"])
 	}
 
+	@available(macOS 13, iOS 16, tvOS 16, watchOS 9, *) // .timeLimit
 	@Test("task cancellation while waiting doesn't leak a slot", .timeLimit(.minutes(1)))
 	func cancellationDoesNotLeakASlot() async throws {
 		let nextID = Counter()
