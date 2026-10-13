@@ -1348,7 +1348,7 @@ Note that a custom primary key name can be specified when creating tables "shall
 
 Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object. 
 
-CRUD will throw `CRUDDecoderError` or `CRUDEncoderError` for errors occurring during type encoding and decoding, respectively.
+CRUD will throw `CRUDEncoderError` or `CRUDDecoderError` for errors occurring during type encoding and decoding, respectively.
 
 CRUD will throw `CRUDSQLGenError` for errors occurring during SQL statement generation.
 

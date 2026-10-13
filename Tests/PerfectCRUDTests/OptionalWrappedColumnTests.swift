@@ -455,8 +455,8 @@ struct OptionalWrappedColumnTests {
 			}
 		}
 		let config = try RecordingConfig()
-		#expect(throws: CRUDEncoderError.self) {
-			try Database(configuration: config).table(Twice.self).insert(Twice(id: 1))
-		}
+		let table = Database(configuration: config).table(Twice.self)
+		#expect(throws: CRUDEncoderError.self) { try table.insert(Twice(id: 1)) }
+		#expect(throws: CRUDEncoderError.self) { try table.where(\Twice.id == 1).update(Twice(id: 1)) }
 	}
 }

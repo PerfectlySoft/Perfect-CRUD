@@ -159,6 +159,7 @@ public class CRUDBindingsEncoder: Encoder {
 	public let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
 	private var collectedBinds: [(String, CRUDExpression)] = []
+	private var boundKeys = Set<String>()
 	
 	public init(delegate d: SQLGenDelegate) throws {
 		delegate = d
@@ -186,7 +187,7 @@ public class CRUDBindingsEncoder: Encoder {
 	
 	func addBinding<Key: CodingKey>(key: Key, value: CRUDExpression) throws {
 		// A custom encode(to:) can encode a key twice; the bindings dictionary would trap on it.
-		guard !collectedBinds.contains(where: { $0.0 == key.stringValue }) else {
+		guard boundKeys.insert(key.stringValue).inserted else {
 			throw CRUDEncoderError("Key \(key.stringValue) was encoded more than once.")
 		}
 		collectedBinds.append((key.stringValue, value))
