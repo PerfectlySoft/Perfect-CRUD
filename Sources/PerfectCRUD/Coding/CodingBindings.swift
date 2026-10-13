@@ -57,7 +57,8 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		try addBinding(key, value: .integer(Int(value)))
 	}
 	func encode(_ value: UInt, forKey key: K) throws {
-		try addBinding(key, value: .integer(Int(value)))
+		// Values above Int.max don't fit .integer; Int(value) trapped on them.
+		try addBinding(key, value: .uinteger(value))
 	}
 	func encode(_ value: UInt8, forKey key: K) throws {
 		try addBinding(key, value: .integer(Int(value)))
@@ -69,7 +70,8 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		try addBinding(key, value: .integer(Int(value)))
 	}
 	func encode(_ value: UInt64, forKey key: K) throws {
-		try addBinding(key, value: .integer(Int(value)))
+		// Values above Int.max don't fit .integer; Int(value) trapped on them.
+		try addBinding(key, value: .uinteger64(value))
 	}
 	func encode(_ value: Float, forKey key: K) throws {
 		try addBinding(key, value: .decimal(Double(value)))
@@ -88,7 +90,7 @@ class CRUDBindingsWriter<K : CodingKey>: KeyedEncodingContainerProtocol {
 		case .uint8Array:
 			try addBinding(key, value: .blob((value as! [UInt8])))
 		case .int8Array:
-			try addBinding(key, value: .blob((value as! [Int8]).map { UInt8($0) }))
+			try addBinding(key, value: .blob((value as! [Int8]).map { UInt8(bitPattern: $0) }))
 		case .data:
 			try addBinding(key, value: .blob((value as! Data).map { $0 }))
 		case .uuid:
@@ -157,6 +159,7 @@ public class CRUDBindingsEncoder: Encoder {
 	public let userInfo: [CodingUserInfoKey : Any] = [:]
 	let delegate: SQLGenDelegate
 	private var collectedBinds: [(String, CRUDExpression)] = []
+	private var boundKeys = Set<String>()
 	
 	public init(delegate d: SQLGenDelegate) throws {
 		delegate = d
@@ -183,6 +186,10 @@ public class CRUDBindingsEncoder: Encoder {
 	}
 	
 	func addBinding<Key: CodingKey>(key: Key, value: CRUDExpression) throws {
+		// A custom encode(to:) can encode a key twice; the bindings dictionary would trap on it.
+		guard boundKeys.insert(key.stringValue).inserted else {
+			throw CRUDEncoderError("Key \(key.stringValue) was encoded more than once.")
+		}
 		collectedBinds.append((key.stringValue, value))
 	}
 	public func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
