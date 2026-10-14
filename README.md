@@ -57,6 +57,9 @@ changes nothing that existing code needs to adapt to, apart from errors that use
 * `first()`, `firstAsync()` and `fetchAll()` now throw when the query fails or a joined table's rows
   can't be decoded, and `fetchAll()` throws when any row can't be decoded. They used to return `nil`
   or the rows read before the failure.
+* `first()` on a join returns the parent with all of its joined objects. It used to apply its
+  `LIMIT 1` to the joined table, so the parent got at most one child (often none, when the first
+  child row belonged to another parent).
 * `DatabaseMigrator.migrate()` throws if a migration record can't be read, instead of running the
   migrations recorded after it again.
 * `for row in select` behaves as before: it logs an error and stops. Switch to `try select.all()` or
