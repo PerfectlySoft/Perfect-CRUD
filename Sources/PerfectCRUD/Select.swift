@@ -13,10 +13,15 @@ import Foundation
 /// query fails or a row can't be decoded it logs the error through `CRUDLogging` and returns `nil`:
 /// the loop simply ends and the remaining rows are lost. Use `nextElement()`, which throws instead,
 /// together with `Select.rows()`, or `Select.all()` / `Select.forEachRow(_:)`.
+///
+/// Once either method has returned `nil` or hit an error, both return `nil` from then on. Without
+/// that, what came next depended on the connector: one re-ran the query from the first row, and
+/// after a row that failed to decode they carried on with the rows after it.
 public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 	public typealias Element = A.OverAllForm
 	let select: A?
 	let exeDelegate: SQLExeDelegate?
+	private var finished = false
 	init(select s: A) throws {
 		select = s
 		exeDelegate = try SQLTopExeDelegate(genState: s.sqlGenState, configurator: s.fromTable.databaseConfiguration)
@@ -28,30 +33,28 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 	/// Returns the next row, or `nil` at the end of the results. On an error it logs the error and
 	/// returns `nil`, so a `for … in` loop stops at the first failing row. See `nextElement()`.
 	public mutating func next() -> Element? {
-		guard let delegate = exeDelegate else {
-			return nil
-		}
 		do {
-			if try delegate.hasNext() {
-				let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
-				return try Element(from: rowDecoder)
-			}
+			return try nextElement()
 		} catch {
 			CRUDLogging.log(.error, "Error thrown in SelectIterator.next(). Caught: \(error)")
+			return nil
 		}
-		return nil
 	}
 	/// Returns the next row, or `nil` at the end of the results, and throws if the query fails or
 	/// the row can't be decoded.
 	public mutating func nextElement() throws -> Element? {
-		guard let delegate = exeDelegate else {
+		guard !finished, let delegate = exeDelegate else {
 			return nil
 		}
-		if try delegate.hasNext() {
-			let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
-			return try Element(from: rowDecoder)
+		// Latched until this row is returned: a thrown error or the end of the rows leaves it set.
+		finished = true
+		guard try delegate.hasNext() else {
+			return nil
 		}
-		return nil
+		let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
+		let element = try Element(from: rowDecoder)
+		finished = false
+		return element
 	}
 }
 
