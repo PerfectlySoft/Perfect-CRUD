@@ -25,6 +25,13 @@ public struct CRUDMigrationRecord: Codable, TableNameProvider, Sendable {
 	}
 }
 
+/// The only column `migrate()` needs from `CRUDMigrationRecord`'s table, so an `appliedAt` that
+/// can't be read doesn't stop every later deploy.
+private struct CRUDAppliedMigration: Codable, TableNameProvider {
+	static let tableName = CRUDMigrationRecord.tableName
+	var identifier: String
+}
+
 /// A versioned migration system. Migrations are applied in **registration
 /// order**, not a lexical/timestamp sort on `identifier` -- matching GRDB's
 /// actual behavior and avoiding a naming-convention footgun. Convention
@@ -87,7 +94,17 @@ public final class DatabaseMigrator<C: DatabaseConfigurationProtocol>: @unchecke
 		try db.create(CRUDMigrationRecord.self, policy: .shallow)
 		// all(), not map: Sequence iteration stops quietly at a record it can't read, and every
 		// migration recorded after it would then run again.
-		let applied = Set(try db.table(CRUDMigrationRecord.self).select().all().map { $0.identifier })
+		let applied: Set<String>
+		do {
+			applied = Set(try db.table(CRUDAppliedMigration.self).select().all().map { $0.identifier })
+		} catch {
+			throw CRUDSQLExeError("""
+				Can't read the applied migrations from \(CRUDMigrationRecord.tableName), so no \
+				migrations were run: \(error). Every row's identifier must be a non-NULL string. \
+				Fix the row that can't be read, or delete it if its migration should run again, \
+				then call migrate() again.
+				""")
+		}
 		var newly: [String] = []
 		for migration in snapshot() where !applied.contains(migration.identifier) {
 			try db.transaction {
