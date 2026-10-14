@@ -64,7 +64,7 @@ be wrong:
 * `first()` on a join returns the parent with all of its joined objects. It used to apply its
   `LIMIT 1` to the joined table, so the parent got at most one child (often none, when the first
   child row belonged to another parent). It still reads a single parent row, and now only that
-  parent's joined objects. With joins and no `order`, it returns the parent with the lowest join key.
+  parent's joined objects. With joins and no `order`, it returns the parent with the lowest join key. Where that key can be NULL, MySQL and SQLite sort NULLs first, so the result can be a parent with no joined objects; PostgreSQL sorts them last. Add an `order` if that matters.
 * After a `SelectIterator` returns `nil` or throws, it keeps returning `nil`. Some connectors used to
   run the query again, or carry on past a row that failed to decode.
 * `DatabaseMigrator.migrate()` throws if a migration record can't be read, instead of running the
@@ -486,7 +486,7 @@ try migrator.rollbackLast(db)  // rolls back only the most recently applied migr
 
 A migration's `identifier` must be unique — `register` throws if it's already registered, since migrations are meant to be a fixed, reviewed sequence rather than silently overwritable. Applied migrations are tracked in a `perfectcrud_migrations` table, created automatically on first `migrate(_:)` call. Running `migrate(_:)` concurrently from every instance of a horizontally-scaled service against one shared network database is not safe — run it from exactly one process/deploy step for a network connector (SQLite's single-writer semantics make this less of a concern there).
 
-`migrate(_:)` reads only the `identifier` column of `perfectcrud_migrations`. If a row's identifier can't be read (`NULL`, or not text), it throws a `CRUDSQLExeError` that names the table, and runs no migrations: it can't tell which ones were applied. To recover, look at the table, then fix that row's `identifier`, or delete the row if that migration should run again, and call `migrate(_:)` again. `rollbackLast(_:)` reads `appliedAt` too, so a row whose `appliedAt` can't be read blocks it until the row is fixed.
+`migrate(_:)` reads only the `identifier` column of `perfectcrud_migrations`. If the table can't be read (for example a column with an unexpected type), it throws a `CRUDSQLExeError` that names the table, and runs no migrations: it can't tell which ones were applied. To recover, look at the table, then fix that row's `identifier`, or delete the row if that migration should run again, and call `migrate(_:)` again. `rollbackLast(_:)` reads `appliedAt` too, so a row whose `appliedAt` can't be read blocks it until the row is fixed.
 
 <a name="table-1"></a>
 ### Table
@@ -1093,9 +1093,9 @@ assert(j2.count == 0)
 
 **Select** can follow: `where`, `order`, `limit`, `join`, `table`.
 
-**Select** supports: `all`, `forEachRow`, `rows`, iteration.
+**Select** supports: `all`, `forEachRow`, `makeThrowingIterator`, iteration.
 
-<a name="select">Select</a> returns an object which runs the query when you read its results. `first()` returns the first row, or `nil` if there are none. It reads only one row: the master table's statement gets `LIMIT 1` (keeping the offset of any `limit` on the master table), ordered last by each join's key so the result doesn't depend on ties, and each joined table's statement reads only that row's joined objects. A `limit` after a `join` still limits that row's joined objects.
+<a name="select">Select</a> returns an object which runs the query when you read its results. `first()` returns the first row, or `nil` if there are none. It reads only one row: the master table's statement gets `LIMIT 1` (keeping the offset of any `limit` on the master table), ordered last by each join's key so the joined objects belong to the row that's returned, and each joined table's statement reads only that row's joined objects. A `limit` after a `join` still limits that row's joined objects.
 
 ```swift
 public protocol Selectable: TableProtocol {
