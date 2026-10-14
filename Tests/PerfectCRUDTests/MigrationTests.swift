@@ -144,4 +144,20 @@ struct MigrationTests {
 		#expect(rolledBack == "reversible")
 		#expect(downRan.get() == true)
 	}
+
+	@Test("an unreadable migration record throws instead of re-running applied migrations")
+	func unreadableRecordThrows() throws {
+		let config = try StatefulStubConfig()
+		let table = CRUDMigrationRecord.tableName
+		config.store.insert(table: table, row: ["identifier": .string("one"), "appliedAt": .date(Date())])
+		config.store.insert(table: table, row: ["identifier": .integer(5), "appliedAt": .date(Date())])
+		config.store.insert(table: table, row: ["identifier": .string("two"), "appliedAt": .date(Date())])
+		let migrator = DatabaseMigrator<StatefulStubConfig>()
+		let ran = Box<[String]>([])
+		try migrator.register("one") { _ in ran.mutate { $0.append("one") } }
+		try migrator.register("two") { _ in ran.mutate { $0.append("two") } }
+		// 3.0.1 read the records with for-in semantics, stopped at the bad one, and ran "two" again.
+		#expect(throws: CRUDDecoderError.self) { try migrator.migrate(Database(configuration: config)) }
+		#expect(ran.get() == [])
+	}
 }

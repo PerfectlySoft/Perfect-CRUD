@@ -85,7 +85,9 @@ public final class DatabaseMigrator<C: DatabaseConfigurationProtocol>: @unchecke
 	@discardableResult
 	public func migrate(_ db: Database<C>) throws -> [String] {
 		try db.create(CRUDMigrationRecord.self, policy: .shallow)
-		let applied = Set(try db.table(CRUDMigrationRecord.self).select().map { $0.identifier })
+		// all(), not map: Sequence iteration stops quietly at a record it can't read, and every
+		// migration recorded after it would then run again.
+		let applied = Set(try db.table(CRUDMigrationRecord.self).select().all().map { $0.identifier })
 		var newly: [String] = []
 		for migration in snapshot() where !applied.contains(migration.identifier) {
 			try db.transaction {
