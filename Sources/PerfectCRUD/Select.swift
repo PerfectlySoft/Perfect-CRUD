@@ -71,10 +71,11 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
 	public let sqlGenState: SQLGenState
-	init(fromTable ft: FromTableType) throws {
+	init(fromTable ft: FromTableType, firstRowOnly: Bool = false) throws {
 		fromTable = ft
 		var state = SQLGenState(delegate: ft.databaseConfiguration.sqlGenDelegate)
 		state.command = .select
+		state.firstRowOnly = firstRowOnly
 		try ft.setState(state: &state)
 		try ft.setSQL(state: &state)
 		guard state.accumulatedOrderings.isEmpty else {

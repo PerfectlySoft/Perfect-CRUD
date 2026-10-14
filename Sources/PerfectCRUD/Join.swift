@@ -52,11 +52,17 @@ public struct Join<OAF: Codable, A: TableProtocol, B: Codable, O: Equatable>: Ta
 			() // joins do nothing on .count except limit master #
 		case .select:
 			try firstTable.validateJoinTarget(to)
+			var parentJoin = "\(joinWord) \(fNameQ) AS \(fAliasQ)"
+			if state.firstRowOnly, let master = state.statements.first {
+				// Only the master row first() reads: its statement's bindings come first.
+				state.delegate.bindings = master.bindings
+				parentJoin = "JOIN (\(master.sql)) AS \(fAliasQ)"
+			}
 			var sqlStr =
 			"""
 			SELECT DISTINCT \(aliasQ).*
 			FROM \(nameQ) AS \(aliasQ)
-			\(joinWord) \(fNameQ) AS \(fAliasQ) ON \(lhsStr) = \(rhsStr)
+			\(parentJoin) ON \(lhsStr) = \(rhsStr)
 			
 			"""
 			if let whereExpr = state.whereExpr {
@@ -151,12 +157,17 @@ public struct JoinPivot<OAF: Codable, MasterTable: TableProtocol, MyForm: Codabl
 			() // joins do nothing on .count except limit master #
 		case .select:
 			try firstTable.validateJoinTarget(to)
+			var parentJoin = "\(joinWord) \(firstNameQ) AS \(firstAliasQ)"
+			if state.firstRowOnly, let master = state.statements.first {
+				state.delegate.bindings = master.bindings
+				parentJoin = "JOIN (\(master.sql)) AS \(firstAliasQ)"
+			}
 			var sqlStr =
 			"""
 			SELECT DISTINCT \(myAliasQ).*, \(lhsStr) AS \(tempColumnNameQ)
 			FROM \(myNameQ) AS \(myAliasQ)
 			\(joinWord) \(pivotNameQ) AS \(pivotAliasQ) ON \(lhsStr2) = \(rhsStr2)
-			\(joinWord) \(firstNameQ) AS \(firstAliasQ) ON \(lhsStr) = \(rhsStr)
+			\(parentJoin) ON \(lhsStr) = \(rhsStr)
 			
 			"""
 			if let whereExpr = state.whereExpr {
