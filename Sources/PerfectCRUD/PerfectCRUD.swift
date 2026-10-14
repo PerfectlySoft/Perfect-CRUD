@@ -194,14 +194,14 @@ public extension Selectable {
 		return try container.decode(Int.self, forKey: ColumnKey(stringValue: "count")!)
 	}
 	func first() throws -> OverAllForm? {
-		var i = try select().makeIterator()
+		var i = try select().rows()
 		return try i.nextElement()
 	}
 }
 
 public extension Selectable where Self: Limitable {
 	func first() throws -> OverAllForm? {
-		var i = try limit(1).select().makeIterator()
+		var i = try limit(1).select().rows()
 		return try i.nextElement()
 	}
 }

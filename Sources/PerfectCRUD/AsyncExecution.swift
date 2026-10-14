@@ -100,12 +100,13 @@ public extension Selectable where Self: Sendable, OverAllForm: Sendable {
 	func firstAsync() async throws -> OverAllForm? {
 		try await withCRUDExecutor { try self.first() }
 	}
-	/// Collects the full result set. No sync equivalent -- see this file's
-	/// header comment for why `Select`'s `Sequence` conformance isn't made
-	/// `async` directly, and why this one keeps its plain name (no
-	/// collision to avoid).
+	/// Collects the full result set, throwing if the query fails or any row
+	/// can't be decoded (it runs `select().all()` on the blocking executor).
+	/// See this file's header comment for why `Select`'s `Sequence`
+	/// conformance isn't made `async` directly, and why this one keeps its
+	/// plain name (no collision to avoid).
 	func fetchAll() async throws -> [OverAllForm] {
-		try await withCRUDExecutor { Array(try self.select()) }
+		try await withCRUDExecutor { try self.select().all() }
 	}
 }
 
