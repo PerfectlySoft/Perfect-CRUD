@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import PerfectCRUD
 
-// The throwing ways to read a Select added in 3.1.0: all(), forEachRow(_:) and rows().
+// The throwing ways to read a Select added in 3.1.0: all(), forEachRow(_:) and makeThrowingIterator().
 // Fixtures are in SelectErrorTests.swift.
 
 @Suite("Select's throwing read API", .serialized)
@@ -41,9 +41,9 @@ struct SelectThrowingReadTests {
 		#expect(seen == [1])
 	}
 
-	@Test func rowsThrowsFromNextElementAndCanStopEarly() throws {
+	@Test func throwingIteratorThrowsFromNextElementAndCanStopEarly() throws {
 		let select = try goodBadGoodDatabase().table(SelectErrorRow.self).select()
-		var rows = try select.rows()
+		var rows = try select.makeThrowingIterator()
 		#expect(try rows.nextElement()?.id == 1)
 		#expect(throws: CRUDDecoderError.self) { _ = try rows.nextElement() }
 	}
@@ -52,7 +52,7 @@ struct SelectThrowingReadTests {
 		let select = try Database(configuration: try FailingExeConfig()).table(SelectErrorRow.self).select()
 		#expect(throws: ExeDelegateFailure.self) { _ = try select.all() }
 		#expect(throws: ExeDelegateFailure.self) { try select.forEachRow { _ in } }
-		#expect(throws: ExeDelegateFailure.self) { _ = try select.rows() }
+		#expect(throws: ExeDelegateFailure.self) { _ = try select.makeThrowingIterator() }
 	}
 
 	@Test func everyFormThrowsOnAnUndecodableJoinedChild() throws {
@@ -60,6 +60,6 @@ struct SelectThrowingReadTests {
 			.join(\.kids, on: \.id, equals: \.parentId).select()
 		#expect(throws: CRUDDecoderError.self) { _ = try select.all() }
 		#expect(throws: CRUDDecoderError.self) { try select.forEachRow { _ in } }
-		#expect(throws: CRUDDecoderError.self) { _ = try select.rows() }
+		#expect(throws: CRUDDecoderError.self) { _ = try select.makeThrowingIterator() }
 	}
 }

@@ -200,7 +200,7 @@ public extension Selectable {
 	/// from a `limit` on it), and each joined table's statement reads only the joined objects of
 	/// that one row. See `SQLGenState.firstRowOnly`.
 	func first() throws -> OverAllForm? {
-		var i = try Select<OverAllForm, Self>(fromTable: self, firstRowOnly: true).rows()
+		var i = try Select<OverAllForm, Self>(fromTable: self, firstRowOnly: true).makeThrowingIterator()
 		return try i.nextElement()
 	}
 }
@@ -210,7 +210,7 @@ public extension Selectable where Self: Limitable {
 	// on the joined table's statement (one joined object across every parent) instead of the
 	// master's; it now does the same as `Selectable.first()`.
 	func first() throws -> OverAllForm? {
-		var i = try Select<OverAllForm, Self>(fromTable: self, firstRowOnly: true).rows()
+		var i = try Select<OverAllForm, Self>(fromTable: self, firstRowOnly: true).makeThrowingIterator()
 		return try i.nextElement()
 	}
 }

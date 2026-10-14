@@ -62,7 +62,7 @@ struct SelectIteratorLatchTests {
 	}
 
 	@Test func nilIsFinal() throws {
-		var rows = try select([.integer(1), .integer(2)]).rows()
+		var rows = try select([.integer(1), .integer(2)]).makeThrowingIterator()
 		#expect(try rows.nextElement()?.id == 1)
 		#expect(try rows.nextElement()?.id == 2)
 		#expect(try rows.nextElement() == nil)
@@ -76,7 +76,7 @@ struct SelectIteratorLatchTests {
 	}
 
 	@Test func anErrorIsFinal() throws {
-		var rows = try select([.integer(1), .string("bad"), .integer(3)]).rows()
+		var rows = try select([.integer(1), .string("bad"), .integer(3)]).makeThrowingIterator()
 		#expect(try rows.nextElement()?.id == 1)
 		#expect(throws: CRUDDecoderError.self) { _ = try rows.nextElement() }
 		#expect(try rows.nextElement() == nil) // used to be row 3

@@ -12,7 +12,7 @@ import Foundation
 /// `next()` is the `IteratorProtocol` requirement that `for … in` uses. It can't throw, so when the
 /// query fails or a row can't be decoded it logs the error through `CRUDLogging` and returns `nil`:
 /// the loop simply ends and the remaining rows are lost. Use `nextElement()`, which throws instead,
-/// together with `Select.rows()`, or `Select.all()` / `Select.forEachRow(_:)`.
+/// together with `Select.makeThrowingIterator()`, or `Select.all()` / `Select.forEachRow(_:)`.
 ///
 /// Once either method has returned `nil` or hit an error, both return `nil` from then on. Without
 /// that, what came next depended on the connector: one re-ran the query from the first row, and
@@ -60,8 +60,8 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 
 /// A query's results, read lazily from the database.
 ///
-/// Read them with the throwing `all()`, `forEachRow(_:)` or `rows()`, which report a failed query
-/// or a row that can't be decoded.
+/// Read them with the throwing `all()`, `forEachRow(_:)` or `makeThrowingIterator()`, which
+/// report a failed query or a row that can't be decoded.
 ///
 /// `Select` is also a `Sequence`, so `for row in select` (and `map`, `Array(select)` and the other
 /// `Sequence` methods) still work, but they can't throw: an error is logged through `CRUDLogging`
@@ -88,7 +88,7 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		sqlGenState = state
 	}
 	/// The `Sequence` iterator used by `for … in`. If the query can't be run it logs the error and
-	/// returns an empty iterator. Use `rows()` to get the error instead.
+	/// returns an empty iterator. Use `makeThrowingIterator()` to get the error instead.
 	public func makeIterator() -> Iterator {
 		do {
 			return try SelectIterator(select: self)
@@ -97,19 +97,25 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		}
 		return SelectIterator()
 	}
-	/// Runs the query and returns an iterator whose `nextElement()` throws on a row that can't be
-	/// read. Throws if the query can't be run, including when a joined table's rows can't be
-	/// decoded. Use it to stop part way through without reading every row:
+	/// The throwing counterpart of `makeIterator()`, named after the standard library's
+	/// `makeAsyncIterator()`: it returns an iterator whose `nextElement()` throws. Use it to stop
+	/// part way through without reading every row:
 	///
-	///     var rows = try select.rows()
+	///     var rows = try select.makeThrowingIterator()
 	///     while let row = try rows.nextElement() { … }
-	public func rows() throws -> Iterator {
+	///
+	/// It starts the query and reads every joined table's rows, and throws if that fails (a joined
+	/// row that can't be decoded, for example). Whether a failure of the master query itself
+	/// surfaces here or at the first `nextElement()` depends on the connector: Perfect-MySQL and
+	/// Perfect-SQLite prepare the statement here, while Perfect-PostgreSQL only runs it when the
+	/// first row is read. Either way the error is thrown, not lost.
+	public func makeThrowingIterator() throws -> Iterator {
 		return try SelectIterator(select: self)
 	}
 	/// Runs the query and returns every row. Throws if the query fails or any row can't be decoded,
 	/// rather than returning the rows before the failure.
 	public func all() throws -> [OverAllForm] {
-		var iterator = try rows()
+		var iterator = try makeThrowingIterator()
 		var result: [OverAllForm] = []
 		while let row = try iterator.nextElement() {
 			result.append(row)
@@ -122,7 +128,7 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 	/// Named `forEachRow` rather than `forEach` because a throwing `forEach` here would hide
 	/// `Sequence.forEach(_:)` and make every existing `select.forEach { … }` call need `try`.
 	public func forEachRow(_ body: (OverAllForm) throws -> Void) throws {
-		var iterator = try rows()
+		var iterator = try makeThrowingIterator()
 		while let row = try iterator.nextElement() {
 			try body(row)
 		}

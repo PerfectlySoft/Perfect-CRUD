@@ -1113,13 +1113,13 @@ try select.forEachRow { row in
 }
 
 // An iterator, to stop part way through without reading the rest.
-var iterator = try select.rows()
+var iterator = try select.makeThrowingIterator()
 while let row = try iterator.nextElement() {
 	if row.id == 42 { break }
 }
 ```
 
-`Select` is also a `Sequence`, so `for row in select`, `select.map { … }`, `Array(select)` and the other `Sequence` methods still work, but they can't throw. When something goes wrong they log the error through [`CRUDLogging`](#logging) and end the sequence early: a query that can't run yields no rows, and a row that can't be decoded ends the loop there, so that row and every row after it are skipped. Use them only where that's acceptable, and use `all()`, `forEachRow(_:)` or `rows()` where it isn't. `first()`, `firstAsync()` and `fetchAll()` throw in the same cases as `all()`.
+`Select` is also a `Sequence`, so `for row in select`, `select.map { … }`, `Array(select)` and the other `Sequence` methods still work, but they can't throw. When something goes wrong they log the error through [`CRUDLogging`](#logging) and end the sequence early: a query that can't run yields no rows, and a row that can't be decoded ends the loop there, so that row and every row after it are skipped. Use them only where that's acceptable, and use `all()`, `forEachRow(_:)` or `makeThrowingIterator()` where it isn't. `first()`, `firstAsync()` and `fetchAll()` throw in the same cases as `all()`.
 
 The throwing loop is called `forEachRow` rather than `forEach`: a throwing `forEach` on `Select` would hide `Sequence.forEach` and make every existing `select.forEach { … }` call need `try`.
 
@@ -1390,7 +1390,7 @@ Note that a custom primary key name can be specified when creating tables "shall
 <a name="error-handling"></a>
 ## Error Handling
 
-Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object, with one exception: iterating a `Select` as a `Sequence` (`for row in select`, `map` and so on) can't throw, so it logs the error and stops. Use `all()`, `forEachRow(_:)` or `rows()` to get the error; see [Reading results](#reading-results).
+Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object, with one exception: iterating a `Select` as a `Sequence` (`for row in select`, `map` and so on) can't throw, so it logs the error and stops. Use `all()`, `forEachRow(_:)` or `makeThrowingIterator()` to get the error; see [Reading results](#reading-results).
 
 CRUD will throw `CRUDEncoderError` or `CRUDDecoderError` for errors occurring during type encoding and decoding, respectively.
 
