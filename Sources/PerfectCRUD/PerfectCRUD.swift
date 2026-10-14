@@ -201,6 +201,14 @@ public extension Selectable {
 
 public extension Selectable where Self: Limitable {
 	func first() throws -> OverAllForm? {
+		// A limit applies to the most recent table or join, so after a join `limit(1)` would cap
+		// the joined objects (one child across every parent) rather than the parent rows. Read the
+		// first row of the unlimited query instead; a join's child rows are all fetched anyway.
+		let unlimited = try select()
+		if unlimited.sqlGenState.statementTableData.count > 1 {
+			var i = try unlimited.rows()
+			return try i.nextElement()
+		}
 		var i = try limit(1).select().rows()
 		return try i.nextElement()
 	}
