@@ -51,17 +51,24 @@ use `all()` and the other 3.1.0 additions.
 
 ## Upgrading to 3.1
 
-3.1.0 adds throwing ways to read a query's results (see [Reading results](#reading-results)) and
-changes nothing that existing code needs to adapt to, apart from errors that used to be lost:
+3.1.0 adds throwing ways to read a query's results (see [Reading results](#reading-results)).
+Existing code keeps compiling, with one exception: if your app declares its own `all()`,
+`forEachRow(_:)` or `makeThrowingIterator()` on `Select`, or on `Sequence` (which `Select` conforms
+to), calls to it on a `Select` now become ambiguous or resolve to CRUD's throwing method and need
+`try`. Rename yours. Otherwise the changes are errors that used to be lost, and results that used to
+be wrong:
 
 * `first()`, `firstAsync()` and `fetchAll()` now throw when the query fails or a joined table's rows
   can't be decoded, and `fetchAll()` throws when any row can't be decoded. They used to return `nil`
   or the rows read before the failure.
 * `first()` on a join returns the parent with all of its joined objects. It used to apply its
   `LIMIT 1` to the joined table, so the parent got at most one child (often none, when the first
-  child row belonged to another parent).
+  child row belonged to another parent). It still reads a single parent row, and now only that
+  parent's joined objects. With joins and no `order`, it returns the parent with the lowest join key.
+* After a `SelectIterator` returns `nil` or throws, it keeps returning `nil`. Some connectors used to
+  run the query again, or carry on past a row that failed to decode.
 * `DatabaseMigrator.migrate()` throws if a migration record can't be read, instead of running the
-  migrations recorded after it again.
+  migrations recorded after it again (see [Migrations](#migrations) to recover).
 * `for row in select` behaves as before: it logs an error and stops. Switch to `try select.all()` or
   `try select.forEachRow { … }` where losing rows silently isn't acceptable.
 
@@ -478,6 +485,8 @@ try migrator.rollbackLast(db)  // rolls back only the most recently applied migr
 ```
 
 A migration's `identifier` must be unique — `register` throws if it's already registered, since migrations are meant to be a fixed, reviewed sequence rather than silently overwritable. Applied migrations are tracked in a `perfectcrud_migrations` table, created automatically on first `migrate(_:)` call. Running `migrate(_:)` concurrently from every instance of a horizontally-scaled service against one shared network database is not safe — run it from exactly one process/deploy step for a network connector (SQLite's single-writer semantics make this less of a concern there).
+
+`migrate(_:)` reads only the `identifier` column of `perfectcrud_migrations`. If a row's identifier can't be read (`NULL`, or not text), it throws a `CRUDSQLExeError` that names the table, and runs no migrations: it can't tell which ones were applied. To recover, look at the table, then fix that row's `identifier`, or delete the row if that migration should run again, and call `migrate(_:)` again. `rollbackLast(_:)` reads `appliedAt` too, so a row whose `appliedAt` can't be read blocks it until the row is fixed.
 
 <a name="table-1"></a>
 ### Table
@@ -1086,7 +1095,7 @@ assert(j2.count == 0)
 
 **Select** supports: `all`, `forEachRow`, `rows`, iteration.
 
-<a name="select">Select</a> returns an object which runs the query when you read its results. `first()` runs it with `limit(1)` and returns the first row, or `nil` if there are none.
+<a name="select">Select</a> returns an object which runs the query when you read its results. `first()` returns the first row, or `nil` if there are none. It reads only one row: the master table's statement gets `LIMIT 1` (keeping the offset of any `limit` on the master table), ordered last by each join's key so the result doesn't depend on ties, and each joined table's statement reads only that row's joined objects. A `limit` after a `join` still limits that row's joined objects.
 
 ```swift
 public protocol Selectable: TableProtocol {
@@ -1120,6 +1129,8 @@ while let row = try iterator.nextElement() {
 ```
 
 `Select` is also a `Sequence`, so `for row in select`, `select.map { … }`, `Array(select)` and the other `Sequence` methods still work, but they can't throw. When something goes wrong they log the error through [`CRUDLogging`](#logging) and end the sequence early: a query that can't run yields no rows, and a row that can't be decoded ends the loop there, so that row and every row after it are skipped. Use them only where that's acceptable, and use `all()`, `forEachRow(_:)` or `makeThrowingIterator()` where it isn't. `first()`, `firstAsync()` and `fetchAll()` throw in the same cases as `all()`.
+
+`makeThrowingIterator()` reads every joined table's rows before it returns. On Perfect-PostgreSQL an error in the master query itself is thrown by the first `nextElement()` instead, because the statement only runs when the first row is read. Once the iterator has returned `nil` or thrown, it keeps returning `nil`.
 
 The throwing loop is called `forEachRow` rather than `forEach`: a throwing `forEach` on `Select` would hide `Sequence.forEach` and make every existing `select.forEach { … }` call need `try`.
 
