@@ -87,7 +87,10 @@ private func expectPlaceholdersMatch(_ statements: [(sql: String, bindings: [Str
 									 sourceLocation: SourceLocation = #_sourceLocation) {
 	for statement in statements {
 		if dollar {
-			let ids = statement.sql.matches(of: /\$\d+/).map { String($0.output) }
+			// NSRegularExpression, not Swift Regex: the test target builds at the package's iOS 15 minimum.
+			let regex = try! NSRegularExpression(pattern: #"\$\d+"#)
+			let range = NSRange(statement.sql.startIndex..., in: statement.sql)
+			let ids = regex.matches(in: statement.sql, range: range).compactMap { Range($0.range, in: statement.sql).map { String(statement.sql[$0]) } }
 			#expect(Set(ids) == Set((0..<statement.bindings.count).map { "$\($0 + 1)" }), "\(statement.sql)", sourceLocation: sourceLocation)
 			#expect(statement.bindings == (0..<statement.bindings.count).map { "$\($0 + 1)" }, sourceLocation: sourceLocation)
 		} else {
