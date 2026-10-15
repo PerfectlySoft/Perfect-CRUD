@@ -144,4 +144,35 @@ struct MigrationTests {
 		#expect(rolledBack == "reversible")
 		#expect(downRan.get() == true)
 	}
+
+	@Test("an unreadable migration record throws instead of re-running applied migrations")
+	func unreadableRecordThrows() throws {
+		let config = try StatefulStubConfig()
+		let table = CRUDMigrationRecord.tableName
+		config.store.insert(table: table, row: ["identifier": .string("one"), "appliedAt": .date(Date())])
+		config.store.insert(table: table, row: ["identifier": .integer(5), "appliedAt": .date(Date())])
+		config.store.insert(table: table, row: ["identifier": .string("two"), "appliedAt": .date(Date())])
+		let migrator = DatabaseMigrator<StatefulStubConfig>()
+		let ran = Box<[String]>([])
+		try migrator.register("one") { _ in ran.mutate { $0.append("one") } }
+		try migrator.register("two") { _ in ran.mutate { $0.append("two") } }
+		// 3.0.1 read the records with for-in semantics, stopped at the bad one, and ran "two" again.
+		let error = #expect(throws: CRUDSQLExeError.self) { try migrator.migrate(Database(configuration: config)) }
+		#expect(error?.description.contains(CRUDMigrationRecord.tableName) == true)
+		#expect(error?.description.contains("expected String for identifier") == true)
+		#expect(ran.get() == [])
+	}
+
+	@Test("migrate() reads only the identifiers, so a bad appliedAt doesn't block it")
+	func unreadableAppliedAtIsIgnoredByMigrate() throws {
+		let config = try StatefulStubConfig()
+		let table = CRUDMigrationRecord.tableName
+		config.store.insert(table: table, row: ["identifier": .string("one"), "appliedAt": .string("garbage")])
+		let migrator = DatabaseMigrator<StatefulStubConfig>()
+		let ran = Box<[String]>([])
+		try migrator.register("one") { _ in ran.mutate { $0.append("one") } }
+		try migrator.register("two") { _ in ran.mutate { $0.append("two") } }
+		#expect(try migrator.migrate(Database(configuration: config)) == ["two"])
+		#expect(ran.get() == ["two"])
+	}
 }

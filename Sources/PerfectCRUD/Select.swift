@@ -7,10 +7,21 @@
 
 import Foundation
 
+/// Steps through the rows of a `Select`.
+///
+/// `next()` is the `IteratorProtocol` requirement that `for … in` uses. It can't throw, so when the
+/// query fails or a row can't be decoded it logs the error through `CRUDLogging` and returns `nil`:
+/// the loop simply ends and the remaining rows are lost. Use `nextElement()`, which throws instead,
+/// together with `Select.makeThrowingIterator()`, or `Select.all()` / `Select.forEachRow(_:)`.
+///
+/// Once either method has returned `nil` or hit an error, both return `nil` from then on. Without
+/// that, what came next depended on the connector: one re-ran the query from the first row, and
+/// after a row that failed to decode they carried on with the rows after it.
 public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 	public typealias Element = A.OverAllForm
 	let select: A?
 	let exeDelegate: SQLExeDelegate?
+	private var finished = false
 	init(select s: A) throws {
 		select = s
 		exeDelegate = try SQLTopExeDelegate(genState: s.sqlGenState, configurator: s.fromTable.databaseConfiguration)
@@ -19,42 +30,55 @@ public struct SelectIterator<A: SelectProtocol>: IteratorProtocol {
 		select = nil
 		exeDelegate = nil
 	}
+	/// Returns the next row, or `nil` at the end of the results. On an error it logs the error and
+	/// returns `nil`, so a `for … in` loop stops at the first failing row. See `nextElement()`.
 	public mutating func next() -> Element? {
-		guard let delegate = exeDelegate else {
-			return nil
-		}
 		do {
-			if try delegate.hasNext() {
-				let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
-				return try Element(from: rowDecoder)
-			}
+			return try nextElement()
 		} catch {
 			CRUDLogging.log(.error, "Error thrown in SelectIterator.next(). Caught: \(error)")
-		}
-		return nil
-	}
-	public mutating func nextElement() throws -> Element? {
-		guard let delegate = exeDelegate else {
 			return nil
 		}
-		if try delegate.hasNext() {
-			let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
-			return try Element(from: rowDecoder)
+	}
+	/// Returns the next row, or `nil` at the end of the results, and throws if the query fails or
+	/// the row can't be decoded.
+	public mutating func nextElement() throws -> Element? {
+		guard !finished, let delegate = exeDelegate else {
+			return nil
 		}
-		return nil
+		// Latched until this row is returned: a thrown error or the end of the rows leaves it set.
+		finished = true
+		guard try delegate.hasNext() else {
+			return nil
+		}
+		let rowDecoder: CRUDRowDecoder<ColumnKey> = CRUDRowDecoder(delegate: delegate)
+		let element = try Element(from: rowDecoder)
+		finished = false
+		return element
 	}
 }
 
+/// A query's results, read lazily from the database.
+///
+/// Read them with the throwing `all()`, `forEachRow(_:)` or `makeThrowingIterator()`, which
+/// report a failed query or a row that can't be decoded.
+///
+/// `Select` is also a `Sequence`, so `for row in select` (and `map`, `Array(select)` and the other
+/// `Sequence` methods) still work, but they can't throw: an error is logged through `CRUDLogging`
+/// and the sequence ends early. If the query itself fails (bad SQL, a server error, a joined
+/// table's row that can't be decoded) the sequence is empty; if one row fails to decode, iteration
+/// stops there and the rows after it are skipped.
 public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 	public typealias Iterator = SelectIterator<Select>
 	public typealias FromTableType = A
 	public typealias OverAllForm = OAF
 	public let fromTable: FromTableType
 	public let sqlGenState: SQLGenState
-	init(fromTable ft: FromTableType) throws {
+	init(fromTable ft: FromTableType, firstRowOnly: Bool = false) throws {
 		fromTable = ft
 		var state = SQLGenState(delegate: ft.databaseConfiguration.sqlGenDelegate)
 		state.command = .select
+		state.firstRowOnly = firstRowOnly
 		try ft.setState(state: &state)
 		try ft.setSQL(state: &state)
 		guard state.accumulatedOrderings.isEmpty else {
@@ -63,6 +87,8 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 		_ = try state.selectTables()
 		sqlGenState = state
 	}
+	/// The `Sequence` iterator used by `for … in`. If the query can't be run it logs the error and
+	/// returns an empty iterator. Use `makeThrowingIterator()` to get the error instead.
 	public func makeIterator() -> Iterator {
 		do {
 			return try SelectIterator(select: self)
@@ -70,6 +96,42 @@ public struct Select<OAF: Codable, A: TableProtocol>: SelectProtocol {
 			CRUDLogging.log(.error, "Error thrown in Select.makeIterator() Caught: \(error)")
 		}
 		return SelectIterator()
+	}
+	/// The throwing counterpart of `makeIterator()`, named after the standard library's
+	/// `makeAsyncIterator()`: it returns an iterator whose `nextElement()` throws. Use it to stop
+	/// part way through without reading every row:
+	///
+	///     var rows = try select.makeThrowingIterator()
+	///     while let row = try rows.nextElement() { … }
+	///
+	/// It starts the query and reads every joined table's rows, and throws if that fails (a joined
+	/// row that can't be decoded, for example). Whether a failure of the master query itself
+	/// surfaces here or at the first `nextElement()` depends on the connector: Perfect-MySQL and
+	/// Perfect-SQLite prepare the statement here, while Perfect-PostgreSQL only runs it when the
+	/// first row is read. Either way the error is thrown, not lost.
+	public func makeThrowingIterator() throws -> Iterator {
+		return try SelectIterator(select: self)
+	}
+	/// Runs the query and returns every row. Throws if the query fails or any row can't be decoded,
+	/// rather than returning the rows before the failure.
+	public func all() throws -> [OverAllForm] {
+		var iterator = try makeThrowingIterator()
+		var result: [OverAllForm] = []
+		while let row = try iterator.nextElement() {
+			result.append(row)
+		}
+		return result
+	}
+	/// Runs the query and calls `body` with each row in turn. Throws if the query fails, a row can't
+	/// be decoded, or `body` throws; no further rows are read after an error.
+	///
+	/// Named `forEachRow` rather than `forEach` because a throwing `forEach` here would hide
+	/// `Sequence.forEach(_:)` and make every existing `select.forEach { … }` call need `try`.
+	public func forEachRow(_ body: (OverAllForm) throws -> Void) throws {
+		var iterator = try makeThrowingIterator()
+		while let row = try iterator.nextElement() {
+			try body(row)
+		}
 	}
 }
 

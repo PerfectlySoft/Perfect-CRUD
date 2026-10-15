@@ -17,7 +17,17 @@ public struct Table<A: Codable, C: DatabaseProtocol>: TableProtocol, Joinable, S
 		try state.addTable(type: Form.self)
 	}
 	public func setSQL(state: inout SQLGenState) throws {
-		let (orderings, limit) = state.consumeState()
+		let (consumedOrderings, consumedLimit) = state.consumeState()
+		var orderings = consumedOrderings
+		var limit = consumedLimit
+		if state.command == .select, state.firstRowOnly, state.statements.isEmpty {
+			limit = (1, limit?.skip ?? 0)
+			// Each joined statement repeats this statement as a derived table, so both must pick the
+			// same row: break ties on the join keys (rows with equal keys get the same joined objects).
+			for on in state.tableData.compactMap({ $0.joinData?.on }) where !orderings.contains(where: { $0.key == on }) {
+				orderings.append((key: on, desc: false))
+			}
+		}
 		let delegate = state.delegate
 		let nameQ = try delegate.quote(identifier: "\(Form.CRUDTableName)")
 		switch state.command {

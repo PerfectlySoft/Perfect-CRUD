@@ -193,15 +193,24 @@ public extension Selectable {
 		}
 		return try container.decode(Int.self, forKey: ColumnKey(stringValue: "count")!)
 	}
+	/// The first row of the query, or `nil` if there are none. Throws if the query fails or the
+	/// row can't be decoded.
+	///
+	/// Only one row is read: the master table's statement gets `LIMIT 1` (keeping any `OFFSET`
+	/// from a `limit` on it), and each joined table's statement reads only the joined objects of
+	/// that one row. See `SQLGenState.firstRowOnly`.
 	func first() throws -> OverAllForm? {
-		var i = try select().makeIterator()
+		var i = try Select<OverAllForm, Self>(fromTable: self, firstRowOnly: true).makeThrowingIterator()
 		return try i.nextElement()
 	}
 }
 
 public extension Selectable where Self: Limitable {
+	// Kept so existing calls resolve as before. It used to add `limit(1)`, which on a join landed
+	// on the joined table's statement (one joined object across every parent) instead of the
+	// master's; it now does the same as `Selectable.first()`.
 	func first() throws -> OverAllForm? {
-		var i = try limit(1).select().makeIterator()
+		var i = try Select<OverAllForm, Self>(fromTable: self, firstRowOnly: true).makeThrowingIterator()
 		return try i.nextElement()
 	}
 }
@@ -421,6 +430,14 @@ public struct SQLGenState {
 	public var statements: [Statement] = [] // select: statements count must match statementTableData count for exe to succeed
 	var accumulatedOrderings: [Ordering] = []
 	var currentLimit: (max: Int, skip: Int)?
+	/// Set by first(). The master statement gets LIMIT 1 (keeping any OFFSET), ordered last by
+	/// each join's `on` key, and each joined statement reads its rows through a derived table that
+	/// repeats the master statement, with the master's bindings first, instead of joining the
+	/// whole master table. The extra ordering makes both copies of the master statement pick a row
+	/// with the same join keys, and so the same joined objects, even when the user's ordering
+	/// (or none) leaves ties, which an unordered `DISTINCT` on PostgreSQL may break differently
+	/// each time it runs.
+	var firstRowOnly = false
 	public var bindingsEncoder: CRUDBindingsEncoder?
 	public var columnFilters: (include: [String], exclude: [String]) = ([], [])
 	public init(delegate d: SQLGenDelegate) {

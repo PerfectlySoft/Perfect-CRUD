@@ -18,7 +18,7 @@ import Foundation
 // would mean reimplementing a small SQL engine, and nothing here needs it
 // (`DatabaseMigrator.migrate()` never filters a SELECT). Table/column names
 // are recovered by pattern-matching PerfectCRUD's own known-shape generated
-// SQL (`INSERT INTO "table" ("col", ...) VALUES (...)`, `FROM "table"`) --
+// SQL (`INSERT INTO "table" ("col", ...) VALUES (...)`, `FROM "table"`, a trailing `LIMIT n`) --
 // fragile in the general case, adequate for a fixture whose only clients
 // are this package's own generated SQL.
 
@@ -92,6 +92,10 @@ final class StatefulStubExeDelegate: SQLExeDelegate, @unchecked Sendable {
 				throw CRUDSQLGenError("StatefulStubExeDelegate could not parse SELECT statement: \(sql)")
 			}
 			pendingRows = store.rows(table: table)
+			// Honours a trailing `LIMIT n`, so a limit applied to the wrong statement shows up.
+			if let limit = Self.firstMatch(in: sql, pattern: #"LIMIT (\d+)\s*$"#).flatMap({ Int($0) }) {
+				pendingRows = Array(pendingRows.prefix(limit))
+			}
 		}
 		rowIndex += 1
 		return rowIndex < pendingRows.count

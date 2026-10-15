@@ -25,7 +25,7 @@ Simulator.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.0.0")
+    .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.1.0")
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
@@ -39,16 +39,38 @@ Then build and test with the standard SwiftPM commands: `swift build`, `swift te
 To use CRUD with a specific database, add the connector of your choice:
 
 ```swift
-.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", branch: "main")
-.package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", branch: "main")
-.package(url: "https://github.com/PerfectlySoft/Perfect-MariaDB.git", branch: "main")
-.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", branch: "main")
+.package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", from: "5.0.0")
+.package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", from: "4.0.0")
+.package(url: "https://github.com/PerfectlySoft/Perfect-MariaDB.git", from: "4.0.0")
+.package(url: "https://github.com/PerfectlySoft/Perfect-SQLite.git", from: "6.0.0")
 ```
 
-CRUD support is built directly into each connector package. The connectors' Swift 6 releases follow
-CRUD 3.0.0; switch each to `from:` once it's tagged. Until then, note that a connector on
-`branch: "main"` depends on CRUD's `main` branch too, so SwiftPM resolves CRUD to `main` rather than
-to 3.0.0.
+CRUD support is built directly into each connector package. These connector releases depend on CRUD
+`from: "3.0.1"`, so SwiftPM picks up 3.1.0 with them; list CRUD itself `from: "3.1.0"` as above to
+use `all()` and the other 3.1.0 additions.
+
+## Upgrading to 3.1
+
+3.1.0 adds throwing ways to read a query's results (see [Reading results](#reading-results)).
+Existing code keeps compiling, with one exception: if your app declares its own `all()`,
+`forEachRow(_:)` or `makeThrowingIterator()` on `Select`, or on `Sequence` (which `Select` conforms
+to), calls to it on a `Select` now become ambiguous or resolve to CRUD's throwing method and need
+`try`. Rename yours. Otherwise the changes are errors that used to be lost, and results that used to
+be wrong:
+
+* `first()`, `firstAsync()` and `fetchAll()` now throw when the query fails or a joined table's rows
+  can't be decoded, and `fetchAll()` throws when any row can't be decoded. They used to return `nil`
+  or the rows read before the failure.
+* `first()` on a join returns the parent with all of its joined objects. It used to apply its
+  `LIMIT 1` to the joined table, so the parent got at most one child (often none, when the first
+  child row belonged to another parent). It still reads a single parent row, and now only that
+  parent's joined objects. With joins and no `order`, it returns the parent with the lowest join key. Where that key can be NULL, MySQL and SQLite sort NULLs first, so the result can be a parent with no joined objects; PostgreSQL sorts them last. Add an `order` if that matters.
+* After a `SelectIterator` returns `nil` or throws, it keeps returning `nil`. Some connectors used to
+  run the query again, or carry on past a row that failed to decode.
+* `DatabaseMigrator.migrate()` throws if a migration record can't be read, instead of running the
+  migrations recorded after it again (see [Migrations](#migrations) to recover).
+* `for row in select` behaves as before: it logs an error and stops. Switch to `try select.all()` or
+  `try select.forEachRow { … }` where losing rows silently isn't acceptable.
 
 ## Migrating from 2.x
 
@@ -105,6 +127,7 @@ most likely to need attention when upgrading:
 	* <a href="#insert">Insert</a>
 	* <a href="#delete">Delete</a>
 	* <a href="#select">Select</a>
+		* <a href="#reading-results">Reading results</a>
 	* <a href="#count">Count</a>
 * <a href="#dbspecific">Database Specific Operations</a>
 	* <a href="#mysql-operations">MySQL</a>
@@ -181,11 +204,12 @@ let query = try personTable
 	.where(\Person.lastName == "Lars" && \PhoneNumber.planetCode == 12)
 	.select()
 
-// Loop through the results and print the names.
-for user in query {
+// Loop through the results and print the names. `forEachRow` throws if the query fails or a row
+// can't be decoded; a plain `for user in query` would log the error and stop instead.
+try query.forEachRow { user in
 	// We joined PhoneNumbers, so we should have values here.
 	guard let numbers = user.phoneNumbers else {
-		continue
+		return
 	}
 	for number in numbers {
 		print(number.number)
@@ -461,6 +485,8 @@ try migrator.rollbackLast(db)  // rolls back only the most recently applied migr
 ```
 
 A migration's `identifier` must be unique — `register` throws if it's already registered, since migrations are meant to be a fixed, reviewed sequence rather than silently overwritable. Applied migrations are tracked in a `perfectcrud_migrations` table, created automatically on first `migrate(_:)` call. Running `migrate(_:)` concurrently from every instance of a horizontally-scaled service against one shared network database is not safe — run it from exactly one process/deploy step for a network connector (SQLite's single-writer semantics make this less of a concern there).
+
+`migrate(_:)` reads only the `identifier` column of `perfectcrud_migrations`. If the table can't be read (for example a column with an unexpected type), it throws a `CRUDSQLExeError` that names the table, and runs no migrations: it can't tell which ones were applied. To recover, look at the table, then fix that row's `identifier`, or delete the row if that migration should run again, and call `migrate(_:)` again. `rollbackLast(_:)` reads `appliedAt` too, so a row whose `appliedAt` can't be read blocks it until the row is fixed.
 
 <a name="table-1"></a>
 ### Table
@@ -1067,9 +1093,9 @@ assert(j2.count == 0)
 
 **Select** can follow: `where`, `order`, `limit`, `join`, `table`.
 
-**Select** supports: iteration.
+**Select** supports: `all`, `forEachRow`, `makeThrowingIterator`, iteration.
 
-<a name="select">Select</a> returns an object which can be used to iterate over the resulting values.
+<a name="select">Select</a> returns an object which runs the query when you read its results. `first()` returns the first row, or `nil` if there are none. It reads only one row: the master table's statement gets `LIMIT 1` (keeping the offset of any `limit` on the master table), ordered last by each join's key so the joined objects belong to the row that's returned, and each joined table's statement reads only that row's joined objects. A `limit` after a `join` still limits that row's joined objects.
 
 ```swift
 public protocol Selectable: TableProtocol {
@@ -1079,6 +1105,35 @@ public protocol Selectable: TableProtocol {
 }
 ```
 
+<a name="reading-results"></a>
+#### Reading results
+
+Read a `Select` with one of its throwing methods. Each throws if the query fails (bad SQL, a server error, a joined table's row that can't be decoded) or a row can't be decoded, such as a `NULL` or zero date in a non-optional property:
+
+```swift
+let select = try table.where(\TestTable1.name != nil).select()
+
+// Every row, as an array.
+let rows = try select.all()
+
+// One row at a time. Throwing from the closure stops the loop and passes the error on.
+try select.forEachRow { row in
+	print(row.name ?? "")
+}
+
+// An iterator, to stop part way through without reading the rest.
+var iterator = try select.makeThrowingIterator()
+while let row = try iterator.nextElement() {
+	if row.id == 42 { break }
+}
+```
+
+`Select` is also a `Sequence`, so `for row in select`, `select.map { … }`, `Array(select)` and the other `Sequence` methods still work, but they can't throw. When something goes wrong they log the error through [`CRUDLogging`](#logging) and end the sequence early: a query that can't run yields no rows, and a row that can't be decoded ends the loop there, so that row and every row after it are skipped. Use them only where that's acceptable, and use `all()`, `forEachRow(_:)` or `makeThrowingIterator()` where it isn't. `first()`, `firstAsync()` and `fetchAll()` throw in the same cases as `all()`.
+
+`makeThrowingIterator()` reads every joined table's rows before it returns. On Perfect-PostgreSQL an error in the master query itself is thrown by the first `nextElement()` instead, because the statement only runs when the first row is read. Once the iterator has returned `nil` or thrown, it keeps returning `nil`.
+
+The throwing loop is called `forEachRow` rather than `forEach`: a throwing `forEach` on `Select` would hide `Sequence.forEach` and make every existing `select.forEach { … }` call need `try`.
+
 <a name="count">Count</a> works similarly to `select` but it will execute the query immediately and simply return the number of resulting objects. Object data is not actually fetched.
 
 Usage example:
@@ -1086,7 +1141,7 @@ Usage example:
 ```swift
 let table = db.table(TestTable1.self)
 let query = table.where(\TestTable1.blob == nil)
-let values = try query.select().map { $0 }
+let values = try query.select().all()
 let count = try query.count()
 assert(count == values.count)
 ```
@@ -1346,7 +1401,7 @@ Note that a custom primary key name can be specified when creating tables "shall
 <a name="error-handling"></a>
 ## Error Handling
 
-Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object. 
+Any error which occurs during SQL generation, execution, or results fetching will produce a thrown Error object, with one exception: iterating a `Select` as a `Sequence` (`for row in select`, `map` and so on) can't throw, so it logs the error and stops. Use `all()`, `forEachRow(_:)` or `makeThrowingIterator()` to get the error; see [Reading results](#reading-results).
 
 CRUD will throw `CRUDEncoderError` or `CRUDDecoderError` for errors occurring during type encoding and decoding, respectively.
 
